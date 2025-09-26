@@ -1,4 +1,6 @@
 // Sistema de Toggle de Tema VeloHub
+import React from 'react';
+
 export class ThemeToggle {
   constructor() {
     this.isDarkMode = false;
