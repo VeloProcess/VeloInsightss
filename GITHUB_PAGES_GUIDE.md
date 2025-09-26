@@ -80,13 +80,23 @@ git push origin main
 
 ### Se o site não carregar:
 1. Verifique se o GitHub Pages está habilitado
-2. Confirme se o branch `gh-pages` foi criado
+2. Confirme se o GitHub Actions está funcionando
 3. Verifique os logs do GitHub Actions
 
 ### Para habilitar GitHub Pages:
-1. Vá em Settings → Pages
-2. Source: Deploy from a branch
-3. Branch: `gh-pages` / `/ (root)`
+1. Vá em **Settings** → **Pages**
+2. **Source**: GitHub Actions
+3. **Branch**: Deixar vazio (usará GitHub Actions)
+
+### ⚠️ IMPORTANTE - Configuração Manual Necessária:
+
+**Você precisa configurar manualmente no GitHub:**
+
+1. **Acesse**: https://github.com/VeloProcess/VeloInsightss/settings/pages
+2. **Source**: Selecione "GitHub Actions"
+3. **Salve** as configurações
+
+**Sem essa configuração, o deploy não funcionará!**
 
 ## 🔄 Atualizações Futuras
 
