@@ -1,6 +1,6 @@
 @echo off
 echo ========================================
-echo    VeloInsights - Deploy Automático
+echo    VeloInsights - Deploy GitHub Pages
 echo ========================================
 echo.
 
@@ -24,10 +24,10 @@ echo ========================================
 echo    Deploy concluído com sucesso!
 echo ========================================
 echo.
-echo O Vercel irá detectar automaticamente
-echo as mudanças e fazer o redeploy.
+echo O GitHub Actions irá detectar automaticamente
+echo as mudanças e fazer o deploy no GitHub Pages.
 echo.
 echo GitHub: https://github.com/VeloProcess/VeloInsightss
-echo Vercel: https://vercel.com/dashboard
+echo Site: https://veloprocess.github.io/VeloInsightss/
 echo.
 pause

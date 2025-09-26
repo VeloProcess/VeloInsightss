@@ -2,15 +2,19 @@
 
 Sistema de análise de dados de atendimentos desenvolvido para a Velotax, com arquitetura local sem backend.
 
+## 🌐 Acesso Online
+
+- **GitHub Pages**: https://veloprocess.github.io/VeloInsightss/
+- **Repositório**: https://github.com/VeloProcess/VeloInsightss.git
+
 ## 🚀 Deploy Automático
 
-Este projeto está configurado para deploy automático no Vercel:
+Este projeto está configurado para deploy automático no GitHub Pages através de GitHub Actions.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/VeloProcess/VeloInsightss.git)
-
-### 🌐 Acesso Online
-- **Produção**: [veloinsights.vercel.app](https://veloinsights.vercel.app)
-- **Repositório**: [github.com/VeloProcess/VeloInsightss](https://github.com/VeloProcess/VeloInsightss.git)
+### 🔄 Deploy Automático
+- ✅ Push para `main` → Deploy automático
+- ✅ GitHub Actions configurado
+- ✅ URL: https://veloprocess.github.io/VeloInsightss/
 
 ## 🚀 Funcionalidades
 
