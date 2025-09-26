@@ -1,6 +1,16 @@
-# Velodados - Dashboard de Atendimentos
+# VeloInsights - Dashboard de Atendimentos
 
 Sistema de análise de dados de atendimentos desenvolvido para a Velotax, com arquitetura local sem backend.
+
+## 🚀 Deploy Automático
+
+Este projeto está configurado para deploy automático no Vercel:
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/VeloProcess/VeloInsightss.git)
+
+### 🌐 Acesso Online
+- **Produção**: [veloinsights.vercel.app](https://veloinsights.vercel.app)
+- **Repositório**: [github.com/VeloProcess/VeloInsightss](https://github.com/VeloProcess/VeloInsightss.git)
 
 ## 🚀 Funcionalidades
 
