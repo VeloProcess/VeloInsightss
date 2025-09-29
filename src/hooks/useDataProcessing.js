@@ -62,25 +62,42 @@ export const useDataProcessing = () => {
 
       // Aviso para arquivos grandes
       if (fileSizeMB > 30) {
-        const confirm = window.confirm(`⚠️ ARQUIVO GRANDE DETECTADO
+        const estimatedTime = Math.ceil(fileSizeMB / 15) // Estimativa mais realista
+        const memoryNeeded = Math.ceil(fileSizeMB * 3) // Memória necessária
+        
+        const confirm = window.confirm(`🚀 VELOINSIGHTS - ARQUIVO GRANDE DETECTADO
 
-═══════════════════════════════════════════════════════════════
-
-📊 Tamanho: ${fileSizeMB.toFixed(2)} MB
-🚨 Este arquivo pode demorar muito para processar
-
-═══════════════════════════════════════════════════════════════
-
-💡 RECOMENDAÇÕES:
-
-   📊 Dividir o arquivo em partes menores (< 10 MB)
-   🔧 Usar o backend para processamento
-   🎯 Filtrar os dados antes do upload
-   📅 Processar por períodos específicos
-
-═══════════════════════════════════════════════════════════════
-
-⚠️ Deseja continuar mesmo assim?`)
+╔══════════════════════════════════════════════════════════════╗
+║                    📊 INFORMAÇÕES DO ARQUIVO                ║
+╠══════════════════════════════════════════════════════════════╣
+║                                                              ║
+║  📁 Tamanho: ${fileSizeMB.toFixed(2)} MB
+║  ⏱️ Tempo estimado: ${estimatedTime} minutos
+║  💾 Memória necessária: ${memoryNeeded} MB
+║  🔄 Processamento: Web Worker ativo
+║                                                              ║
+╠══════════════════════════════════════════════════════════════╣
+║                    ⚠️ CONSIDERAÇÕES IMPORTANTES             ║
+╠══════════════════════════════════════════════════════════════╣
+║                                                              ║
+║  🎯 Este arquivo é considerado grande e pode:
+║     • Demorar mais tempo para processar
+║     • Consumir mais memória do navegador
+║     • Afetar a performance temporariamente
+║                                                              ║
+║  💡 Para melhor experiência, considere:
+║     • Dividir em arquivos menores (10-20 MB)
+║     • Filtrar dados desnecessários
+║     • Processar por períodos específicos
+║                                                              ║
+╠══════════════════════════════════════════════════════════════╣
+║                    🤔 DESEJA CONTINUAR?                     ║
+╠══════════════════════════════════════════════════════════════╣
+║                                                              ║
+║  ✅ SIM - Processar arquivo completo
+║  ❌ NÃO - Cancelar e otimizar arquivo
+║                                                              ║
+╚══════════════════════════════════════════════════════════════╝`)
 
         if (!confirm) {
           throw new Error('Processamento cancelado pelo usuário')
