@@ -61,43 +61,40 @@ export const useDataProcessing = () => {
       }
 
       // Aviso para arquivos grandes
-      if (fileSizeMB > 30) {
+      if (fileSizeMB > 20) {
         const estimatedTime = Math.ceil(fileSizeMB / 15) // Estimativa mais realista
         const memoryNeeded = Math.ceil(fileSizeMB * 3) // Memória necessária
         
         const confirm = window.confirm(`🚀 VELOINSIGHTS - ARQUIVO GRANDE DETECTADO
 
-╔══════════════════════════════════════════════════════════════╗
-║                    📊 INFORMAÇÕES DO ARQUIVO                ║
-╠══════════════════════════════════════════════════════════════╣
-║                                                              ║
-║  📁 Tamanho: ${fileSizeMB.toFixed(2)} MB
-║  ⏱️ Tempo estimado: ${estimatedTime} minutos
-║  💾 Memória necessária: ${memoryNeeded} MB
-║  🔄 Processamento: Web Worker ativo
-║                                                              ║
-╠══════════════════════════════════════════════════════════════╣
-║                    ⚠️ CONSIDERAÇÕES IMPORTANTES             ║
-╠══════════════════════════════════════════════════════════════╣
-║                                                              ║
-║  🎯 Este arquivo é considerado grande e pode:
-║     • Demorar mais tempo para processar
-║     • Consumir mais memória do navegador
-║     • Afetar a performance temporariamente
-║                                                              ║
-║  💡 Para melhor experiência, considere:
-║     • Dividir em arquivos menores (10-20 MB)
-║     • Filtrar dados desnecessários
-║     • Processar por períodos específicos
-║                                                              ║
-╠══════════════════════════════════════════════════════════════╣
-║                    🤔 DESEJA CONTINUAR?                     ║
-╠══════════════════════════════════════════════════════════════╣
-║                                                              ║
-║  ✅ SIM - Processar arquivo completo
-║  ❌ NÃO - Cancelar e otimizar arquivo
-║                                                              ║
-╚══════════════════════════════════════════════════════════════╝`)
+═══════════════════════════════════════════════════════════════
+
+📊 INFORMAÇÕES DO ARQUIVO:
+   📁 Tamanho: ${fileSizeMB.toFixed(2)} MB
+   ⏱️ Tempo estimado: ${estimatedTime} minutos
+   💾 Memória necessária: ${memoryNeeded} MB
+   🔄 Processamento: Web Worker ativo
+
+═══════════════════════════════════════════════════════════════
+
+⚠️ CONSIDERAÇÕES IMPORTANTES:
+
+🎯 Este arquivo é considerado grande e pode:
+   • Demorar mais tempo para processar
+   • Consumir mais memória do navegador
+   • Afetar a performance temporariamente
+
+💡 Para melhor experiência, considere:
+   • Dividir em arquivos menores (10-20 MB)
+   • Filtrar dados desnecessários
+   • Processar por períodos específicos
+
+═══════════════════════════════════════════════════════════════
+
+🤔 DESEJA CONTINUAR?
+
+✅ SIM - Processar arquivo completo
+❌ NÃO - Cancelar e otimizar arquivo`)
 
         if (!confirm) {
           throw new Error('Processamento cancelado pelo usuário')
