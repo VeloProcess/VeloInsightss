@@ -23,10 +23,10 @@ const UploadArea = ({ onFileUpload, disabled }) => {
       return
     }
     
-    // Validar tamanho (50MB limite)
-    const maxSize = 50 * 1024 * 1024 // 50MB
+    // Validar tamanho (40MB limite)
+    const maxSize = 40 * 1024 * 1024 // 40MB
     if (file.size > maxSize) {
-      alert('Arquivo muito grande. Tamanho máximo permitido: 50MB')
+      alert('Arquivo muito grande. Tamanho máximo permitido: 40MB')
       return
     }
     
