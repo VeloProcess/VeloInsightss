@@ -1,0 +1,144 @@
+.metrics-dashboard {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.rank-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  font-weight: bold;
+  font-size: 0.8rem;
+  color: white;
+}
+
+.rank-1 {
+  background: linear-gradient(135deg, #FFD700, #FFA500);
+  box-shadow: 0 2px 8px rgba(255, 215, 0, 0.3);
+}
+
+.rank-2 {
+  background: linear-gradient(135deg, #C0C0C0, #A0A0A0);
+  box-shadow: 0 2px 8px rgba(192, 192, 192, 0.3);
+}
+
+.rank-3 {
+  background: linear-gradient(135deg, #CD7F32, #B8860B);
+  box-shadow: 0 2px 8px rgba(205, 127, 50, 0.3);
+}
+
+.rank-badge:not(.rank-1):not(.rank-2):not(.rank-3) {
+  background: var(--color-blue-primary);
+  box-shadow: 0 2px 8px rgba(22, 52, 255, 0.3);
+}
+
+.score-value {
+  font-weight: bold;
+  color: var(--color-blue-light);
+  font-size: 1.1rem;
+}
+
+.rating {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-weight: 500;
+  font-size: 0.85rem;
+}
+
+.rating.good {
+  background: rgba(21, 162, 55, 0.2);
+  color: var(--color-green);
+}
+
+.rating.medium {
+  background: rgba(252, 194, 0, 0.2);
+  color: var(--color-yellow);
+}
+
+.rating.poor {
+  background: rgba(220, 53, 69, 0.2);
+  color: #dc3545;
+}
+
+.ranking-footer {
+  text-align: center;
+  padding: 15px;
+  border-top: 1px solid var(--color-border);
+  background: rgba(22, 52, 255, 0.05);
+}
+
+.ranking-footer p {
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+/* Responsividade para tabelas */
+@media (max-width: 768px) {
+  .table-container {
+    font-size: 0.8rem;
+  }
+  
+  .table th,
+  .table td {
+    padding: 8px 10px;
+  }
+  
+  .rank-badge {
+    width: 30px;
+    height: 30px;
+    font-size: 0.7rem;
+  }
+  
+  .score-value {
+    font-size: 1rem;
+  }
+  
+  .rating {
+    padding: 2px 6px;
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .table-container {
+    overflow-x: auto;
+    font-size: 0.75rem;
+  }
+  
+  .table th,
+  .table td {
+    padding: 6px 8px;
+    white-space: nowrap;
+  }
+  
+  .rank-badge {
+    width: 25px;
+    height: 25px;
+    font-size: 0.65rem;
+  }
+}
+
+/* Estilos para métricas avançadas */
+.metric-card.advanced {
+  border: 1px solid rgba(22, 148, 255, 0.3);
+  background: linear-gradient(135deg, rgba(22, 148, 255, 0.05), rgba(22, 52, 255, 0.05));
+}
+
+.metric-card.highlight {
+  border: 2px solid var(--color-blue-primary);
+  background: linear-gradient(135deg, rgba(22, 52, 255, 0.1), rgba(22, 148, 255, 0.1));
+  box-shadow: 0 4px 20px rgba(22, 52, 255, 0.3);
+  transform: scale(1.02);
+}
+
+.metric-card.advanced:hover,
+.metric-card.highlight:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 25px rgba(22, 52, 255, 0.4);
+}

@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Velodados - Dashboard de Atendimentos</title>
+    <link rel="stylesheet" href="css/colors.css">
+    <link rel="stylesheet" href="css/styles.css">
+    <!-- Chart.js para gráficos -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- PapaParse para parsing eficiente de CSV -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <!-- SheetJS para exportação Excel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- jsPDF para exportação PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- html2canvas para captura de tela -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+<body>
+    <!-- Header Fixo -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo-container">
+                <span class="logo-text">VeloInsights</span>
+            </div>
+            <h1 class="header-title">Dashboard de Atendimentos</h1>
+        </div>
+    </header>
+
+    <!-- Sidebar -->
+    <nav class="sidebar">
+        <ul class="sidebar-nav">
+            <li><a href="#overview" class="nav-link active" data-section="overview">📊 Visão Geral</a></li>
+            <li><a href="#operators" class="nav-link" data-section="operators">👥 Operadores</a></li>
+            <li><a href="#ranking" class="nav-link" data-section="ranking">🏆 Ranking</a></li>
+            <li><a href="#reports" class="nav-link" data-section="reports">📈 Relatórios</a></li>
+        </ul>
+    </nav>
+
+    <!-- Área Principal -->
+    <main class="main-content">
+        <!-- Seção: Visão Geral -->
+        <section id="overview" class="content-section active">
+            <h2>Visão Geral da Equipe</h2>
+            
+            <!-- Upload de Arquivo -->
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-content">
+                    <h3>📁 Faça upload do arquivo de dados</h3>
+                    <p>Arraste e solte um arquivo CSV ou Excel aqui, ou clique para selecionar</p>
+                    <p class="file-size-info">Arquivos até 50MB são processados no navegador. Arquivos maiores são enviados para o servidor.</p>
+                    <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" style="display: none;">
+                    <button class="btn" onclick="document.getElementById('fileInput').click()">
+                        Selecionar Arquivo
+                    </button>
+                </div>
+                
+                <!-- Indicador de Progresso -->
+                <div class="progress-container" id="progressContainer" style="display: none;">
+                    <div class="progress-header">
+                        <h3>⏳ Processando arquivo...</h3>
+                        <span class="progress-text" id="progressText">0%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <div class="progress-details" id="progressDetails">
+                        <p>Iniciando processamento...</p>
+                    </div>
+                    <button class="btn btn-secondary" id="cancelProcessing" style="margin-top: 10px;">
+                        Cancelar Processamento
+                    </button>
+                </div>
+            </div>
+
+            <!-- Cards de Métricas Gerais -->
+            <div class="cards-grid" id="metricsCards">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-icon">📞</div>
+                        <h3 class="card-title">Total de Atendimentos</h3>
+                    </div>
+                    <div class="card-value" id="totalCalls">-</div>
+                    <p class="card-subtitle">Atendimentos realizados</p>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-icon">⏱️</div>
+                        <h3 class="card-title">Tempo Médio</h3>
+                    </div>
+                    <div class="card-value" id="avgDuration">-</div>
+                    <p class="card-subtitle">Minutos por atendimento</p>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-icon">⭐</div>
+                        <h3 class="card-title">Nota Atendimento</h3>
+                    </div>
+                    <div class="card-value" id="avgRatingAttendance">-</div>
+                    <p class="card-subtitle">Avaliação média (1-5)</p>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-icon">✅</div>
+                        <h3 class="card-title">Nota Solução</h3>
+                    </div>
+                    <div class="card-value" id="avgRatingSolution">-</div>
+                    <p class="card-subtitle">Efetividade da solução</p>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-icon">👥</div>
+                        <h3 class="card-title">Operadores Ativos</h3>
+                    </div>
+                    <div class="card-value" id="activeOperators">-</div>
+                    <p class="card-subtitle">Pessoas na equipe</p>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-icon">⏸️</div>
+                        <h3 class="card-title">Tempo de Pausa</h3>
+                    </div>
+                    <div class="card-value" id="avgPause">-</div>
+                    <p class="card-subtitle">Minutos médios de pausa</p>
+                </div>
+            </div>
+
+            <!-- Gráficos -->
+            <div class="chart-container">
+                <h3 class="chart-title">Atendimentos por Dia</h3>
+                <canvas id="callsPerDayChart" width="400" height="200"></canvas>
+            </div>
+
+            <div class="chart-container">
+                <h3 class="chart-title">Distribuição das Avaliações</h3>
+                <canvas id="ratingsDistributionChart" width="400" height="200"></canvas>
+            </div>
+        </section>
+
+        <!-- Seção: Operadores -->
+        <section id="operators" class="content-section">
+            <h2>Análise Individual por Operador</h2>
+            <div class="placeholder">
+                <h3>Análise de Operadores</h3>
+                <p>Esta seção mostrará métricas detalhadas de cada operador após o upload dos dados.</p>
+            </div>
+        </section>
+
+        <!-- Seção: Ranking -->
+        <section id="ranking" class="content-section">
+            <h2>Ranking de Operadores</h2>
+            <div class="placeholder">
+                <h3>Ranking de Performance</h3>
+                <p>Esta seção mostrará o ranking ordenado dos operadores após o upload dos dados.</p>
+            </div>
+        </section>
+
+        <!-- Seção: Relatórios -->
+        <section id="reports" class="content-section">
+            <h2>Relatórios e Exportações</h2>
+            <div class="placeholder">
+                <h3>Exportação de Dados</h3>
+                <p>Esta seção permitirá exportar relatórios em PDF e Excel após o upload dos dados.</p>
+                <div style="margin-top: 20px;">
+                    <button class="btn" disabled>📊 Exportar Excel</button>
+                    <button class="btn btn-secondary" disabled>📄 Exportar PDF</button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Scripts -->
+    <script src="js/parser.js?v=13"></script>
+    <script src="js/metrics.js?v=13"></script>
+    <script src="js/velotax-parser.js?v=13"></script>
+    <script src="js/large-file-parser.js?v=13"></script>
+    <script src="js/ui.js?v=13"></script>
+    <script src="js/export.js?v=13"></script>
+</body>
+</html>
