@@ -12,15 +12,7 @@ export default defineConfig({
     outDir: 'dist',
     assetsDir: 'assets',
     sourcemap: false,
-    minify: 'terser',
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom'],
-          charts: ['chart.js']
-        }
-      }
-    }
+    minify: false
   },
   preview: {
     port: 3000,
