@@ -81,7 +81,7 @@ export const useGoogleSheetsDirect = () => {
     try {
       setIsLoading(true)
       
-      const redirectUri = window.location.origin
+      const redirectUri = `${window.location.origin}/callback.html`
       const clientSecret = import.meta.env.VITE_GOOGLE_CLIENT_SECRET
       
       console.log('🔑 Client Secret configurado:', clientSecret ? 'SIM' : 'NÃO')
@@ -198,7 +198,7 @@ export const useGoogleSheetsDirect = () => {
       setIsLoading(true)
       
       // Configurações OAuth2
-      const redirectUri = window.location.origin
+      const redirectUri = `${window.location.origin}/callback.html`
       const scope = 'https://www.googleapis.com/auth/spreadsheets.readonly profile email'
       const responseType = 'code'
       
