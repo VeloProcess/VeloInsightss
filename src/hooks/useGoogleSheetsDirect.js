@@ -75,6 +75,12 @@ export const useGoogleSheetsDirect = () => {
       window.history.replaceState({}, document.title, window.location.pathname)
     }
 
+  }, [CLIENT_ID])
+
+  // Verificar localStorage após exchangeCodeForTokens ser definido
+  useEffect(() => {
+    if (!CLIENT_ID || CLIENT_ID === 'seu_client_id_aqui') return
+
     // Verificar se há código de autorização no localStorage (callback direto)
     const storedAuthCode = localStorage.getItem('google_auth_code')
     const storedAuthError = localStorage.getItem('google_auth_error')
