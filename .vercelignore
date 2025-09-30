@@ -7,16 +7,18 @@ README.md
 tests/
 uploads/
 Base_teste/
-src/
 api/
-public/
+html-version/
 *.bat
 test-api.js
 .vscode/
 .idea/
 
-# Manter apenas o necessário
+# Manter apenas o necessário para React/Vite
 !dist/
 !package.json
 !package-lock.json
 !vercel.json
+!src/
+!index.html
+!vite.config.js
