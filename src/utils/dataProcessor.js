@@ -206,6 +206,8 @@ const calcularMetricas = (dados) => {
     abandonada,
     notaMediaAtendimento: parseFloat(notaMediaAtendimento.toFixed(1)),
     notaMediaSolucao: parseFloat(notaMediaSolucao.toFixed(1)),
+    avgRatingAttendance: parseFloat(notaMediaAtendimento.toFixed(1)), // Campo esperado pelo dashboard
+    avgRatingSolution: parseFloat(notaMediaSolucao.toFixed(1)), // Campo esperado pelo dashboard
     duracaoMediaAtendimento: parseFloat(duracaoMediaAtendimento.toFixed(1)),
     tempoMedioEspera: parseFloat(tempoMedioEspera.toFixed(1)),
     tempoMedioURA: parseFloat(tempoMedioURA.toFixed(1)),
