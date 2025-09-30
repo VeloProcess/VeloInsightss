@@ -113,8 +113,10 @@ const calcularMetricas = (dados) => {
     return horas * 60 + minutos + segundos / 60
   }
 
-  // Contagem de chamadas por status - VERSÃO PERFEITA
+  // Contagem de chamadas por status - VERSÃO PERFEITA CORRIGIDA
   const totalChamadas = dados.length
+  
+  console.log(`📊 Debug - Total de linhas processadas: ${totalChamadas}`)
   
   const retidaURA = dados.filter(row => {
     const chamada = row.chamada || ''
@@ -136,6 +138,13 @@ const calcularMetricas = (dados) => {
     const tempoFaladoMinutos = tempoParaMinutos(tempoFalado)
     return tempoEsperaMinutos > 0 && tempoFaladoMinutos === 0 && !chamada.toLowerCase().includes('retida')
   }).length
+
+  console.log(`📊 Debug - Status das chamadas:`, {
+    retidaURA,
+    atendida,
+    abandonada,
+    soma: retidaURA + atendida + abandonada
+  })
 
   // Cálculo de médias - VERSÃO PERFEITA
   const temposFalado = dados.map(row => tempoParaMinutos(row.tempoFalado)).filter(tempo => tempo > 0)
@@ -161,6 +170,13 @@ const calcularMetricas = (dados) => {
   const notasSolucaoValidas = dados.filter(d => d.notaSolucao !== null)
   const notaMediaSolucao = notasSolucaoValidas.length > 0 ?
     notasSolucaoValidas.reduce((sum, d) => sum + d.notaSolucao, 0) / notasSolucaoValidas.length : 0
+
+  console.log(`📊 Debug - Notas:`, {
+    notasAtendimentoValidas: notasAtendimentoValidas.length,
+    notasSolucaoValidas: notasSolucaoValidas.length,
+    notaMediaAtendimento: notaMediaAtendimento.toFixed(2),
+    notaMediaSolucao: notaMediaSolucao.toFixed(2)
+  })
 
   // Taxas
   const taxaAtendimento = totalChamadas > 0 ? (atendida / totalChamadas) * 100 : 0
