@@ -1,6 +1,4 @@
-import { OPERADORES_PERMITIDOS, OPERADORES_EXCLUIDOS, FILTRO_CONFIG } from '../config/operadores'
-
-// Função para processar dados da planilha
+// Função para processar dados da planilha - VERSÃO SIMPLIFICADA
 export const processarDados = (dados) => {
   if (!dados || dados.length === 0) {
     console.log('⚠️ Nenhum dado para processar')
@@ -35,7 +33,7 @@ export const processarDados = (dados) => {
 
   console.log('📍 Índices das colunas:', indices)
 
-  // Processar dados linha por linha
+  // Processar dados linha por linha - SEM FILTROS
   const dadosProcessados = []
   const operadoresEncontrados = new Set()
 
@@ -46,31 +44,6 @@ export const processarDados = (dados) => {
 
       const operador = linha[indices.operador]
       if (!operador || operador.trim() === '') return
-
-      // Aplicar filtros (busca flexível por nome)
-      const operadorLimpo = operador.trim()
-      
-      if (FILTRO_CONFIG.usarListaExclusao) {
-        const estaExcluido = OPERADORES_EXCLUIDOS.some(excluido => 
-          operadorLimpo.toLowerCase().includes(excluido.toLowerCase()) ||
-          excluido.toLowerCase().includes(operadorLimpo.toLowerCase())
-        )
-        if (estaExcluido) {
-          console.log(`🚫 Operador excluído: ${operador}`)
-          return
-        }
-      }
-
-      if (FILTRO_CONFIG.usarListaPermitida) {
-        const estaPermitido = OPERADORES_PERMITIDOS.some(permitido => 
-          operadorLimpo.toLowerCase().includes(permitido.toLowerCase()) ||
-          permitido.toLowerCase().includes(operadorLimpo.toLowerCase())
-        )
-        if (!estaPermitido) {
-          console.log(`❌ Operador não permitido: ${operador}`)
-          return
-        }
-      }
 
       // Processar dados da linha - VERSÃO PERFEITA
       const dadosLinha = {
@@ -95,7 +68,7 @@ export const processarDados = (dados) => {
   })
 
   console.log(`✅ ${dadosProcessados.length} linhas processadas`)
-  console.log(`👥 ${operadoresEncontrados.size} operadores encontrados:`, Array.from(operadoresEncontrados))
+  console.log(`👥 ${operadoresEncontrados.size} operadores encontrados`)
 
   // Calcular métricas gerais
   const metricas = calcularMetricas(dadosProcessados)
