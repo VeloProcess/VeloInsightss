@@ -11,7 +11,7 @@ import ProgressIndicator from './components/ProgressIndicator'
 import AdvancedFilters from './components/AdvancedFilters'
 import DarkListManager from './components/DarkListManager'
 import PeriodSelector from './components/PeriodSelector'
-import { useGoogleSheetsDirect } from './hooks/useGoogleSheetsDirect'
+import { useGoogleSheetsDirectSimple } from './hooks/useGoogleSheetsDirectSimple'
 import { useDataFilters } from './hooks/useDataFilters'
 import { useTheme } from './hooks/useTheme'
 import './styles/App.css'
@@ -52,7 +52,7 @@ function App() {
     addToDarkList,
     removeFromDarkList,
     clearDarkList
-  } = useGoogleSheetsDirect()
+  } = useGoogleSheetsDirectSimple()
 
   const {
     filters,
