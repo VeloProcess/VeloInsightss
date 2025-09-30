@@ -42,10 +42,9 @@ export const processarDados = (dados) => {
       // Verificar se a linha tem dados suficientes
       if (!linha || linha.length < 3) return
 
-      const operador = linha[indices.operador]
-      if (!operador || operador.trim() === '') return
+      const operador = linha[indices.operador] || 'Sem Operador'
 
-      // Processar dados da linha - VERSÃO PERFEITA
+      // Processar dados da linha - VERSÃO PERFEITA (TODAS AS LINHAS)
       const dadosLinha = {
         linha: index + 2,
         chamada: linha[indices.chamada] || '',
@@ -117,6 +116,11 @@ const calcularMetricas = (dados) => {
   const totalChamadas = dados.length
   
   console.log(`📊 Debug - Total de linhas processadas: ${totalChamadas}`)
+  
+  // Verificar se temos exatamente 5000 linhas (incluindo cabeçalho)
+  if (totalChamadas < 4999) {
+    console.log(`⚠️ Aviso: Esperávamos ~5000 linhas, mas temos apenas ${totalChamadas}`)
+  }
   
   const retidaURA = dados.filter(row => {
     const chamada = row.chamada || ''
