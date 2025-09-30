@@ -36,7 +36,7 @@ export const useDataFilters = (data) => {
 
       // Filtrar por operador
       if (filters.operator) {
-        filtered = filtered.filter(record => record['Operador'] === filters.operator)
+        filtered = filtered.filter(record => record.operador === filters.operator)
       }
 
            // Filtrar por período
@@ -60,8 +60,8 @@ export const useDataFilters = (data) => {
 
              if (startDate) {
                filtered = filtered.filter(record => {
-                 if (!record['Data']) return false
-                 const recordDate = new Date(record['Data'])
+                 if (!record.data) return false
+                 const recordDate = new Date(record.data)
                  return recordDate >= startDate && recordDate <= today
                })
              }
@@ -71,8 +71,8 @@ export const useDataFilters = (data) => {
              const endDate = new Date(filters.dateRange.end)
              
              filtered = filtered.filter(record => {
-               if (!record['Data']) return false
-               const recordDate = new Date(record['Data'])
+               if (!record.data) return false
+               const recordDate = new Date(record.data)
                return recordDate >= startDate && recordDate <= endDate
              })
            }
