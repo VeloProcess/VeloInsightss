@@ -1,7 +1,7 @@
 import React, { memo } from 'react'
 import './MetricsDashboard.css'
 
-const MetricsDashboard = memo(({ metrics, operatorMetrics, rankings }) => {
+const MetricsDashboard = memo(({ metrics, operatorMetrics, rankings, darkList, addToDarkList, removeFromDarkList }) => {
   if (!metrics) {
     return (
       <div className="metrics-dashboard">
@@ -26,71 +26,66 @@ const MetricsDashboard = memo(({ metrics, operatorMetrics, rankings }) => {
         
         <div className="card-content">
           <div className="metrics-grid">
+            {/* Total de Chamadas */}
             <div className="metric-card">
               <div className="metric-value">{metrics.totalCalls || 0}</div>
               <div className="metric-label">Total de Chamadas</div>
             </div>
             
+            {/* Status das Chamadas */}
             <div className="metric-card">
-              <div className="metric-value">{metrics.avgDuration?.toFixed(1) || '0.0'} min</div>
-              <div className="metric-label">Duração Média</div>
+              <div className="metric-value">{metrics.retidaURA || 0}</div>
+              <div className="metric-label">Retida na URA</div>
             </div>
             
             <div className="metric-card">
-              <div className="metric-value">{metrics.avgRatingAttendance?.toFixed(1) || '0.0'}/5</div>
-              <div className="metric-label">Nota Média de Atendimento</div>
+              <div className="metric-value">{metrics.atendida || 0}</div>
+              <div className="metric-label">Atendida</div>
             </div>
             
             <div className="metric-card">
-              <div className="metric-value">{metrics.avgRatingSolution?.toFixed(1) || '0.0'}/5</div>
-              <div className="metric-label">Nota Média de Solução</div>
+              <div className="metric-value">{metrics.abandonada || 0}</div>
+              <div className="metric-label">Abandonada</div>
             </div>
             
-            <div className="metric-card">
-              <div className="metric-value">{metrics.avgPauseTime?.toFixed(1) || '0.0'} min</div>
-              <div className="metric-label">Tempo Médio Pausado</div>
-            </div>
-            
-            <div className="metric-card">
-              <div className="metric-value">{metrics.totalOperators || 0}</div>
-              <div className="metric-label">Total de Operadores</div>
-            </div>
-            
-            <div className="metric-card">
-              <div className="metric-value">{metrics.totalRecords || 0}</div>
-              <div className="metric-label">Total de Registros</div>
-            </div>
+                   {/* Notas */}
+                   <div className="metric-card">
+                     <div className="metric-value">{metrics.avgRatingAttendance || '0.0'}/5</div>
+                     <div className="metric-label">Nota Média de Atendimento</div>
+                   </div>
+                   
+                   <div className="metric-card">
+                     <div className="metric-value">{metrics.avgRatingSolution || '0.0'}/5</div>
+                     <div className="metric-label">Nota Média de Solução</div>
+                   </div>
+                   
+                   {/* Tempos */}
+                   <div className="metric-card">
+                     <div className="metric-value">{metrics.duracaoMediaAtendimento || '0.0'} min</div>
+                     <div className="metric-label">Duração Média de Atendimento</div>
+                   </div>
+                   
+                   <div className="metric-card">
+                     <div className="metric-value">{metrics.tempoMedioEspera || '0.0'} min</div>
+                     <div className="metric-label">Tempo Médio de Espera</div>
+                   </div>
+                   
+                   <div className="metric-card">
+                     <div className="metric-value">{metrics.tempoMedioURA || '0.0'} min</div>
+                     <div className="metric-label">Tempo Médio na URA</div>
+                   </div>
+                   
+                   {/* Taxas */}
+                   <div className="metric-card">
+                     <div className="metric-value">{metrics.taxaAtendimento || '0.0'}%</div>
+                     <div className="metric-label">Taxa de Atendimento</div>
+                   </div>
+                   
+                   <div className="metric-card">
+                     <div className="metric-value">{metrics.taxaAbandono || '0.0'}%</div>
+                     <div className="metric-label">Taxa de Abandono</div>
+                   </div>
 
-            {/* Métricas Avançadas */}
-            <div className="metric-card advanced">
-              <div className="metric-value">{metrics.abandonmentRate}%</div>
-              <div className="metric-label">Taxa de Abandono</div>
-            </div>
-
-            <div className="metric-card advanced">
-              <div className="metric-value">{metrics.serviceLevel}%</div>
-              <div className="metric-label">Nível de Serviço</div>
-            </div>
-
-            <div className="metric-card advanced">
-              <div className="metric-value">{metrics.efficiencyScore}%</div>
-              <div className="metric-label">Score de Eficiência</div>
-            </div>
-
-            <div className="metric-card advanced">
-              <div className="metric-value">{metrics.firstCallResolution}%</div>
-              <div className="metric-label">Resolução 1ª Chamada</div>
-            </div>
-
-            <div className="metric-card advanced">
-              <div className="metric-value">{metrics.customerSatisfaction}%</div>
-              <div className="metric-label">Satisfação do Cliente</div>
-            </div>
-
-            <div className="metric-card advanced">
-              <div className="metric-value">{metrics.avgCallsPerOperator?.toFixed(1) || '0.0'}</div>
-              <div className="metric-label">Chamadas por Operador</div>
-            </div>
 
             {/* Estatísticas de Chamadas */}
             {metrics.callStatuses && Object.keys(metrics.callStatuses).length > 0 && (
@@ -129,23 +124,53 @@ const MetricsDashboard = memo(({ metrics, operatorMetrics, rankings }) => {
                     <th>Duração Média</th>
                     <th>Nota Atendimento</th>
                     <th>Nota Solução</th>
+                    <th>Ações</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rankings.slice(0, 10).map((operator, index) => (
-                    <tr key={operator.operator} className={index < 3 ? 'top-3' : ''}>
+                    <tr key={operator.operator} className={`${index < 3 ? 'top-3' : ''} ${operator.isExcluded ? 'excluded-row' : ''} ${operator.isDesligado ? 'desligado-row' : ''}`}>
                       <td className="position">
-                        {index === 0 && '🥇'}
-                        {index === 1 && '🥈'}
-                        {index === 2 && '🥉'}
-                        {index > 2 && `${index + 1}º`}
+                        {operator.isExcluded ? '🚫' : operator.isDesligado ? '👤' : (
+                          <>
+                            {index === 0 && '🥇'}
+                            {index === 1 && '🥈'}
+                            {index === 2 && '🥉'}
+                            {index > 2 && `${index + 1}º`}
+                          </>
+                        )}
                       </td>
-                      <td className="operator-name">{operator.operator}</td>
-                      <td className="score">{operator.score.toFixed(1)}</td>
-                      <td>{operator.totalCalls}</td>
-                      <td>{operator.avgDuration.toFixed(1)} min</td>
-                      <td>{operator.avgRatingAttendance.toFixed(1)}/5</td>
-                      <td>{operator.avgRatingSolution.toFixed(1)}/5</td>
+                      <td className="operator-name">
+                        {operator.operator}
+                        {operator.isExcluded && <span className="excluded-badge"> (Excluído)</span>}
+                        {operator.isDesligado && <span className="desligado-badge"> (Desligado)</span>}
+                      </td>
+                      <td className="score">{operator.score}</td>
+                      <td>{operator.totalAtendimentos}</td>
+                      <td>{operator.avgDuration} min</td>
+                      <td>{operator.avgRatingAttendance}/5</td>
+                      <td>{operator.avgRatingSolution}/5</td>
+                      <td>
+                        {operator.isExcluded ? (
+                          <button 
+                            className="action-button restore"
+                            onClick={() => removeFromDarkList(operator.operator)}
+                            title="Restaurar operador"
+                          >
+                            ✅ Restaurar
+                          </button>
+                        ) : operator.isDesligado ? (
+                          <span className="desligado-info">Desligado</span>
+                        ) : (
+                          <button 
+                            className="action-button exclude"
+                            onClick={() => addToDarkList(operator.operator)}
+                            title="Excluir da análise"
+                          >
+                            🚫 Excluir
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

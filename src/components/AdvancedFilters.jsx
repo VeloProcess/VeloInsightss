@@ -102,7 +102,7 @@ const AdvancedFilters = memo(({
     })
   }
 
-  const availableOperators = operatorMetrics.map(op => op.operator).sort()
+  const availableOperators = Object.keys(operatorMetrics).sort()
 
   // Calcular estatísticas para tooltips
   const stats = {

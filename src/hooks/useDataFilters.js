@@ -34,10 +34,10 @@ export const useDataFilters = (data) => {
     }
     let filtered = [...data]
 
-    // Filtrar por operador
-    if (filters.operator) {
-      filtered = filtered.filter(record => record.operator === filters.operator)
-    }
+      // Filtrar por operador
+      if (filters.operator) {
+        filtered = filtered.filter(record => record['Operador'] === filters.operator)
+      }
 
            // Filtrar por período
            if (filters.period !== 'custom' && filters.period !== 'all') {
@@ -60,8 +60,8 @@ export const useDataFilters = (data) => {
 
              if (startDate) {
                filtered = filtered.filter(record => {
-                 if (!record.date) return false
-                 const recordDate = new Date(record.date)
+                 if (!record['Data']) return false
+                 const recordDate = new Date(record['Data'])
                  return recordDate >= startDate && recordDate <= today
                })
              }
@@ -71,36 +71,30 @@ export const useDataFilters = (data) => {
              const endDate = new Date(filters.dateRange.end)
              
              filtered = filtered.filter(record => {
-               if (!record.date) return false
-               const recordDate = new Date(record.date)
+               if (!record['Data']) return false
+               const recordDate = new Date(record['Data'])
                return recordDate >= startDate && recordDate <= endDate
              })
            }
 
-           // Filtrar por número mínimo de chamadas
-           if (filters.minCalls) {
-             const minCalls = parseInt(filters.minCalls)
-             filtered = filtered.filter(record => (record.call_count || 0) >= minCalls)
-           }
-
-           // Filtrar por avaliação mínima
+           // Filtrar por avaliação mínima de atendimento
            if (filters.minRating) {
              const minRating = parseFloat(filters.minRating)
              filtered = filtered.filter(record => 
-               record.rating_attendance && record.rating_attendance >= minRating
+               record['Pergunta2 1 PERGUNTA ATENDENTE'] && parseFloat(record['Pergunta2 1 PERGUNTA ATENDENTE']) >= minRating
              )
            }
 
            // Filtrar por duração mínima
            if (filters.minDuration) {
              const minDuration = parseFloat(filters.minDuration)
-             filtered = filtered.filter(record => (record.duration_minutes || 0) >= minDuration)
+             filtered = filtered.filter(record => parseFloat(record['Tempo Falado'] || 0) >= minDuration)
            }
 
            // Filtrar por duração máxima
            if (filters.maxDuration) {
              const maxDuration = parseFloat(filters.maxDuration)
-             filtered = filtered.filter(record => (record.duration_minutes || 0) <= maxDuration)
+             filtered = filtered.filter(record => parseFloat(record['Tempo Falado'] || 0) <= maxDuration)
            }
 
     // Salvar no cache

@@ -1,40 +1,22 @@
-# Vercel ignore file
-# Ignore development files and folders
-
-# Development files
-*.log
-*.tmp
-*.temp
-
-# IDE files
+# Arquivos desnecessários para o deploy
+node_modules
+.git
+.gitignore
+README.md
+*.md
+tests/
+uploads/
+Base_teste/
+src/
+api/
+public/
+*.bat
+test-api.js
 .vscode/
 .idea/
-*.swp
-*.swo
 
-# OS files
-.DS_Store
-Thumbs.db
-
-# Test files
-tests/
-*.test.js
-*.test.jsx
-*.spec.js
-*.spec.jsx
-
-# Documentation (keep only essential)
-*.md
-!README.md
-
-# Backup files
-BACKUP_*
-CONFIGURACAO_*
-VERSAO_*
-CHANGELOG_*
-
-# Uploads folder (if contains sensitive data)
-uploads/
-
-# Node modules will be installed fresh
-node_modules/
+# Manter apenas o necessário
+!dist/
+!package.json
+!package-lock.json
+!vercel.json

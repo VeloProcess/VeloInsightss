@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import Header from './components/Header'
 import Sidebar from './components/Sidebar'
-import UploadArea from './components/UploadArea'
+import DataFetcher from './components/DataFetcher'
 import MetricsDashboard from './components/MetricsDashboard'
 import ChartsSection from './components/ChartsSection'
 import ExportSection from './components/ExportSection'
@@ -9,16 +9,15 @@ import OperatorAnalysis from './components/OperatorAnalysis'
 import ProgressIndicator from './components/ProgressIndicator'
 import AdvancedFilters from './components/AdvancedFilters'
 import DarkListManager from './components/DarkListManager'
-import { useDataProcessing } from './hooks/useDataProcessing'
+import PeriodSelector from './components/PeriodSelector'
+import { useGoogleSheetsDirect } from './hooks/useGoogleSheetsDirect'
 import { useDataFilters } from './hooks/useDataFilters'
 import { useTheme } from './hooks/useTheme'
 import './styles/App.css'
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [currentView, setCurrentView] = useState('upload')
-  const [isProcessing, setIsProcessing] = useState(false)
-  const [progress, setProgress] = useState({ current: 0, total: 100, message: '' })
+  const [currentView, setCurrentView] = useState('fetch')
   const [selectedOperator, setSelectedOperator] = useState(null)
   const [viewMode, setViewMode] = useState('company') // 'company' ou 'operator'
   const [showDarkList, setShowDarkList] = useState(false)
@@ -26,19 +25,33 @@ function App() {
   // Sistema de temas
   const { theme, toggleTheme } = useTheme()
   
+  // Hook do Google Sheets
   const {
     data,
     metrics,
     operatorMetrics,
     rankings,
     errors,
-    darkList,
     operators,
-    updateDarkList,
-    extractOperators,
-    processFile,
-    clearData
-  } = useDataProcessing()
+    isLoading,
+    isAuthenticated,
+    userData,
+    selectedPeriod,
+    customDateRange,
+    fetchSheetData,
+    fetchDataByPeriod,
+    filterDataByDateRange,
+    setSelectedPeriod,
+    setCustomDateRange,
+    signIn,
+    signOut,
+    clearData,
+    // Dark List functions
+    darkList,
+    addToDarkList,
+    removeFromDarkList,
+    clearDarkList
+  } = useGoogleSheetsDirect()
 
   const {
     filters,
@@ -46,21 +59,72 @@ function App() {
     handleFiltersChange
   } = useDataFilters(data)
 
-  const handleFileUpload = async (file) => {
-    setIsProcessing(true)
-    setProgress({ current: 0, total: 100, message: 'Iniciando processamento...' })
-    
+  const handleFetchData = async () => {
     try {
-      await processFile(file, (progressData) => {
-        setProgress(progressData)
-      })
-      setCurrentView('dashboard')
+      if (!isAuthenticated || !userData) {
+        console.error('❌ Usuário não autenticado!')
+        return
+      }
+      
+      console.log('🔄 Iniciando busca de dados (carregamento rápido)...')
+      
+      // Carregamento inicial rápido (dados recentes)
+      await fetchSheetData(userData.accessToken, 'recent')
+      
+      // Aguardar um pouco para o estado ser atualizado
+      setTimeout(() => {
+        console.log('📊 Dados após busca:', data.length)
+        if (data && data.length > 0) {
+          console.log('✅ Navegando para dashboard...')
+          setCurrentView('dashboard')
+        } else {
+          console.log('⚠️ Nenhum dado encontrado')
+        }
+      }, 1000)
+      
     } catch (error) {
-      console.error('❌ Erro no upload:', error)
-      alert(`Erro ao processar arquivo: ${error.message}`)
-      setCurrentView('upload') // Voltar para upload em caso de erro
-    } finally {
-      setIsProcessing(false)
+      console.error("Erro ao buscar dados:", error)
+    }
+  }
+
+  const handleSignIn = async () => {
+    try {
+      await signIn()
+    } catch (error) {
+      console.error("Erro ao fazer login:", error)
+    }
+  }
+
+  const handleSignOut = async () => {
+    try {
+      await signOut()
+      setCurrentView('fetch')
+    } catch (error) {
+      console.error("Erro ao fazer logout:", error)
+    }
+  }
+
+  // Funções para controle de período
+  const handlePeriodChange = (period) => {
+    setSelectedPeriod(period)
+  }
+
+  const handleCustomDateChange = (dateRange) => {
+    setCustomDateRange(dateRange)
+  }
+
+  const handleFetchFullData = async () => {
+    try {
+      if (!isAuthenticated || !userData) {
+        console.error('❌ Usuário não autenticado!')
+        return
+      }
+      
+      console.log('🔄 Carregando dados completos...')
+      await fetchDataByPeriod('full')
+      
+    } catch (error) {
+      console.error("Erro ao carregar dados completos:", error)
     }
   }
 
@@ -80,13 +144,17 @@ function App() {
 
   const handleClearData = () => {
     clearData()
-    setCurrentView('upload')
+    setCurrentView('fetch')
     setSelectedOperator(null)
     setViewMode('company')
   }
 
   const handleOperatorSelect = (operator) => {
     setSelectedOperator(operator || null)
+  }
+
+  const updateDarkList = (newDarkList) => {
+    setDarkList(newDarkList)
   }
 
   return (
@@ -113,22 +181,36 @@ function App() {
         />
         
         <main className={`main-content ${sidebarOpen ? 'sidebar-open' : ''}`}>
-          {isProcessing && (
+          {isLoading && (
             <ProgressIndicator 
-              progress={progress}
-              onCancel={() => setIsProcessing(false)}
+              progress={{ current: 50, total: 100, message: 'Carregando dados...' }}
+              onCancel={() => {}}
             />
           )}
           
-          {currentView === 'upload' && (
-            <UploadArea 
-              onFileUpload={handleFileUpload}
-              disabled={isProcessing}
+          {currentView === 'fetch' && (
+            <DataFetcher 
+              isLoading={isLoading}
+              isAuthenticated={isAuthenticated}
+              userData={userData}
+              onFetchData={handleFetchData}
+              onSignIn={handleSignIn}
+              onSignOut={handleSignOut}
+              errors={errors}
             />
           )}
           
           {currentView === 'dashboard' && data && data.length > 0 && (
             <>
+              <PeriodSelector
+                selectedPeriod={selectedPeriod}
+                onPeriodChange={handlePeriodChange}
+                customDateRange={customDateRange}
+                onCustomDateChange={handleCustomDateChange}
+                isLoading={isLoading}
+                onFetchFullData={handleFetchFullData}
+              />
+              
               <AdvancedFilters
                 filters={filters}
                 onFiltersChange={handleFiltersChange}
@@ -152,6 +234,9 @@ function App() {
                 operatorMetrics={operatorMetrics}
                 rankings={rankings}
                 filteredData={filteredData}
+                darkList={darkList}
+                addToDarkList={addToDarkList}
+                removeFromDarkList={removeFromDarkList}
               />
               <ChartsSection 
                 data={data}
@@ -192,13 +277,15 @@ function App() {
       </div>
       
       {/* Dark List Manager */}
-      <DarkListManager
-        operators={operators}
-        darkList={darkList}
-        onDarkListChange={updateDarkList}
-        isVisible={showDarkList}
-        onToggle={() => setShowDarkList(!showDarkList)}
-      />
+      {showDarkList && (
+        <DarkListManager
+          operators={operators}
+          darkList={darkList}
+          onDarkListChange={updateDarkList}
+          isVisible={showDarkList}
+          onToggle={() => setShowDarkList(!showDarkList)}
+        />
+      )}
     </div>
   )
 }

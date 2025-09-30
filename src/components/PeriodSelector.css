@@ -1,0 +1,220 @@
+/* PeriodSelector.css */
+.period-selector {
+  background: var(--color-card-bg);
+  border-radius: 16px;
+  padding: 2rem;
+  margin: 2rem 0;
+  border: 1px solid var(--color-card-border);
+  box-shadow: 0 4px 12px var(--color-shadow);
+}
+
+.period-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.period-header h3 {
+  color: var(--color-text-primary);
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.period-header p {
+  color: var(--color-text-secondary);
+  font-size: 1rem;
+}
+
+.period-options {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.period-buttons {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.period-btn {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem;
+  background: var(--color-bg-primary);
+  border: 2px solid var(--color-border-secondary);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: left;
+}
+
+.period-btn:hover {
+  border-color: var(--color-blue-primary);
+  background: var(--color-card-hover);
+  transform: translateY(-2px);
+}
+
+.period-btn.active {
+  border-color: var(--color-blue-primary);
+  background: var(--color-card-hover);
+  box-shadow: 0 4px 12px rgba(22, 52, 255, 0.2);
+}
+
+.period-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.period-icon {
+  font-size: 2rem;
+  flex-shrink: 0;
+}
+
+.period-info {
+  flex: 1;
+}
+
+.period-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: 0.25rem;
+}
+
+.period-desc {
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+}
+
+.custom-range {
+  background: var(--color-bg-primary);
+  border-radius: 12px;
+  padding: 1.5rem;
+  border: 1px solid var(--color-border-secondary);
+}
+
+.date-inputs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.date-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.date-input-group label {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.date-input-group input {
+  padding: 0.75rem;
+  border: 1px solid var(--color-border-secondary);
+  border-radius: 8px;
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  font-size: 1rem;
+  transition: border-color 0.3s ease;
+}
+
+.date-input-group input:focus {
+  outline: none;
+  border-color: var(--color-blue-primary);
+}
+
+.date-input-group input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.apply-custom-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1rem 2rem;
+  background: var(--color-blue-primary);
+  color: var(--color-text-light);
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  width: 100%;
+}
+
+.apply-custom-btn:hover:not(:disabled) {
+  background: var(--color-blue-light);
+  transform: translateY(-1px);
+}
+
+.apply-custom-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.apply-icon {
+  font-size: 1.2rem;
+}
+
+.loading-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid transparent;
+  border-top: 2px solid currentColor;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.period-status {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--color-border-secondary);
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+}
+
+.status-icon {
+  font-size: 1rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .period-selector {
+    padding: 1.5rem;
+    margin: 1rem 0;
+  }
+  
+  .period-buttons {
+    grid-template-columns: 1fr;
+  }
+  
+  .period-btn {
+    padding: 1rem;
+  }
+  
+  .date-inputs {
+    grid-template-columns: 1fr;
+  }
+}

@@ -142,3 +142,83 @@
   transform: translateY(-2px);
   box-shadow: 0 6px 25px rgba(22, 52, 255, 0.4);
 }
+
+/* Dark List Styles */
+.excluded-row {
+  opacity: 0.6;
+  background-color: rgba(220, 53, 69, 0.1) !important;
+}
+
+.desligado-row {
+  opacity: 0.7;
+  background-color: rgba(108, 117, 125, 0.1) !important;
+}
+
+.excluded-badge {
+  color: var(--color-danger-primary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-left: 0.5rem;
+}
+
+.desligado-badge {
+  color: #6c757d;
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-left: 0.5rem;
+}
+
+.desligado-info {
+  color: #6c757d;
+  font-size: 0.8rem;
+  font-style: italic;
+}
+
+.action-button {
+  padding: 0.25rem 0.5rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.action-button.exclude {
+  background-color: var(--color-danger-primary);
+  color: white;
+}
+
+.action-button.exclude:hover {
+  background-color: var(--color-danger-secondary);
+}
+
+.action-button.restore {
+  background-color: var(--color-green);
+  color: white;
+}
+
+.action-button.restore:hover {
+  background-color: #0d8a1f;
+}
+
+/* Dark theme adjustments */
+.theme-dark .excluded-row {
+  background-color: rgba(248, 113, 113, 0.1) !important;
+}
+
+.theme-dark .desligado-row {
+  background-color: rgba(156, 163, 175, 0.1) !important;
+}
+
+.theme-dark .excluded-badge {
+  color: var(--color-danger-primary);
+}
+
+.theme-dark .desligado-badge {
+  color: #9ca3af;
+}
+
+.theme-dark .desligado-info {
+  color: #9ca3af;
+}

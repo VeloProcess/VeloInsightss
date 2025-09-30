@@ -14,6 +14,9 @@ const ChartsSection = memo(({ data, operatorMetrics }) => {
     abandonmentChart: useRef(null)
   }
 
+  // Instâncias dos gráficos para controle
+  const chartInstances = useRef({})
+
   useEffect(() => {
     if (!data || data.length === 0) return
 
@@ -24,15 +27,25 @@ const ChartsSection = memo(({ data, operatorMetrics }) => {
 
     return () => {
       // Limpar charts ao desmontar
-      Object.values(chartRefs).forEach(ref => {
-        if (ref.current && typeof ref.current.destroy === 'function') {
-          ref.current.destroy()
+      Object.values(chartInstances.current).forEach(chart => {
+        if (chart && typeof chart.destroy === 'function') {
+          chart.destroy()
         }
       })
     }
   }, [data, operatorMetrics])
 
   const createCharts = (Chart) => {
+    // Destruir gráficos existentes antes de criar novos
+    Object.values(chartInstances.current).forEach(chart => {
+      if (chart && typeof chart.destroy === 'function') {
+        chart.destroy()
+      }
+    })
+    
+    // Limpar instâncias
+    chartInstances.current = {}
+    
     createCallsChart(Chart)
     createRatingsChart(Chart)
     createDurationChart(Chart)
@@ -62,7 +75,7 @@ const ChartsSection = memo(({ data, operatorMetrics }) => {
     const dates = Object.keys(dailyData).sort()
     const calls = dates.map(date => dailyData[date])
 
-    new Chart(chartRefs.callsChart.current, {
+    chartInstances.current.callsChart = new Chart(chartRefs.callsChart.current, {
       type: 'line',
       data: {
         labels: dates.map(date => new Date(date).toLocaleDateString('pt-BR')),
@@ -114,7 +127,7 @@ const ChartsSection = memo(({ data, operatorMetrics }) => {
       }
     })
 
-    new Chart(chartRefs.ratingsChart.current, {
+    chartInstances.current.ratingsChart = new Chart(chartRefs.ratingsChart.current, {
       type: 'bar',
       data: {
         labels: ['⭐ 1', '⭐⭐ 2', '⭐⭐⭐ 3', '⭐⭐⭐⭐ 4', '⭐⭐⭐⭐⭐ 5'],
@@ -187,7 +200,7 @@ const ChartsSection = memo(({ data, operatorMetrics }) => {
       else durationRanges['30+ min']++
     })
 
-    new Chart(chartRefs.durationChart.current, {
+    chartInstances.current.durationChart = new Chart(chartRefs.durationChart.current, {
       type: 'doughnut',
       data: {
         labels: Object.keys(durationRanges),
@@ -226,14 +239,18 @@ const ChartsSection = memo(({ data, operatorMetrics }) => {
     if (!chartRefs.operatorsChart.current || !operatorMetrics) return
 
     // Pegar top 10 operadores
-    const topOperators = operatorMetrics
+    const operatorsArray = Object.entries(operatorMetrics).map(([name, metrics]) => ({
+      name,
+      ...metrics
+    }))
+    const topOperators = operatorsArray
       .sort((a, b) => b.totalCalls - a.totalCalls)
       .slice(0, 10)
 
-    new Chart(chartRefs.operatorsChart.current, {
+    chartInstances.current.operatorsChart = new Chart(chartRefs.operatorsChart.current, {
       type: 'bar',
       data: {
-        labels: topOperators.map(op => op.operator.length > 15 ? op.operator.substring(0, 15) + '...' : op.operator),
+        labels: topOperators.map(op => op.name.length > 15 ? op.name.substring(0, 15) + '...' : op.name),
         datasets: [{
           label: 'Chamadas por Operador',
           data: topOperators.map(op => op.totalCalls),
@@ -301,7 +318,7 @@ const ChartsSection = memo(({ data, operatorMetrics }) => {
         : 0
     )
 
-    new Chart(chartRefs.trendChart.current, {
+    chartInstances.current.trendChart = new Chart(chartRefs.trendChart.current, {
       type: 'line',
       data: {
         labels: weeks.map(week => new Date(week).toLocaleDateString('pt-BR')),
@@ -372,7 +389,7 @@ const ChartsSection = memo(({ data, operatorMetrics }) => {
       }
     })
 
-    new Chart(chartRefs.hourlyChart.current, {
+    chartInstances.current.hourlyChart = new Chart(chartRefs.hourlyChart.current, {
       type: 'bar',
       data: {
         labels: Array.from({length: 24}, (_, i) => `${i.toString().padStart(2, '0')}:00`),
@@ -415,20 +432,24 @@ const ChartsSection = memo(({ data, operatorMetrics }) => {
   const createPerformanceChart = (Chart) => {
     if (!chartRefs.performanceChart.current || !operatorMetrics) return
 
-    const topOperators = operatorMetrics
+    const operatorsArray = Object.entries(operatorMetrics).map(([name, metrics]) => ({
+      name,
+      ...metrics
+    }))
+    const topOperators = operatorsArray
       .sort((a, b) => b.totalCalls - a.totalCalls)
       .slice(0, 8)
 
-    new Chart(chartRefs.performanceChart.current, {
+    chartInstances.current.performanceChart = new Chart(chartRefs.performanceChart.current, {
       type: 'radar',
       data: {
         labels: ['Chamadas', 'Nota Atendimento', 'Nota Solução', 'Eficiência'],
         datasets: topOperators.map((op, index) => ({
-          label: op.operator,
+          label: op.name,
           data: [
             Math.min(op.totalCalls / 50, 100), // Normalizado
-            (op.avgAttendanceRating || 0) * 20, // 0-5 para 0-100
-            (op.avgSolutionRating || 0) * 20,
+            (op.avgRatingAttendance || 0) * 20, // 0-5 para 0-100
+            (op.avgRatingSolution || 0) * 20,
             Math.max(0, 100 - (op.avgDuration || 0) * 2) // Menos tempo = mais eficiência
           ],
           borderColor: `hsl(${index * 45}, 70%, 50%)`,
@@ -479,7 +500,7 @@ const ChartsSection = memo(({ data, operatorMetrics }) => {
       return '#45B7D1'
     })
 
-    new Chart(chartRefs.abandonmentChart.current, {
+    chartInstances.current.abandonmentChart = new Chart(chartRefs.abandonmentChart.current, {
       type: 'doughnut',
       data: {
         labels: labels,
