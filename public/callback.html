@@ -18,19 +18,31 @@
         const error = urlParams.get('error')
 
         if (error) {
-            // Enviar erro para a janela pai
-            window.opener.postMessage({
-                type: 'GOOGLE_AUTH_ERROR',
-                error: error
-            }, window.location.origin)
-            window.close()
+            // Se foi aberto como popup
+            if (window.opener) {
+                window.opener.postMessage({
+                    type: 'GOOGLE_AUTH_ERROR',
+                    error: error
+                }, window.location.origin)
+                window.close()
+            } else {
+                // Se foi redirecionamento direto, salvar erro no localStorage e redirecionar
+                localStorage.setItem('google_auth_error', error)
+                window.location.href = '/'
+            }
         } else if (code) {
-            // Enviar código para a janela pai
-            window.opener.postMessage({
-                type: 'GOOGLE_AUTH_CODE',
-                code: code
-            }, window.location.origin)
-            window.close()
+            // Se foi aberto como popup
+            if (window.opener) {
+                window.opener.postMessage({
+                    type: 'GOOGLE_AUTH_CODE',
+                    code: code
+                }, window.location.origin)
+                window.close()
+            } else {
+                // Se foi redirecionamento direto, salvar código no localStorage e redirecionar
+                localStorage.setItem('google_auth_code', code)
+                window.location.href = '/'
+            }
         } else {
             // Sem código nem erro - redirecionar para login
             window.location.href = '/'

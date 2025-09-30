@@ -74,7 +74,23 @@ export const useGoogleSheetsDirect = () => {
       // Limpar URL
       window.history.replaceState({}, document.title, window.location.pathname)
     }
-  }, [CLIENT_ID])
+
+    // Verificar se há código de autorização no localStorage (callback direto)
+    const storedAuthCode = localStorage.getItem('google_auth_code')
+    const storedAuthError = localStorage.getItem('google_auth_error')
+    
+    if (storedAuthCode) {
+      console.log('🔄 Código de autorização encontrado no localStorage')
+      exchangeCodeForTokens(storedAuthCode)
+      localStorage.removeItem('google_auth_code')
+    }
+    
+    if (storedAuthError) {
+      console.error('❌ Erro de autorização:', storedAuthError)
+      setErrors(prev => [...prev, `❌ Erro de autenticação: ${storedAuthError}`])
+      localStorage.removeItem('google_auth_error')
+    }
+  }, [CLIENT_ID, exchangeCodeForTokens])
 
   // Trocar código de autorização por tokens
   const exchangeCodeForTokens = useCallback(async (authCode) => {
