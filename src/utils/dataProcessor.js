@@ -76,7 +76,11 @@ export const processarDados = (dados) => {
   const metricasOperadores = calcularMetricasOperadores(dadosProcessados)
 
   // Calcular ranking
+  console.log('🔍 Debug - Chamando calcularRanking com:', Object.keys(metricasOperadores).length, 'operadores')
+  console.log('🔍 Debug - Primeiro operador:', Object.values(metricasOperadores)[0])
   const rankings = calcularRanking(metricasOperadores)
+  console.log('🔍 Debug - Rankings retornados:', rankings.length, 'itens')
+  console.log('🔍 Debug - Primeiro ranking:', rankings[0])
 
   return {
     dadosFiltrados: dadosProcessados,
@@ -222,9 +226,41 @@ const calcularMetricasOperadores = (dados) => {
   
   // Função para converter tempo HH:MM:SS para minutos
   const tempoParaMinutos = (tempo) => {
-    if (!tempo || tempo === '00:00:00') return 0
-    const [horas, minutos, segundos] = tempo.split(':').map(Number)
-    return horas * 60 + minutos + segundos / 60
+    if (!tempo || tempo === '00:00:00' || tempo === '') return 0
+    
+    try {
+      // Se já é um número, retorna como está
+      if (typeof tempo === 'number') return tempo
+      
+      // Se é string, tenta converter
+      if (typeof tempo === 'string') {
+        // Remove espaços e converte para minúsculas
+        const tempoLimpo = tempo.trim().toLowerCase()
+        
+        // Se contém ':', assume formato HH:MM:SS ou MM:SS
+        if (tempoLimpo.includes(':')) {
+          const partes = tempoLimpo.split(':')
+          if (partes.length === 3) {
+            // HH:MM:SS
+            const [horas, minutos, segundos] = partes.map(Number)
+            return horas * 60 + minutos + segundos / 60
+          } else if (partes.length === 2) {
+            // MM:SS
+            const [minutos, segundos] = partes.map(Number)
+            return minutos + segundos / 60
+          }
+        }
+        
+        // Se não tem ':', tenta converter diretamente para número
+        const numero = parseFloat(tempoLimpo)
+        if (!isNaN(numero)) return numero
+      }
+      
+      return 0
+    } catch (error) {
+      console.warn('Erro ao converter tempo:', tempo, error)
+      return 0
+    }
   }
   
   dados.forEach(d => {
@@ -239,7 +275,8 @@ const calcularMetricasOperadores = (dados) => {
     }
 
     operadores[d.operador].totalAtendimentos++
-    operadores[d.operador].tempoTotal += tempoParaMinutos(d.tempoFalado)
+    const tempoMinutos = tempoParaMinutos(d.tempoFalado)
+    operadores[d.operador].tempoTotal += tempoMinutos
     
     if (d.notaAtendimento !== null) {
       operadores[d.operador].notasAtendimento.push(d.notaAtendimento)
@@ -257,20 +294,45 @@ const calcularMetricasOperadores = (dados) => {
       op.notasAtendimento.reduce((sum, nota) => sum + nota, 0) / op.notasAtendimento.length : 0
     op.notaMediaSolucao = op.notasSolucao.length > 0 ?
       op.notasSolucao.reduce((sum, nota) => sum + nota, 0) / op.notasSolucao.length : 0
+    
   })
 
   return operadores
 }
 
-// Calcular ranking - VERSÃO FUNCIONAL PERFEITA
+// Calcular ranking - VERSÃO CORRIGIDA E FUNCIONAL
 const calcularRanking = (metricasOperadores) => {
   const operadores = Object.values(metricasOperadores)
   
+  if (operadores.length === 0) {
+    return []
+  }
+  
+  // Filtrar operadores válidos (com nome, não desligados e não "Sem Operador")
+  const operadoresValidos = operadores.filter(op => {
+    if (!op.operador || op.operador.trim() === '') return false
+    
+    const nome = op.operador.toLowerCase()
+    const isDesligado = nome.includes('desl') || 
+                       nome.includes('desligado') || 
+                       nome.includes('excluído') || 
+                       nome.includes('inativo')
+    
+    const isSemOperador = nome.includes('sem operador') || 
+                         nome.includes('agentes indisponíveis')
+    
+    return !isDesligado && !isSemOperador
+  })
+  
+  if (operadoresValidos.length === 0) {
+    return []
+  }
+  
   // Normalizar valores para calcular score
-  const totalAtendimentos = operadores.map(op => op.totalAtendimentos)
-  const temposMedios = operadores.map(op => op.tempoMedio)
-  const notasAtendimento = operadores.map(op => op.notaMediaAtendimento)
-  const notasSolucao = operadores.map(op => op.notaMediaSolucao)
+  const totalAtendimentos = operadoresValidos.map(op => Number(op.totalAtendimentos) || 0)
+  const temposMedios = operadoresValidos.map(op => Number(op.tempoMedio) || 0)
+  const notasAtendimento = operadoresValidos.map(op => Number(op.notaMediaAtendimento) || 0)
+  const notasSolucao = operadoresValidos.map(op => Number(op.notaMediaSolucao) || 0)
 
   const minTotal = Math.min(...totalAtendimentos)
   const maxTotal = Math.max(...totalAtendimentos)
@@ -281,27 +343,48 @@ const calcularRanking = (metricasOperadores) => {
   const minNotaSolucao = Math.min(...notasSolucao)
   const maxNotaSolucao = Math.max(...notasSolucao)
 
-  // Função de normalização
+  // Função de normalização segura
   const normalizar = (valor, min, max) => {
     if (max === min) return 0.5
-    return (valor - min) / (max - min)
+    const normalized = (valor - min) / (max - min)
+    return Math.max(0, Math.min(1, normalized))
   }
 
-  // Calcular score para cada operador - VERSÃO FUNCIONAL PERFEITA
-  operadores.forEach(op => {
-    const normTotal = normalizar(op.totalAtendimentos, minTotal, maxTotal)
-    const normTempo = normalizar(op.tempoMedio, minTempo, maxTempo)
-    const normNotaAtendimento = normalizar(op.notaMediaAtendimento, minNotaAtendimento, maxNotaAtendimento)
-    const normNotaSolucao = normalizar(op.notaMediaSolucao, minNotaSolucao, maxNotaSolucao)
+  // Calcular score para cada operador
+  const rankings = operadoresValidos.map(op => {
+    const totalAtend = Number(op.totalAtendimentos) || 0
+    const tempoMed = Number(op.tempoMedio) || 0
+    const notaAtend = Number(op.notaMediaAtendimento) || 0
+    const notaSol = Number(op.notaMediaSolucao) || 0
+    
+    const normTotal = normalizar(totalAtend, minTotal, maxTotal)
+    const normTempo = normalizar(tempoMed, minTempo, maxTempo)
+    const normNotaAtendimento = normalizar(notaAtend, minNotaAtendimento, maxNotaAtendimento)
+    const normNotaSolucao = normalizar(notaSol, minNotaSolucao, maxNotaSolucao)
 
-    // Fórmula de score FUNCIONAL PERFEITA:
-    // score = 0.40*norm(totalAtendimentos) + 0.30*(1 - norm(tempoMedioAtendimento)) + 0.15*norm(notaAtendimento) + 0.15*norm(notaSolucao)
-    op.score = 0.40 * normTotal + 
-                0.30 * (1 - normTempo) + 
-                0.15 * normNotaAtendimento + 
-                0.15 * normNotaSolucao
+    // Fórmula de score do projeto Velodados
+    const score = 0.35 * normTotal + 
+                  0.20 * (1 - normTempo) + 
+                  0.20 * normNotaAtendimento + 
+                  0.20 * normNotaSolucao
+
+    return {
+      operator: op.operador.trim(),
+      totalCalls: totalAtend,
+      avgDuration: parseFloat(tempoMed.toFixed(1)),
+      avgRatingAttendance: parseFloat(notaAtend.toFixed(1)),
+      avgRatingSolution: parseFloat(notaSol.toFixed(1)),
+      avgPauseTime: 0,
+      totalRecords: totalAtend,
+      score: (score * 100).toFixed(1),
+      isExcluded: false,
+      isDesligado: op.operador.toLowerCase().includes('desl') || 
+                  op.operador.toLowerCase().includes('desligado') ||
+                  op.operador.toLowerCase().includes('excluído') ||
+                  op.operador.toLowerCase().includes('inativo')
+    }
   })
 
-  // Ordenar por score
-  return operadores.sort((a, b) => b.score - a.score)
+  // Ordenar por score (maior primeiro)
+  return rankings.sort((a, b) => parseFloat(b.score) - parseFloat(a.score))
 }

@@ -250,6 +250,7 @@ function App() {
               <ChartsSection 
                 data={data}
                 operatorMetrics={operatorMetrics}
+                rankings={rankings}
               />
               <ExportSection 
                 data={data}

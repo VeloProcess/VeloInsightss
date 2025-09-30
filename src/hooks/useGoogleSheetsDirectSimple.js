@@ -262,11 +262,40 @@ export const useGoogleSheetsDirectSimple = () => {
         // Processar dados
         const dadosProcessados = processarDados(result.values)
         
+        console.log('📊 Debug - Dados processados:', {
+          dadosFiltrados: dadosProcessados.dadosFiltrados.length,
+          metricas: dadosProcessados.metricas,
+          metricasOperadores: Object.keys(dadosProcessados.metricasOperadores).length,
+          rankings: dadosProcessados.rankings.length,
+          operadores: dadosProcessados.operadores.length
+        })
+        
+        // Converter metricasOperadores de objeto para array para compatibilidade com OperatorAnalysis
+        const operatorMetricsArray = Object.values(dadosProcessados.metricasOperadores).map(op => ({
+          operator: op.operador,
+          totalCalls: op.totalAtendimentos,
+          avgDuration: parseFloat(op.tempoMedio.toFixed(1)),
+          avgRatingAttendance: parseFloat(op.notaMediaAtendimento.toFixed(1)),
+          avgRatingSolution: parseFloat(op.notaMediaSolucao.toFixed(1)),
+          avgPauseTime: 0, // Não temos dados de pausa
+          totalRecords: op.totalAtendimentos
+        }))
+        
+        // Aplicar Dark List aos rankings
+        const rankingsComDarkList = dadosProcessados.rankings.map(ranking => ({
+          ...ranking,
+          isExcluded: darkList.includes(ranking.operator)
+        }))
+        
+        console.log('📊 Rankings processados:', rankingsComDarkList.length, 'operadores')
+        console.log('🔍 Debug - Primeiro ranking:', rankingsComDarkList[0])
+        console.log('🔍 Debug - Primeiro operatorMetrics:', operatorMetricsArray[0])
+        
         // Atualizar estados
         setData(dadosProcessados.dadosFiltrados)
         setMetrics(dadosProcessados.metricas)
-        setOperatorMetrics(dadosProcessados.metricasOperadores)
-        setRankings(dadosProcessados.rankings)
+        setOperatorMetrics(operatorMetricsArray) // Usar array em vez de objeto
+        setRankings(rankingsComDarkList)
         setOperators(dadosProcessados.operadores)
         
         console.log('📊 Dados processados:', {
@@ -310,12 +339,48 @@ export const useGoogleSheetsDirectSimple = () => {
     const newDarkList = [...darkList, operator]
     setDarkList(newDarkList)
     localStorage.setItem('veloinsights_darklist', JSON.stringify(newDarkList))
+    
+    // Recarregar rankings com nova Dark List
+    if (rankings.length > 0) {
+      const rankingsAtualizados = rankings.map(ranking => ({
+        ...ranking,
+        isExcluded: newDarkList.includes(ranking.operator)
+      }))
+      setRankings(rankingsAtualizados)
+    }
+    
+    // Recarregar operatorMetrics com nova Dark List
+    if (operatorMetrics.length > 0) {
+      const operatorMetricsAtualizados = operatorMetrics.map(op => ({
+        ...op,
+        isExcluded: newDarkList.includes(op.operator)
+      }))
+      setOperatorMetrics(operatorMetricsAtualizados)
+    }
   }
 
   const removeFromDarkList = (operator) => {
     const newDarkList = darkList.filter(op => op !== operator)
     setDarkList(newDarkList)
     localStorage.setItem('veloinsights_darklist', JSON.stringify(newDarkList))
+    
+    // Recarregar rankings com nova Dark List
+    if (rankings.length > 0) {
+      const rankingsAtualizados = rankings.map(ranking => ({
+        ...ranking,
+        isExcluded: newDarkList.includes(ranking.operator)
+      }))
+      setRankings(rankingsAtualizados)
+    }
+    
+    // Recarregar operatorMetrics com nova Dark List
+    if (operatorMetrics.length > 0) {
+      const operatorMetricsAtualizados = operatorMetrics.map(op => ({
+        ...op,
+        isExcluded: newDarkList.includes(op.operator)
+      }))
+      setOperatorMetrics(operatorMetricsAtualizados)
+    }
   }
 
   const clearDarkList = () => {

@@ -145,11 +145,11 @@ const MetricsDashboard = memo(({ metrics, operatorMetrics, rankings, darkList, a
                         {operator.isExcluded && <span className="excluded-badge"> (Excluído)</span>}
                         {operator.isDesligado && <span className="desligado-badge"> (Desligado)</span>}
                       </td>
-                      <td className="score">{operator.score}</td>
-                      <td>{operator.totalAtendimentos}</td>
-                      <td>{operator.avgDuration} min</td>
-                      <td>{operator.avgRatingAttendance}/5</td>
-                      <td>{operator.avgRatingSolution}/5</td>
+                      <td className="score">{operator.score || '0.0'}</td>
+                      <td>{operator.totalCalls || operator.totalAtendimentos || 0}</td>
+                      <td>{operator.avgDuration || 0} min</td>
+                      <td>{operator.avgRatingAttendance || 0}/5</td>
+                      <td>{operator.avgRatingSolution || 0}/5</td>
                       <td>
                         {operator.isExcluded ? (
                           <button 

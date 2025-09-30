@@ -2,7 +2,7 @@ import React, { useEffect, useRef, memo } from 'react'
 import './ChartsSection.css'
 import LazyWrapper, { LazyChart } from './LazyWrapper'
 
-const ChartsSection = memo(({ data, operatorMetrics }) => {
+const ChartsSection = memo(({ data, operatorMetrics, rankings }) => {
   const chartRefs = {
     callsChart: useRef(null),
     ratingsChart: useRef(null),
@@ -11,7 +11,8 @@ const ChartsSection = memo(({ data, operatorMetrics }) => {
     trendChart: useRef(null),
     hourlyChart: useRef(null),
     performanceChart: useRef(null),
-    abandonmentChart: useRef(null)
+    abandonmentChart: useRef(null),
+    rankingChart: useRef(null)
   }
 
   // Instâncias dos gráficos para controle
@@ -33,7 +34,7 @@ const ChartsSection = memo(({ data, operatorMetrics }) => {
         }
       })
     }
-  }, [data, operatorMetrics])
+  }, [data, operatorMetrics, rankings])
 
   const createCharts = (Chart) => {
     // Destruir gráficos existentes antes de criar novos
@@ -54,21 +55,47 @@ const ChartsSection = memo(({ data, operatorMetrics }) => {
     createHourlyChart(Chart)
     createPerformanceChart(Chart)
     createAbandonmentChart(Chart)
+    createRankingChart(Chart)
+  }
+
+  // Função para converter data brasileira (DD/MM/YYYY) para formato ISO
+  const parseBrazilianDate = (dateStr) => {
+    if (!dateStr) return null
+    
+    // Se já está no formato ISO, retorna como está
+    if (dateStr.includes('-')) {
+      return new Date(dateStr)
+    }
+    
+    // Se está no formato brasileiro DD/MM/YYYY
+    if (dateStr.includes('/')) {
+      const [day, month, year] = dateStr.split('/')
+      return new Date(year, month - 1, day)
+    }
+    
+    return new Date(dateStr)
   }
 
   // 📊 GRÁFICO DE CHAMADAS POR DIA
   const createCallsChart = (Chart) => {
     if (!chartRefs.callsChart.current || !data) return
 
-    // Agrupar dados por dia
+    // Agrupar dados por dia usando dados processados do Velotax
     const dailyData = {}
     data.forEach(record => {
-      if (record.date) {
-        const date = new Date(record.date).toISOString().split('T')[0]
-        if (!dailyData[date]) {
-          dailyData[date] = 0
+      if (record.data) {
+        try {
+          const date = parseBrazilianDate(record.data)
+          if (date && !isNaN(date.getTime())) {
+            const dateStr = date.toISOString().split('T')[0]
+            if (!dailyData[dateStr]) {
+              dailyData[dateStr] = 0
+            }
+            dailyData[dateStr] += 1 // Cada linha é uma chamada
+          }
+        } catch (error) {
+          console.warn('Data inválida encontrada:', record.data, error)
         }
-        dailyData[date] += (record.call_count || 0)
       }
     })
 
@@ -78,7 +105,13 @@ const ChartsSection = memo(({ data, operatorMetrics }) => {
     chartInstances.current.callsChart = new Chart(chartRefs.callsChart.current, {
       type: 'line',
       data: {
-        labels: dates.map(date => new Date(date).toLocaleDateString('pt-BR')),
+        labels: dates.map(date => {
+          try {
+            return new Date(date).toLocaleDateString('pt-BR')
+          } catch (error) {
+            return date
+          }
+        }),
         datasets: [{
           label: 'Chamadas por Dia',
           data: calls,
@@ -119,11 +152,11 @@ const ChartsSection = memo(({ data, operatorMetrics }) => {
   const createRatingsChart = (Chart) => {
     if (!chartRefs.ratingsChart.current || !data) return
 
-    // Contar distribuição de notas
+    // Contar distribuição de notas usando dados do Velotax
     const ratingDistribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
     data.forEach(record => {
-      if (record.rating_attendance && record.rating_attendance >= 1 && record.rating_attendance <= 5) {
-        ratingDistribution[record.rating_attendance]++
+      if (record.notaAtendimento && record.notaAtendimento >= 1 && record.notaAtendimento <= 5) {
+        ratingDistribution[record.notaAtendimento]++
       }
     })
 
@@ -182,7 +215,14 @@ const ChartsSection = memo(({ data, operatorMetrics }) => {
   const createDurationChart = (Chart) => {
     if (!chartRefs.durationChart.current || !data) return
 
-    // Agrupar por faixas de duração
+    // Função para converter tempo HH:MM:SS para minutos
+    const tempoParaMinutos = (tempo) => {
+      if (!tempo || tempo === '00:00:00') return 0
+      const [horas, minutos, segundos] = tempo.split(':').map(Number)
+      return horas * 60 + minutos + segundos / 60
+    }
+
+    // Agrupar por faixas de duração usando dados do Velotax
     const durationRanges = {
       '0-5 min': 0,
       '5-10 min': 0,
@@ -192,7 +232,7 @@ const ChartsSection = memo(({ data, operatorMetrics }) => {
     }
 
     data.forEach(record => {
-      const duration = record.duration_minutes || 0
+      const duration = tempoParaMinutos(record.tempoFalado)
       if (duration <= 5) durationRanges['0-5 min']++
       else if (duration <= 10) durationRanges['5-10 min']++
       else if (duration <= 15) durationRanges['10-15 min']++
@@ -238,19 +278,15 @@ const ChartsSection = memo(({ data, operatorMetrics }) => {
   const createOperatorsChart = (Chart) => {
     if (!chartRefs.operatorsChart.current || !operatorMetrics) return
 
-    // Pegar top 10 operadores
-    const operatorsArray = Object.entries(operatorMetrics).map(([name, metrics]) => ({
-      name,
-      ...metrics
-    }))
-    const topOperators = operatorsArray
+    // Pegar top 10 operadores usando dados do Velotax
+    const topOperators = operatorMetrics
       .sort((a, b) => b.totalCalls - a.totalCalls)
       .slice(0, 10)
 
     chartInstances.current.operatorsChart = new Chart(chartRefs.operatorsChart.current, {
       type: 'bar',
       data: {
-        labels: topOperators.map(op => op.name.length > 15 ? op.name.substring(0, 15) + '...' : op.name),
+        labels: topOperators.map(op => op.operator.length > 15 ? op.operator.substring(0, 15) + '...' : op.operator),
         datasets: [{
           label: 'Chamadas por Operador',
           data: topOperators.map(op => op.totalCalls),
@@ -290,22 +326,28 @@ const ChartsSection = memo(({ data, operatorMetrics }) => {
   const createTrendChart = (Chart) => {
     if (!chartRefs.trendChart.current || !data) return
 
-    // Agrupar por semana
+    // Agrupar por semana usando dados do Velotax
     const weeklyData = {}
     data.forEach(record => {
-      if (record.date) {
-        const date = new Date(record.date)
-        const weekStart = new Date(date)
-        weekStart.setDate(date.getDate() - date.getDay())
-        const weekKey = weekStart.toISOString().split('T')[0]
-        
-        if (!weeklyData[weekKey]) {
-          weeklyData[weekKey] = { calls: 0, avgRating: 0, ratingCount: 0 }
-        }
-        weeklyData[weekKey].calls += (record.call_count || 0)
-        if (record.rating_attendance) {
-          weeklyData[weekKey].avgRating += record.rating_attendance
-          weeklyData[weekKey].ratingCount += 1
+      if (record.data) {
+        try {
+          const date = parseBrazilianDate(record.data)
+          if (date && !isNaN(date.getTime())) {
+            const weekStart = new Date(date)
+            weekStart.setDate(date.getDate() - date.getDay())
+            const weekKey = weekStart.toISOString().split('T')[0]
+            
+            if (!weeklyData[weekKey]) {
+              weeklyData[weekKey] = { calls: 0, avgRating: 0, ratingCount: 0 }
+            }
+            weeklyData[weekKey].calls += 1 // Cada linha é uma chamada
+            if (record.notaAtendimento) {
+              weeklyData[weekKey].avgRating += record.notaAtendimento
+              weeklyData[weekKey].ratingCount += 1
+            }
+          }
+        } catch (error) {
+          console.warn('Data inválida encontrada no gráfico de tendência:', record.data, error)
         }
       }
     })
@@ -321,7 +363,13 @@ const ChartsSection = memo(({ data, operatorMetrics }) => {
     chartInstances.current.trendChart = new Chart(chartRefs.trendChart.current, {
       type: 'line',
       data: {
-        labels: weeks.map(week => new Date(week).toLocaleDateString('pt-BR')),
+        labels: weeks.map(week => {
+          try {
+            return new Date(week).toLocaleDateString('pt-BR')
+          } catch (error) {
+            return week
+          }
+        }),
         datasets: [
           {
             label: 'Chamadas por Semana',
@@ -382,10 +430,16 @@ const ChartsSection = memo(({ data, operatorMetrics }) => {
 
     const hourlyData = Array(24).fill(0)
     data.forEach(record => {
-      if (record.date) {
-        const date = new Date(record.date)
-        const hour = date.getHours()
-        hourlyData[hour] += (record.call_count || 0)
+      if (record.data) {
+        try {
+          const date = parseBrazilianDate(record.data)
+          if (date && !isNaN(date.getTime())) {
+            const hour = date.getHours()
+            hourlyData[hour] += 1 // Cada linha é uma chamada
+          }
+        } catch (error) {
+          console.warn('Data inválida encontrada no gráfico de horário:', record.data, error)
+        }
       }
     })
 
@@ -432,11 +486,7 @@ const ChartsSection = memo(({ data, operatorMetrics }) => {
   const createPerformanceChart = (Chart) => {
     if (!chartRefs.performanceChart.current || !operatorMetrics) return
 
-    const operatorsArray = Object.entries(operatorMetrics).map(([name, metrics]) => ({
-      name,
-      ...metrics
-    }))
-    const topOperators = operatorsArray
+    const topOperators = operatorMetrics
       .sort((a, b) => b.totalCalls - a.totalCalls)
       .slice(0, 8)
 
@@ -445,7 +495,7 @@ const ChartsSection = memo(({ data, operatorMetrics }) => {
       data: {
         labels: ['Chamadas', 'Nota Atendimento', 'Nota Solução', 'Eficiência'],
         datasets: topOperators.map((op, index) => ({
-          label: op.name,
+          label: op.operator,
           data: [
             Math.min(op.totalCalls / 50, 100), // Normalizado
             (op.avgRatingAttendance || 0) * 20, // 0-5 para 0-100
@@ -485,10 +535,10 @@ const ChartsSection = memo(({ data, operatorMetrics }) => {
   const createAbandonmentChart = (Chart) => {
     if (!chartRefs.abandonmentChart.current || !data) return
 
-    // Analisar campo "Chamada" para identificar abandonos
+    // Analisar campo "chamada" para identificar abandonos usando dados do Velotax
     const callStatus = {}
     data.forEach(record => {
-      const status = record.original_data?.Chamada || 'Atendida'
+      const status = record.chamada || 'Atendida'
       callStatus[status] = (callStatus[status] || 0) + 1
     })
 
@@ -522,6 +572,62 @@ const ChartsSection = memo(({ data, operatorMetrics }) => {
           },
           legend: {
             labels: { color: '#F3F7FC' }
+          }
+        }
+      }
+    })
+  }
+
+  // 🏆 GRÁFICO DE RANKING DE OPERADORES
+  const createRankingChart = (Chart) => {
+    if (!chartRefs.rankingChart.current || !rankings) return
+
+    // Pegar top 10 operadores do ranking
+    const topRankings = rankings.slice(0, 10)
+
+    chartInstances.current.rankingChart = new Chart(chartRefs.rankingChart.current, {
+      type: 'bar',
+      data: {
+        labels: topRankings.map(r => r.operator.length > 12 ? r.operator.substring(0, 12) + '...' : r.operator),
+        datasets: [{
+          label: 'Score de Performance',
+          data: topRankings.map(r => parseFloat(r.score)),
+          backgroundColor: topRankings.map((_, index) => {
+            if (index === 0) return '#FFD700' // Ouro
+            if (index === 1) return '#C0C0C0' // Prata
+            if (index === 2) return '#CD7F32' // Bronze
+            return '#1634FF' // Azul padrão
+          }),
+          borderColor: topRankings.map((_, index) => {
+            if (index === 0) return '#FFA500'
+            if (index === 1) return '#A0A0A0'
+            if (index === 2) return '#B8860B'
+            return '#1694FF'
+          }),
+          borderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          title: {
+            display: true,
+            text: '🏆 Top 10 Ranking de Operadores',
+            color: '#F3F7FC',
+            font: { size: 16 }
+          },
+          legend: {
+            labels: { color: '#F3F7FC' }
+          }
+        },
+        scales: {
+          x: {
+            ticks: { color: '#B0B0B0' },
+            grid: { color: '#404040' }
+          },
+          y: {
+            ticks: { color: '#B0B0B0' },
+            grid: { color: '#404040' }
           }
         }
       }
@@ -574,6 +680,10 @@ const ChartsSection = memo(({ data, operatorMetrics }) => {
 
         <div className="card">
           <canvas ref={chartRefs.abandonmentChart}></canvas>
+        </div>
+
+        <div className="card">
+          <canvas ref={chartRefs.rankingChart}></canvas>
         </div>
       </div>
     </div>
