@@ -91,12 +91,20 @@ export const useGoogleSheetsDirectSimple = () => {
       const tokenData = await response.json()
       console.log('✅ Token obtido com sucesso')
 
+      // Obter informações do usuário do Google
+      const userResponse = await fetch(`https://www.googleapis.com/oauth2/v2/userinfo?access_token=${tokenData.access_token}`)
+      const googleUserInfo = await userResponse.json()
+      
+      console.log('👤 Informações do usuário:', googleUserInfo)
+
       // Salvar dados do usuário
       const userInfo = {
         accessToken: tokenData.access_token,
         refreshToken: tokenData.refresh_token,
         expiresAt: Date.now() + (tokenData.expires_in * 1000),
-        email: 'usuario@velotax.com.br' // Será obtido do token
+        email: googleUserInfo.email,
+        name: googleUserInfo.name,
+        picture: googleUserInfo.picture
       }
 
       setUserData(userInfo)

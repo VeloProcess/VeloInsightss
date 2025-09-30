@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react'
 import Header from './components/Header'
 import Sidebar from './components/Sidebar'
 import DataFetcher from './components/DataFetcher'
-import DataFetcherSimple from './components/DataFetcherSimple'
 import MetricsDashboard from './components/MetricsDashboard'
 import ChartsSection from './components/ChartsSection'
 import ExportSection from './components/ExportSection'
@@ -190,18 +189,15 @@ function App() {
           )}
           
           {currentView === 'fetch' && (
-            <>
-              <DataFetcherSimple />
-              <DataFetcher 
-                isLoading={isLoading}
-                isAuthenticated={isAuthenticated}
-                userData={userData}
-                onFetchData={handleFetchData}
-                onSignIn={handleSignIn}
-                onSignOut={handleSignOut}
-                errors={errors}
-              />
-            </>
+            <DataFetcher 
+              isLoading={isLoading}
+              isAuthenticated={isAuthenticated}
+              userData={userData}
+              onFetchData={handleFetchData}
+              onSignIn={handleSignIn}
+              onSignOut={handleSignOut}
+              errors={errors}
+            />
           )}
           
           {currentView === 'dashboard' && data && data.length > 0 && (
