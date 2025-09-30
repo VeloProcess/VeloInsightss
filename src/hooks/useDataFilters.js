@@ -3,7 +3,7 @@ import { useDataCache } from './useDataCache'
 
 export const useDataFilters = (data) => {
   const [filters, setFilters] = useState({
-    period: 'last30days',
+    period: 'all', // Mudado de 'last30days' para 'all'
     operator: '',
     dateRange: {},
     minCalls: '',
