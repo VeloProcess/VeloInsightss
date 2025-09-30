@@ -1,4 +1,4 @@
-// Função para processar dados da planilha - VERSÃO FUNCIONAL PERFEITA
+// Função para processar dados da planilha - VERSÃO PERFEITA IMPLEMENTADA
 export const processarDados = (dados) => {
   if (!dados || dados.length === 0) {
     console.log('⚠️ Nenhum dado para processar')
@@ -18,19 +18,22 @@ export const processarDados = (dados) => {
 
   console.log('📋 Cabeçalhos encontrados:', cabecalhos)
 
-  // Encontrar índices das colunas importantes - VERSÃO PERFEITA FUNCIONAL
+  // Mapeamento correto das colunas - VERSÃO PERFEITA
   const indices = {
-    data: cabecalhos.findIndex(h => h && h.toLowerCase().includes('data')),
-    operador: cabecalhos.findIndex(h => h && h.toLowerCase().includes('operador')),
-    tempoFalado: cabecalhos.findIndex(h => h && h.toLowerCase().includes('tempo falado')),
-    notaAtendimento: cabecalhos.findIndex(h => h && h.toLowerCase().includes('pergunta2 1 pergunta atendente')),
-    notaSolucao: cabecalhos.findIndex(h => h && h.toLowerCase().includes('pergunta2 2 pergunta solucao')),
-    chamada: cabecalhos.findIndex(h => h && h.toLowerCase().includes('chamada'))
+    chamada: 0,        // Coluna A
+    operador: 2,        // Coluna C  
+    data: 3,           // Coluna D
+    tempoURA: 11,      // Coluna L - Tempo Na Ura
+    tempoEspera: 12,   // Coluna M - Tempo De Espera
+    tempoFalado: 13,   // Coluna N - Tempo Falado
+    tempoTotal: 14,    // Coluna O - Tempo Total
+    notaAtendimento: 27, // Coluna AB - Pergunta2 1 PERGUNTA ATENDENTE
+    notaSolucao: 28     // Coluna AC - Pergunta2 2 PERGUNTA SOLUCAO
   }
 
   console.log('📍 Índices das colunas:', indices)
 
-  // Processar dados linha por linha - VERSÃO FUNCIONAL PERFEITA
+  // Processar dados linha por linha - VERSÃO PERFEITA
   const dadosProcessados = []
   const operadoresEncontrados = new Set()
 
@@ -42,15 +45,18 @@ export const processarDados = (dados) => {
       const operador = linha[indices.operador]
       if (!operador || operador.trim() === '') return
 
-      // Processar dados da linha - VERSÃO FUNCIONAL PERFEITA
+      // Processar dados da linha - VERSÃO PERFEITA
       const dadosLinha = {
         linha: index + 2,
-        data: linha[indices.data] || '',
+        chamada: linha[indices.chamada] || '',
         operador: operador.trim(),
-        tempoFalado: parseFloat(linha[indices.tempoFalado]) || 0,
+        data: linha[indices.data] || '',
+        tempoURA: linha[indices.tempoURA] || '00:00:00',
+        tempoEspera: linha[indices.tempoEspera] || '00:00:00',
+        tempoFalado: linha[indices.tempoFalado] || '00:00:00',
+        tempoTotal: linha[indices.tempoTotal] || '00:00:00',
         notaAtendimento: parseFloat(linha[indices.notaAtendimento]) || null,
-        notaSolucao: parseFloat(linha[indices.notaSolucao]) || null,
-        chamada: linha[indices.chamada] || ''
+        notaSolucao: parseFloat(linha[indices.notaSolucao]) || null
       }
 
       dadosProcessados.push(dadosLinha)
@@ -64,7 +70,7 @@ export const processarDados = (dados) => {
   console.log(`✅ ${dadosProcessados.length} linhas processadas`)
   console.log(`👥 ${operadoresEncontrados.size} operadores encontrados`)
 
-  // Calcular métricas gerais - VERSÃO FUNCIONAL PERFEITA
+  // Calcular métricas gerais - VERSÃO PERFEITA IMPLEMENTADA
   const metricas = calcularMetricas(dadosProcessados)
 
   // Calcular métricas por operador
@@ -82,38 +88,121 @@ export const processarDados = (dados) => {
   }
 }
 
-// Calcular métricas gerais - VERSÃO FUNCIONAL PERFEITA
+// Calcular métricas gerais - VERSÃO PERFEITA IMPLEMENTADA
 const calcularMetricas = (dados) => {
   if (dados.length === 0) {
     return {
-      totalAtendimentos: 0,
-      tempoMedio: 0,
+      totalChamadas: 0,
+      retidaURA: 0,
+      atendida: 0,
+      abandonada: 0,
       notaMediaAtendimento: 0,
       notaMediaSolucao: 0,
-      operadoresAtivos: 0
+      duracaoMediaAtendimento: 0,
+      tempoMedioEspera: 0,
+      tempoMedioURA: 0,
+      taxaAtendimento: 0,
+      taxaAbandono: 0
     }
   }
 
-  const temposValidos = dados.filter(d => d.tempoFalado > 0)
+  // Função para converter tempo HH:MM:SS para minutos
+  const tempoParaMinutos = (tempo) => {
+    if (!tempo || tempo === '00:00:00') return 0
+    const [horas, minutos, segundos] = tempo.split(':').map(Number)
+    return horas * 60 + minutos + segundos / 60
+  }
+
+  // Contagem de chamadas por status - VERSÃO PERFEITA
+  const totalChamadas = dados.length
+  
+  const retidaURA = dados.filter(row => {
+    const chamada = row.chamada || ''
+    return chamada.toLowerCase().includes('retida') || chamada.toLowerCase().includes('ura')
+  }).length
+
+  const atendida = dados.filter(row => {
+    const tempoFalado = row.tempoFalado || '00:00:00'
+    const chamada = row.chamada || ''
+    const tempoMinutos = tempoParaMinutos(tempoFalado)
+    return tempoMinutos > 0 || chamada.toLowerCase().includes('atendida')
+  }).length
+
+  const abandonada = dados.filter(row => {
+    const tempoEspera = row.tempoEspera || '00:00:00'
+    const tempoFalado = row.tempoFalado || '00:00:00'
+    const chamada = row.chamada || ''
+    const tempoEsperaMinutos = tempoParaMinutos(tempoEspera)
+    const tempoFaladoMinutos = tempoParaMinutos(tempoFalado)
+    return tempoEsperaMinutos > 0 && tempoFaladoMinutos === 0 && !chamada.toLowerCase().includes('retida')
+  }).length
+
+  // Cálculo de médias - VERSÃO PERFEITA
+  const temposFalado = dados.map(row => tempoParaMinutos(row.tempoFalado)).filter(tempo => tempo > 0)
+  const duracaoMediaAtendimento = temposFalado.length > 0 
+    ? temposFalado.reduce((sum, tempo) => sum + tempo, 0) / temposFalado.length
+    : 0
+
+  const temposEspera = dados.map(row => tempoParaMinutos(row.tempoEspera)).filter(tempo => tempo > 0)
+  const tempoMedioEspera = temposEspera.length > 0 
+    ? temposEspera.reduce((sum, tempo) => sum + tempo, 0) / temposEspera.length
+    : 0
+
+  const temposURA = dados.map(row => tempoParaMinutos(row.tempoURA)).filter(tempo => tempo > 0)
+  const tempoMedioURA = temposURA.length > 0 
+    ? temposURA.reduce((sum, tempo) => sum + tempo, 0) / temposURA.length
+    : 0
+
+  // Notas médias
   const notasAtendimentoValidas = dados.filter(d => d.notaAtendimento !== null)
+  const notaMediaAtendimento = notasAtendimentoValidas.length > 0 ?
+    notasAtendimentoValidas.reduce((sum, d) => sum + d.notaAtendimento, 0) / notasAtendimentoValidas.length : 0
+
   const notasSolucaoValidas = dados.filter(d => d.notaSolucao !== null)
-  const operadoresUnicos = new Set(dados.map(d => d.operador))
+  const notaMediaSolucao = notasSolucaoValidas.length > 0 ?
+    notasSolucaoValidas.reduce((sum, d) => sum + d.notaSolucao, 0) / notasSolucaoValidas.length : 0
+
+  // Taxas
+  const taxaAtendimento = totalChamadas > 0 ? (atendida / totalChamadas) * 100 : 0
+  const taxaAbandono = totalChamadas > 0 ? (abandonada / totalChamadas) * 100 : 0
+
+  console.log('📊 Métricas calculadas:', {
+    totalChamadas,
+    retidaURA,
+    atendida,
+    abandonada,
+    duracaoMediaAtendimento: duracaoMediaAtendimento.toFixed(1),
+    tempoMedioEspera: tempoMedioEspera.toFixed(1),
+    tempoMedioURA: tempoMedioURA.toFixed(1),
+    taxaAtendimento: taxaAtendimento.toFixed(1),
+    taxaAbandono: taxaAbandono.toFixed(1)
+  })
 
   return {
-    totalAtendimentos: dados.length,
-    tempoMedio: temposValidos.length > 0 ? 
-      temposValidos.reduce((sum, d) => sum + d.tempoFalado, 0) / temposValidos.length : 0,
-    notaMediaAtendimento: notasAtendimentoValidas.length > 0 ?
-      notasAtendimentoValidas.reduce((sum, d) => sum + d.notaAtendimento, 0) / notasAtendimentoValidas.length : 0,
-    notaMediaSolucao: notasSolucaoValidas.length > 0 ?
-      notasSolucaoValidas.reduce((sum, d) => sum + d.notaSolucao, 0) / notasSolucaoValidas.length : 0,
-    operadoresAtivos: operadoresUnicos.size
+    totalChamadas,
+    retidaURA,
+    atendida,
+    abandonada,
+    notaMediaAtendimento: parseFloat(notaMediaAtendimento.toFixed(1)),
+    notaMediaSolucao: parseFloat(notaMediaSolucao.toFixed(1)),
+    duracaoMediaAtendimento: parseFloat(duracaoMediaAtendimento.toFixed(1)),
+    tempoMedioEspera: parseFloat(tempoMedioEspera.toFixed(1)),
+    tempoMedioURA: parseFloat(tempoMedioURA.toFixed(1)),
+    taxaAtendimento: parseFloat(taxaAtendimento.toFixed(1)),
+    taxaAbandono: parseFloat(taxaAbandono.toFixed(1))
   }
 }
 
-// Calcular métricas por operador - VERSÃO FUNCIONAL PERFEITA
+// Calcular métricas por operador - VERSÃO PERFEITA IMPLEMENTADA
 const calcularMetricasOperadores = (dados) => {
   const operadores = {}
+  
+  // Função para converter tempo HH:MM:SS para minutos
+  const tempoParaMinutos = (tempo) => {
+    if (!tempo || tempo === '00:00:00') return 0
+    const [horas, minutos, segundos] = tempo.split(':').map(Number)
+    return horas * 60 + minutos + segundos / 60
+  }
   
   dados.forEach(d => {
     if (!operadores[d.operador]) {
@@ -127,7 +216,7 @@ const calcularMetricasOperadores = (dados) => {
     }
 
     operadores[d.operador].totalAtendimentos++
-    operadores[d.operador].tempoTotal += d.tempoFalado
+    operadores[d.operador].tempoTotal += tempoParaMinutos(d.tempoFalado)
     
     if (d.notaAtendimento !== null) {
       operadores[d.operador].notasAtendimento.push(d.notaAtendimento)
