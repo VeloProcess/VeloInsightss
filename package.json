@@ -12,8 +12,7 @@
     "api:dev": "nodemon api/index.js",
     "serve": "http-server public -p 8080 -c-1",
     "start": "concurrently \"npm run api\" \"npm run serve\"",
-    "install-deps": "npm install",
-    "vercel-build": "npm run build"
+    "install-deps": "npm install"
   },
   "dependencies": {
     "chart.js": "^4.4.0",
