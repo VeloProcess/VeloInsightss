@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import Header from './components/Header'
 import Sidebar from './components/Sidebar'
-import LoginTest from './components/LoginTest'
+import DataFetcher from './components/DataFetcher'
 import MetricsDashboard from './components/MetricsDashboard'
 import ChartsSection from './components/ChartsSection'
 import ExportSection from './components/ExportSection'
