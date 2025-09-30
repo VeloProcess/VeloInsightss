@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import Header from './components/Header'
 import Sidebar from './components/Sidebar'
-import DataFetcher from './components/DataFetcher'
+import LoginTest from './components/LoginTest'
 import MetricsDashboard from './components/MetricsDashboard'
 import ChartsSection from './components/ChartsSection'
 import ExportSection from './components/ExportSection'
@@ -10,7 +10,7 @@ import ProgressIndicator from './components/ProgressIndicator'
 import AdvancedFilters from './components/AdvancedFilters'
 import DarkListManager from './components/DarkListManager'
 import PeriodSelector from './components/PeriodSelector'
-import { useGoogleSheetsDirectSimple } from './hooks/useGoogleSheetsDirectSimple'
+import { useGoogleSheetsDirect } from './hooks/useGoogleSheetsDirect'
 import { useDataFilters } from './hooks/useDataFilters'
 import { useTheme } from './hooks/useTheme'
 import './styles/App.css'
@@ -51,7 +51,7 @@ function App() {
     addToDarkList,
     removeFromDarkList,
     clearDarkList
-  } = useGoogleSheetsDirectSimple()
+  } = useGoogleSheetsDirect()
 
   const {
     filters,
@@ -189,15 +189,23 @@ function App() {
           )}
           
           {currentView === 'fetch' && (
-            <DataFetcher 
-              isLoading={isLoading}
-              isAuthenticated={isAuthenticated}
-              userData={userData}
-              onFetchData={handleFetchData}
-              onSignIn={handleSignIn}
-              onSignOut={handleSignOut}
-              errors={errors}
-            />
+            <>
+              <LoginTest 
+                isAuthenticated={isAuthenticated}
+                onSignIn={handleSignIn}
+                isLoading={isLoading}
+                errors={errors}
+              />
+              <DataFetcher 
+                isLoading={isLoading}
+                isAuthenticated={isAuthenticated}
+                userData={userData}
+                onFetchData={handleFetchData}
+                onSignIn={handleSignIn}
+                onSignOut={handleSignOut}
+                errors={errors}
+              />
+            </>
           )}
           
           {currentView === 'dashboard' && data && data.length > 0 && (

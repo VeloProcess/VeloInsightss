@@ -49,7 +49,7 @@ export const useGoogleSheetsDirectSimple = () => {
   // Verificar configuração
   useEffect(() => {
     if (!CLIENT_ID || CLIENT_ID === 'seu_client_id_aqui') {
-      setErrors(prev => [...prev, '❌ Configure o Client ID do Google no arquivo .env!'])
+      setErrors(prev => [...prev, '❌ Configure o Client ID do Google no arquivo .env! Consulte GOOGLE_SSO_SETUP.md para instruções detalhadas.'])
     } else {
       console.log('✅ Client ID configurado:', CLIENT_ID)
     }
@@ -93,9 +93,19 @@ export const useGoogleSheetsDirectSimple = () => {
 
       // Obter informações do usuário do Google
       const userResponse = await fetch(`https://www.googleapis.com/oauth2/v2/userinfo?access_token=${tokenData.access_token}`)
+      
+      if (!userResponse.ok) {
+        throw new Error('Erro ao obter informações do usuário')
+      }
+      
       const googleUserInfo = await userResponse.json()
       
       console.log('👤 Informações do usuário:', googleUserInfo)
+      
+      // Validar domínio do usuário
+      if (!googleUserInfo.email || !googleUserInfo.email.endsWith(DOMINIO_PERMITIDO)) {
+        throw new Error(`Acesso restrito ao domínio ${DOMINIO_PERMITIDO}. Seu email: ${googleUserInfo.email}`)
+      }
 
       // Salvar dados do usuário
       const userInfo = {
@@ -182,7 +192,7 @@ export const useGoogleSheetsDirectSimple = () => {
   const signIn = async () => {
     try {
       if (!CLIENT_ID || CLIENT_ID === 'seu_client_id_aqui') {
-        throw new Error('Client ID não configurado')
+        throw new Error('Client ID não configurado. Consulte GOOGLE_SSO_SETUP.md para instruções.')
       }
 
       const redirectUri = `${window.location.origin}/callback.html`
@@ -199,6 +209,7 @@ export const useGoogleSheetsDirectSimple = () => {
         `hd=${DOMINIO_PERMITIDO}`
 
       console.log('🔗 Redirecionando para Google OAuth...')
+      console.log('📋 URL de autorização:', authUrl)
       window.location.href = authUrl
       
     } catch (error) {

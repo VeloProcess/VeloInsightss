@@ -151,6 +151,24 @@ const DataFetcher = ({
                   </li>
                 ))}
               </ul>
+              
+              {/* Instruções de configuração */}
+              {errors.some(error => error.includes('Client ID') || error.includes('configurado')) && (
+                <div className="config-help">
+                  <h5>🔧 Como configurar o Google SSO:</h5>
+                  <ol className="config-steps">
+                    <li>Crie um arquivo <code>.env</code> na raiz do projeto</li>
+                    <li>Adicione suas credenciais do Google Cloud Console:</li>
+                    <li className="config-code">
+                      <code>
+                        VITE_GOOGLE_CLIENT_ID=seu_client_id_aqui<br/>
+                        VITE_GOOGLE_CLIENT_SECRET=seu_client_secret_aqui
+                      </code>
+                    </li>
+                    <li>Consulte o arquivo <code>GOOGLE_SSO_SETUP.md</code> para instruções detalhadas</li>
+                  </ol>
+                </div>
+              )}
             </div>
           )}
 
