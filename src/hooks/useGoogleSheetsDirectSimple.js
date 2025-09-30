@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { processarDados } from '../utils/dataProcessor'
 
 export const useGoogleSheetsDirectSimple = () => {
   const [data, setData] = useState([])
@@ -238,11 +239,31 @@ export const useGoogleSheetsDirectSimple = () => {
       
       if (result.values && result.values.length > 0) {
         console.log(`✅ ${result.values.length} linhas obtidas`)
-        setData(result.values)
-        return result.values
+        
+        // Processar dados
+        const dadosProcessados = processarDados(result.values)
+        
+        // Atualizar estados
+        setData(dadosProcessados.dadosFiltrados)
+        setMetrics(dadosProcessados.metricas)
+        setOperatorMetrics(dadosProcessados.metricasOperadores)
+        setRankings(dadosProcessados.rankings)
+        setOperators(dadosProcessados.operadores)
+        
+        console.log('📊 Dados processados:', {
+          totalLinhas: dadosProcessados.dadosFiltrados.length,
+          operadores: dadosProcessados.operadores.length,
+          rankings: dadosProcessados.rankings.length
+        })
+        
+        return dadosProcessados.dadosFiltrados
       } else {
         console.log('⚠️ Nenhum dado encontrado')
         setData([])
+        setMetrics({})
+        setOperatorMetrics({})
+        setRankings([])
+        setOperators([])
         return []
       }
       
