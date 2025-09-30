@@ -199,6 +199,7 @@ const calcularMetricas = (dados) => {
   })
 
   return {
+    totalCalls: totalChamadas, // Corrigido para compatibilidade com MetricsDashboard
     totalChamadas,
     retidaURA,
     atendida,
