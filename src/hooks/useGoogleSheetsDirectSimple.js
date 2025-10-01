@@ -11,6 +11,8 @@ export const useGoogleSheetsDirectSimple = () => {
   const [isLoading, setIsLoading] = useState(false)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [userData, setUserData] = useState(null)
+  const [fullDataset, setFullDataset] = useState([]) // Dataset completo da planilha
+  const [selectedPeriod, setSelectedPeriod] = useState(null) // Período selecionado pelo usuário
 
   // Configurações
   const SPREADSHEET_ID = '1F1VJrAzGage7YyX1tLCUCaIgB2GhvHSqJRVnmwwYhkA'
@@ -20,7 +22,6 @@ export const useGoogleSheetsDirectSimple = () => {
   const DOMINIO_PERMITIDO = '@velotax.com.br'
   
   // Estado para controle de período
-  const [selectedPeriod, setSelectedPeriod] = useState('recent')
   const [customDateRange, setCustomDateRange] = useState({ start: '', end: '' })
   
   // Estado para Dark List
@@ -239,6 +240,207 @@ export const useGoogleSheetsDirectSimple = () => {
     }
   }
 
+  // Função para buscar todos os dados da planilha
+  const fetchFullDataset = async (accessToken) => {
+    try {
+      setIsLoading(true)
+      console.log('🔄 Buscando dataset completo da planilha...')
+      
+      const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${SHEET_RANGE_FULL}?access_token=${accessToken}`
+      
+      const response = await fetch(url)
+      
+      if (!response.ok) {
+        throw new Error(`Erro ao buscar dados: ${response.statusText}`)
+      }
+      
+      const result = await response.json()
+      
+      if (result.values && result.values.length > 0) {
+        console.log(`✅ ${result.values.length} linhas obtidas do dataset completo`)
+        
+        // Armazenar dataset completo
+        setFullDataset(result.values)
+        
+        // Processar dados iniciais (últimos 5000 registros)
+        const dadosIniciais = result.values.slice(-5000)
+        const dadosProcessados = processarDados(dadosIniciais)
+        
+        // Atualizar estados com dados processados
+        setData(dadosProcessados.dadosFiltrados)
+        setMetrics(dadosProcessados.metricas)
+        setOperatorMetrics(Object.values(dadosProcessados.metricasOperadores).map(op => ({
+          operator: op.operador,
+          totalCalls: op.totalAtendimentos,
+          avgDuration: parseFloat(op.tempoMedio.toFixed(1)),
+          avgRatingAttendance: parseFloat(op.notaMediaAtendimento.toFixed(1)),
+          avgRatingSolution: parseFloat(op.notaMediaSolucao.toFixed(1)),
+          avgPauseTime: 0,
+          totalRecords: op.totalAtendimentos
+        })))
+        setRankings(dadosProcessados.rankings.map(ranking => ({
+          ...ranking,
+          isExcluded: darkList.includes(ranking.operator)
+        })))
+        setOperators(dadosProcessados.operadores)
+        
+        return dadosProcessados
+      } else {
+        throw new Error('Nenhum dado encontrado na planilha')
+      }
+    } catch (error) {
+      console.error('❌ Erro ao buscar dataset completo:', error)
+      setError(error.message)
+      throw error
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Função para filtrar dados por período
+  const filterDataByPeriod = (startDate, endDate) => {
+    if (!fullDataset || fullDataset.length === 0) {
+      console.warn('⚠️ Dataset completo não carregado')
+      return []
+    }
+
+    console.log(`🔍 Filtrando dados por período: ${startDate} até ${endDate}`)
+    console.log(`📊 Dataset completo: ${fullDataset.length} linhas`)
+    
+    // Converter datas para comparação - INCLUIR DIAS COMPLETOS
+    const start = new Date(startDate)
+    start.setHours(0, 0, 0, 0) // Início do dia (00:00:00)
+    
+    const end = new Date(endDate)
+    end.setHours(23, 59, 59, 999) // Final do dia (23:59:59)
+
+    console.log(`📅 Período de busca: ${start.toLocaleDateString('pt-BR')} até ${end.toLocaleDateString('pt-BR')}`)
+    console.log(`📅 Período ISO: ${start.toISOString()} até ${end.toISOString()}`)
+    console.log(`📅 Horário início: ${start.toLocaleTimeString('pt-BR')}`)
+    console.log(`📅 Horário fim: ${end.toLocaleTimeString('pt-BR')}`)
+
+    let contadorValidos = 0
+    let contadorInvalidos = 0
+    let contadorForaPeriodo = 0
+    let datasEncontradas = new Set()
+
+    // Filtrar dados (assumindo que a coluna de data é a coluna 3 - índice 3)
+    const dadosFiltrados = fullDataset.filter((row, index) => {
+      if (index === 0) return false // Pular cabeçalho
+      
+      const dataStr = row[3] // Coluna de data
+      if (!dataStr) {
+        contadorInvalidos++
+        return false
+      }
+
+      try {
+        // Converter data brasileira (DD/MM/YYYY) para Date
+        const [day, month, year] = dataStr.split('/')
+        const dataRegistro = new Date(year, month - 1, day)
+        
+        // Adicionar data ao conjunto para debug
+        datasEncontradas.add(dataStr)
+        
+        // Comparar apenas as datas (sem horário)
+        const dataRegistroInicio = new Date(year, month - 1, day, 0, 0, 0, 0)
+        const dataRegistroFim = new Date(year, month - 1, day, 23, 59, 59, 999)
+        
+        
+        // Verificar se a data está dentro do período (incluindo os dias completos)
+        if (dataRegistro >= start && dataRegistro <= end) {
+          contadorValidos++
+          return true
+        } else {
+          contadorForaPeriodo++
+          return false
+        }
+      } catch (error) {
+        console.warn('Data inválida encontrada:', dataStr, error)
+        contadorInvalidos++
+        return false
+      }
+    })
+
+    console.log(`📊 Debug da filtragem:`)
+    console.log(`  ✅ Registros válidos no período: ${contadorValidos}`)
+    console.log(`  ❌ Registros inválidos: ${contadorInvalidos}`)
+    console.log(`  📅 Registros fora do período: ${contadorForaPeriodo}`)
+    console.log(`  📋 Total de datas únicas encontradas: ${datasEncontradas.size}`)
+    console.log(`  📅 Primeiras 10 datas encontradas:`, Array.from(datasEncontradas).slice(0, 10))
+    
+    // Debug específico para encontrar o registro perdido
+    if (contadorValidos !== 1228) {
+      console.log(`🔍 Diferença encontrada: Esperado 1228, encontrado ${contadorValidos}`)
+      console.log(`🔍 Diferença: ${1228 - contadorValidos} registros`)
+    }
+    
+    // Verificar se a contagem está correta (sem cabeçalho)
+    console.log(`📊 Verificação final:`)
+    console.log(`  📋 Registros válidos encontrados: ${contadorValidos}`)
+    console.log(`  📋 Registros esperados na planilha: 1228`)
+    console.log(`  ✅ Status: ${contadorValidos === 1228 ? 'CORRETO' : 'INCORRETO'}`)
+
+    console.log(`✅ ${dadosFiltrados.length} registros encontrados no período`)
+    return dadosFiltrados
+  }
+
+  // Função para processar dados de um período específico
+  const processPeriodData = async (startDate, endDate) => {
+    try {
+      setIsLoading(true)
+      setSelectedPeriod({ startDate, endDate })
+      
+      const dadosFiltrados = filterDataByPeriod(startDate, endDate)
+      
+      if (dadosFiltrados.length === 0) {
+        console.warn('⚠️ Nenhum dado encontrado para o período selecionado')
+        // Limpar dados atuais
+        setData([])
+        setMetrics({})
+        setOperatorMetrics([])
+        setRankings([])
+        setOperators([])
+        return
+      }
+
+      // Processar dados do período
+      const dadosProcessados = processarDados(dadosFiltrados)
+      
+      // Converter metricasOperadores de objeto para array
+      const operatorMetricsArray = Object.values(dadosProcessados.metricasOperadores).map(op => ({
+        operator: op.operador,
+        totalCalls: op.totalAtendimentos,
+        avgDuration: parseFloat(op.tempoMedio.toFixed(1)),
+        avgRatingAttendance: parseFloat(op.notaMediaAtendimento.toFixed(1)),
+        avgRatingSolution: parseFloat(op.notaMediaSolucao.toFixed(1)),
+        avgPauseTime: 0,
+        totalRecords: op.totalAtendimentos
+      }))
+      
+      // Aplicar Dark List aos rankings
+      const rankingsComDarkList = dadosProcessados.rankings.map(ranking => ({
+        ...ranking,
+        isExcluded: darkList.includes(ranking.operator)
+      }))
+      
+      // Atualizar estados
+      setData(dadosProcessados.dadosFiltrados)
+      setMetrics(dadosProcessados.metricas)
+      setOperatorMetrics(operatorMetricsArray)
+      setRankings(rankingsComDarkList)
+      setOperators(dadosProcessados.operadores)
+      
+      console.log(`📊 Dados do período processados: ${dadosProcessados.dadosFiltrados.length} registros`)
+      
+    } catch (error) {
+      console.error('❌ Erro ao processar dados do período:', error)
+      setError(error.message)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   // Função para buscar dados (simplificada)
   const fetchSheetData = async (accessToken, mode = 'recent') => {
     try {
@@ -402,6 +604,9 @@ export const useGoogleSheetsDirectSimple = () => {
     customDateRange,
     darkList,
     fetchSheetData,
+    fetchFullDataset,
+    processPeriodData,
+    filterDataByPeriod,
     fetchDataByPeriod: fetchSheetData,
     filterDataByDateRange: () => data,
     setSelectedPeriod,

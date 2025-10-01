@@ -17,12 +17,14 @@ export const processarDados = (dados) => {
   const linhasDados = dados.slice(1)
 
   console.log('📋 Cabeçalhos encontrados:', cabecalhos)
+  console.log(`📊 Linhas de dados para processar: ${linhasDados.length}`)
 
   // Mapeamento correto das colunas - VERSÃO PERFEITA
   const indices = {
     chamada: 0,        // Coluna A
     operador: 2,        // Coluna C  
     data: 3,           // Coluna D
+    hora: 4,           // Coluna E - Hora
     tempoURA: 11,      // Coluna L - Tempo Na Ura
     tempoEspera: 12,   // Coluna M - Tempo De Espera
     tempoFalado: 13,   // Coluna N - Tempo Falado
@@ -37,10 +39,16 @@ export const processarDados = (dados) => {
   const dadosProcessados = []
   const operadoresEncontrados = new Set()
 
+  let linhasProcessadas = 0
+  let linhasIgnoradas = 0
+
   linhasDados.forEach((linha, index) => {
     try {
       // Verificar se a linha tem dados suficientes
-      if (!linha || linha.length < 3) return
+      if (!linha || linha.length < 3) {
+        linhasIgnoradas++
+        return
+      }
 
       const operador = linha[indices.operador] || 'Sem Operador'
 
@@ -50,6 +58,7 @@ export const processarDados = (dados) => {
         chamada: linha[indices.chamada] || '',
         operador: operador.trim(),
         data: linha[indices.data] || '',
+        hora: linha[indices.hora] || '00:00:00',
         tempoURA: linha[indices.tempoURA] || '00:00:00',
         tempoEspera: linha[indices.tempoEspera] || '00:00:00',
         tempoFalado: linha[indices.tempoFalado] || '00:00:00',
@@ -60,11 +69,24 @@ export const processarDados = (dados) => {
 
       dadosProcessados.push(dadosLinha)
       operadoresEncontrados.add(operador.trim())
+      linhasProcessadas++
 
     } catch (error) {
       console.error(`❌ Erro ao processar linha ${index + 2}:`, error)
+      linhasIgnoradas++
     }
   })
+
+  console.log(`📊 Debug do processamento:`)
+  console.log(`  ✅ Linhas processadas: ${linhasProcessadas}`)
+  console.log(`  ❌ Linhas ignoradas: ${linhasIgnoradas}`)
+  console.log(`  📋 Total esperado: ${linhasDados.length}`)
+  
+  // Debug específico para encontrar diferenças
+  if (linhasProcessadas !== linhasDados.length) {
+    console.log(`🔍 Diferença no processamento: Esperado ${linhasDados.length}, processado ${linhasProcessadas}`)
+    console.log(`🔍 Diferença: ${linhasDados.length - linhasProcessadas} linhas`)
+  }
 
   console.log(`✅ ${dadosProcessados.length} linhas processadas`)
   console.log(`👥 ${operadoresEncontrados.size} operadores encontrados`)
@@ -126,26 +148,49 @@ const calcularMetricas = (dados) => {
     console.log(`⚠️ Aviso: Esperávamos ~5000 linhas, mas temos apenas ${totalChamadas}`)
   }
   
-  const retidaURA = dados.filter(row => {
+  // Debug detalhado para cada categoria
+  let retidaURA = 0
+  let atendida = 0
+  let abandonada = 0
+  let naoClassificada = 0
+  
+  dados.forEach((row, index) => {
     const chamada = row.chamada || ''
-    return chamada.toLowerCase().includes('retida') || chamada.toLowerCase().includes('ura')
-  }).length
-
-  const atendida = dados.filter(row => {
     const tempoFalado = row.tempoFalado || '00:00:00'
-    const chamada = row.chamada || ''
-    const tempoMinutos = tempoParaMinutos(tempoFalado)
-    return tempoMinutos > 0 || chamada.toLowerCase().includes('atendida')
-  }).length
-
-  const abandonada = dados.filter(row => {
     const tempoEspera = row.tempoEspera || '00:00:00'
-    const tempoFalado = row.tempoFalado || '00:00:00'
-    const chamada = row.chamada || ''
+    const tempoMinutos = tempoParaMinutos(tempoFalado)
     const tempoEsperaMinutos = tempoParaMinutos(tempoEspera)
-    const tempoFaladoMinutos = tempoParaMinutos(tempoFalado)
-    return tempoEsperaMinutos > 0 && tempoFaladoMinutos === 0 && !chamada.toLowerCase().includes('retida')
-  }).length
+    
+    if (chamada.toLowerCase().includes('retida') || chamada.toLowerCase().includes('ura')) {
+      retidaURA++
+    } else if (chamada.toLowerCase().includes('abandonada')) {
+      abandonada++
+    } else if (tempoMinutos > 0 || chamada.toLowerCase().includes('atendida')) {
+      atendida++
+    } else if (tempoEsperaMinutos > 0 && tempoMinutos === 0 && !chamada.toLowerCase().includes('retida')) {
+      abandonada++
+    } else {
+      naoClassificada++
+      // Log das primeiras 5 linhas não classificadas para debug
+      if (naoClassificada <= 5) {
+        console.log(`🔍 Linha não classificada ${index + 1}:`, {
+          chamada,
+          tempoFalado,
+          tempoEspera,
+          tempoMinutos,
+          tempoEsperaMinutos
+        })
+      }
+    }
+  })
+  
+  console.log(`📊 Debug - Contagem detalhada:`)
+  console.log(`  📞 Retida na URA: ${retidaURA}`)
+  console.log(`  ✅ Atendida: ${atendida}`)
+  console.log(`  ❌ Abandonada: ${abandonada}`)
+  console.log(`  ❓ Não classificada: ${naoClassificada}`)
+  console.log(`  📊 Soma: ${retidaURA + atendida + abandonada + naoClassificada}`)
+  console.log(`  📊 Total esperado: ${totalChamadas}`)
 
   console.log(`📊 Debug - Status das chamadas:`, {
     retidaURA,

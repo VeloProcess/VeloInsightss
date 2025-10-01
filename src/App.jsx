@@ -8,9 +8,9 @@ import ChartsSection from './components/ChartsSection'
 import ExportSection from './components/ExportSection'
 import OperatorAnalysis from './components/OperatorAnalysis'
 import ProgressIndicator from './components/ProgressIndicator'
+import PeriodSelector from './components/PeriodSelector'
 import AdvancedFilters from './components/AdvancedFilters'
 import DarkListManager from './components/DarkListManager'
-import PeriodSelector from './components/PeriodSelector'
 import { useGoogleSheetsDirectSimple } from './hooks/useGoogleSheetsDirectSimple'
 import { useDataFilters } from './hooks/useDataFilters'
 import { useTheme } from './hooks/useTheme'
@@ -40,6 +40,8 @@ function App() {
     selectedPeriod,
     customDateRange,
     fetchSheetData,
+    fetchFullDataset,
+    processPeriodData,
     fetchDataByPeriod,
     filterDataByDateRange,
     setSelectedPeriod,
@@ -67,10 +69,10 @@ function App() {
         return
       }
       
-      console.log('🔄 Iniciando busca de dados (carregamento rápido)...')
+      console.log('🔄 Iniciando carregamento do dataset completo...')
       
-      // Carregamento inicial rápido (dados recentes)
-      await fetchSheetData(userData.accessToken, 'recent')
+      // Carregar dataset completo da planilha
+      await fetchFullDataset(userData.accessToken)
       
       // Aguardar um pouco para o estado ser atualizado
       setTimeout(() => {
@@ -112,6 +114,15 @@ function App() {
 
   const handleCustomDateChange = (dateRange) => {
     setCustomDateRange(dateRange)
+  }
+
+  const handlePeriodSelect = async (startDate, endDate) => {
+    try {
+      console.log(`🔄 Processando dados do período: ${startDate} até ${endDate}`)
+      await processPeriodData(startDate, endDate)
+    } catch (error) {
+      console.error('❌ Erro ao processar período:', error)
+    }
   }
 
   const handleFetchFullData = async () => {
@@ -212,12 +223,9 @@ function App() {
           {currentView === 'dashboard' && data && data.length > 0 && (
             <>
               <PeriodSelector
-                selectedPeriod={selectedPeriod}
-                onPeriodChange={handlePeriodChange}
-                customDateRange={customDateRange}
-                onCustomDateChange={handleCustomDateChange}
+                onPeriodSelect={handlePeriodSelect}
                 isLoading={isLoading}
-                onFetchFullData={handleFetchFullData}
+                selectedPeriod={selectedPeriod}
               />
               
               <AdvancedFilters

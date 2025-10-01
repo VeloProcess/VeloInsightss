@@ -278,8 +278,9 @@ const ChartsSection = memo(({ data, operatorMetrics, rankings }) => {
   const createOperatorsChart = (Chart) => {
     if (!chartRefs.operatorsChart.current || !operatorMetrics) return
 
-    // Pegar top 10 operadores usando dados do Velotax
+    // Pegar top 10 operadores usando dados do Velotax (excluindo "Sem Operador")
     const topOperators = operatorMetrics
+      .filter(op => op.operator && !op.operator.toLowerCase().includes('sem operador'))
       .sort((a, b) => b.totalCalls - a.totalCalls)
       .slice(0, 10)
 
@@ -322,28 +323,69 @@ const ChartsSection = memo(({ data, operatorMetrics, rankings }) => {
     })
   }
 
-  // 📈 GRÁFICO DE TENDÊNCIA TEMPORAL
+  // 📈 GRÁFICO DE TENDÊNCIA SEMANAL MELHORADO
   const createTrendChart = (Chart) => {
     if (!chartRefs.trendChart.current || !data) return
 
-    // Agrupar por semana usando dados do Velotax
+    // Função para obter início da semana (segunda-feira)
+    const getWeekStart = (date) => {
+      const weekStart = new Date(date)
+      const day = weekStart.getDay()
+      const diff = day === 0 ? -6 : 1 - day // Segunda-feira como início da semana
+      weekStart.setDate(weekStart.getDate() + diff)
+      weekStart.setHours(0, 0, 0, 0)
+      return weekStart
+    }
+
+    // Agrupar por semana com métricas completas
     const weeklyData = {}
     data.forEach(record => {
       if (record.data) {
         try {
           const date = parseBrazilianDate(record.data)
           if (date && !isNaN(date.getTime())) {
-            const weekStart = new Date(date)
-            weekStart.setDate(date.getDate() - date.getDay())
+            const weekStart = getWeekStart(date)
             const weekKey = weekStart.toISOString().split('T')[0]
             
             if (!weeklyData[weekKey]) {
-              weeklyData[weekKey] = { calls: 0, avgRating: 0, ratingCount: 0 }
+              weeklyData[weekKey] = {
+                calls: 0,
+                atendidas: 0,
+                abandonadas: 0,
+                retidasURA: 0,
+                totalRating: 0,
+                ratingCount: 0,
+                totalDuration: 0,
+                durationCount: 0,
+                weekLabel: `Sem ${weekStart.getDate()}/${weekStart.getMonth() + 1}`
+              }
             }
-            weeklyData[weekKey].calls += 1 // Cada linha é uma chamada
+            
+            // Contar por tipo de chamada
+            weeklyData[weekKey].calls += 1
+            if (record.chamada) {
+              const chamada = record.chamada.toLowerCase()
+              if (chamada.includes('retida') || chamada.includes('ura')) {
+                weeklyData[weekKey].retidasURA += 1
+              } else if (chamada.includes('abandonada')) {
+                weeklyData[weekKey].abandonadas += 1
+              } else {
+                weeklyData[weekKey].atendidas += 1
+              }
+            }
+            
+            // Acumular notas
             if (record.notaAtendimento) {
-              weeklyData[weekKey].avgRating += record.notaAtendimento
+              weeklyData[weekKey].totalRating += record.notaAtendimento
               weeklyData[weekKey].ratingCount += 1
+            }
+            
+            // Acumular duração
+            if (record.tempoFalado && record.tempoFalado !== '00:00:00') {
+              const [h, m, s] = record.tempoFalado.split(':').map(Number)
+              const duration = h * 60 + m + s / 60
+              weeklyData[weekKey].totalDuration += duration
+              weeklyData[weekKey].durationCount += 1
             }
           }
         } catch (error) {
@@ -354,35 +396,55 @@ const ChartsSection = memo(({ data, operatorMetrics, rankings }) => {
 
     const weeks = Object.keys(weeklyData).sort()
     const calls = weeks.map(week => weeklyData[week].calls)
+    const atendidas = weeks.map(week => weeklyData[week].atendidas)
+    const abandonadas = weeks.map(week => weeklyData[week].abandonadas)
     const avgRatings = weeks.map(week => 
       weeklyData[week].ratingCount > 0 
-        ? weeklyData[week].avgRating / weeklyData[week].ratingCount 
+        ? (weeklyData[week].totalRating / weeklyData[week].ratingCount).toFixed(1)
+        : 0
+    )
+    const avgDuration = weeks.map(week =>
+      weeklyData[week].durationCount > 0
+        ? (weeklyData[week].totalDuration / weeklyData[week].durationCount).toFixed(1)
         : 0
     )
 
     chartInstances.current.trendChart = new Chart(chartRefs.trendChart.current, {
       type: 'line',
       data: {
-        labels: weeks.map(week => {
-          try {
-            return new Date(week).toLocaleDateString('pt-BR')
-          } catch (error) {
-            return week
-          }
-        }),
+        labels: weeks.map(week => weeklyData[week].weekLabel),
         datasets: [
           {
-            label: 'Chamadas por Semana',
+            label: '📞 Total de Chamadas',
             data: calls,
             borderColor: '#1634FF',
             backgroundColor: 'rgba(22, 52, 255, 0.1)',
+            tension: 0.4,
+            fill: true,
             yAxisID: 'y'
           },
           {
-            label: 'Nota Média',
+            label: '✅ Chamadas Atendidas',
+            data: atendidas,
+            borderColor: '#15A237',
+            backgroundColor: 'rgba(21, 162, 55, 0.1)',
+            tension: 0.4,
+            yAxisID: 'y'
+          },
+          {
+            label: '❌ Chamadas Abandonadas',
+            data: abandonadas,
+            borderColor: '#FF6B6B',
+            backgroundColor: 'rgba(255, 107, 107, 0.1)',
+            tension: 0.4,
+            yAxisID: 'y'
+          },
+          {
+            label: '⭐ Nota Média',
             data: avgRatings,
-            borderColor: '#1694FF',
-            backgroundColor: 'rgba(22, 148, 255, 0.1)',
+            borderColor: '#FCC200',
+            backgroundColor: 'rgba(252, 194, 0, 0.1)',
+            tension: 0.4,
             yAxisID: 'y1'
           }
         ]
@@ -392,12 +454,30 @@ const ChartsSection = memo(({ data, operatorMetrics, rankings }) => {
         plugins: {
           title: {
             display: true,
-            text: '📈 Tendência Semanal',
+            text: '📈 Tendência Semanal - Análise Completa',
             color: '#F3F7FC',
             font: { size: 16 }
           },
           legend: {
-            labels: { color: '#F3F7FC' }
+            labels: { color: '#F3F7FC' },
+            position: 'top'
+          },
+          tooltip: {
+            mode: 'index',
+            intersect: false,
+            callbacks: {
+              title: function(context) {
+                return `Semana: ${context[0].label}`
+              },
+              label: function(context) {
+                const label = context.dataset.label || ''
+                const value = context.parsed.y
+                if (label.includes('Nota')) {
+                  return `${label}: ${value}/5`
+                }
+                return `${label}: ${value}`
+              }
+            }
           }
         },
         scales: {
@@ -430,15 +510,16 @@ const ChartsSection = memo(({ data, operatorMetrics, rankings }) => {
 
     const hourlyData = Array(24).fill(0)
     data.forEach(record => {
-      if (record.data) {
+      if (record.hora) {
         try {
-          const date = parseBrazilianDate(record.data)
-          if (date && !isNaN(date.getTime())) {
-            const hour = date.getHours()
-            hourlyData[hour] += 1 // Cada linha é uma chamada
+          // Usar a coluna Hora (E) diretamente no formato HH:MM:SS
+          const [hour] = record.hora.split(':')
+          const hourIndex = parseInt(hour)
+          if (hourIndex >= 0 && hourIndex <= 23) {
+            hourlyData[hourIndex] += 1
           }
         } catch (error) {
-          console.warn('Data inválida encontrada no gráfico de horário:', record.data, error)
+          console.warn('Hora inválida encontrada no gráfico de horário:', record.hora, error)
         }
       }
     })
@@ -482,49 +563,133 @@ const ChartsSection = memo(({ data, operatorMetrics, rankings }) => {
     })
   }
 
-  // 🎯 GRÁFICO DE PERFORMANCE MULTIDIMENSIONAL
+  // 🎯 GRÁFICO DE PERFORMANCE POR OPERADOR (MELHORADO)
   const createPerformanceChart = (Chart) => {
     if (!chartRefs.performanceChart.current || !operatorMetrics) return
 
     const topOperators = operatorMetrics
+      .filter(op => op.operator && !op.operator.toLowerCase().includes('sem operador'))
       .sort((a, b) => b.totalCalls - a.totalCalls)
-      .slice(0, 8)
+      .slice(0, 6) // Top 6 operadores para melhor visualização
+
+    // Preparar dados para gráfico de barras agrupadas
+    const labels = topOperators.map(op => 
+      op.operator.length > 12 ? op.operator.substring(0, 12) + '...' : op.operator
+    )
+    
+    const callsData = topOperators.map(op => op.totalCalls || 0)
+    const attendanceData = topOperators.map(op => (op.avgRatingAttendance || 0).toFixed(1))
+    const solutionData = topOperators.map(op => (op.avgRatingSolution || 0).toFixed(1))
+    const durationData = topOperators.map(op => (op.avgDuration || 0).toFixed(1))
 
     chartInstances.current.performanceChart = new Chart(chartRefs.performanceChart.current, {
-      type: 'radar',
+      type: 'bar',
       data: {
-        labels: ['Chamadas', 'Nota Atendimento', 'Nota Solução', 'Eficiência'],
-        datasets: topOperators.map((op, index) => ({
-          label: op.operator,
-          data: [
-            Math.min(op.totalCalls / 50, 100), // Normalizado
-            (op.avgRatingAttendance || 0) * 20, // 0-5 para 0-100
-            (op.avgRatingSolution || 0) * 20,
-            Math.max(0, 100 - (op.avgDuration || 0) * 2) // Menos tempo = mais eficiência
-          ],
-          borderColor: `hsl(${index * 45}, 70%, 50%)`,
-          backgroundColor: `hsla(${index * 45}, 70%, 50%, 0.2)`,
-          borderWidth: 2
-        }))
+        labels: labels,
+        datasets: [
+          {
+            label: '📞 Total de Chamadas',
+            data: callsData,
+            backgroundColor: 'rgba(22, 52, 255, 0.8)',
+            borderColor: '#1634FF',
+            borderWidth: 1,
+            yAxisID: 'y'
+          },
+          {
+            label: '⭐ Nota Atendimento',
+            data: attendanceData,
+            backgroundColor: 'rgba(252, 194, 0, 0.8)',
+            borderColor: '#FCC200',
+            borderWidth: 1,
+            yAxisID: 'y1'
+          },
+          {
+            label: '🎯 Nota Solução',
+            data: solutionData,
+            backgroundColor: 'rgba(21, 162, 55, 0.8)',
+            borderColor: '#15A237',
+            borderWidth: 1,
+            yAxisID: 'y1'
+          },
+          {
+            label: '⏱️ Duração Média (min)',
+            data: durationData,
+            backgroundColor: 'rgba(255, 107, 107, 0.8)',
+            borderColor: '#FF6B6B',
+            borderWidth: 1,
+            yAxisID: 'y2'
+          }
+        ]
       },
       options: {
         responsive: true,
         plugins: {
           title: {
             display: true,
-            text: '🎯 Performance Multidimensional',
+            text: '🎯 Performance dos Top 6 Operadores',
             color: '#F3F7FC',
             font: { size: 16 }
           },
           legend: {
-            labels: { color: '#F3F7FC' }
+            labels: { color: '#F3F7FC' },
+            position: 'top'
+          },
+          tooltip: {
+            mode: 'index',
+            intersect: false,
+            callbacks: {
+              title: function(context) {
+                return `Operador: ${context[0].label}`
+              },
+              label: function(context) {
+                const label = context.dataset.label || ''
+                const value = context.parsed.y
+                if (label.includes('Nota')) {
+                  return `${label}: ${value}/5`
+                } else if (label.includes('Duração')) {
+                  return `${label}: ${value} min`
+                }
+                return `${label}: ${value}`
+              }
+            }
           }
         },
         scales: {
-          r: {
+          x: {
+            ticks: { color: '#B0B0B0' },
+            grid: { color: '#404040' }
+          },
+          y: {
+            type: 'linear',
+            display: true,
+            position: 'left',
             ticks: { color: '#B0B0B0' },
             grid: { color: '#404040' },
-            pointLabels: { color: '#F3F7FC' }
+            title: {
+              display: true,
+              text: 'Chamadas',
+              color: '#F3F7FC'
+            }
+          },
+          y1: {
+            type: 'linear',
+            display: true,
+            position: 'right',
+            ticks: { color: '#B0B0B0' },
+            grid: { drawOnChartArea: false },
+            title: {
+              display: true,
+              text: 'Notas (0-5)',
+              color: '#F3F7FC'
+            },
+            min: 0,
+            max: 5
+          },
+          y2: {
+            type: 'linear',
+            display: false,
+            ticks: { color: '#B0B0B0' },
+            grid: { drawOnChartArea: false }
           }
         }
       }
@@ -582,8 +747,10 @@ const ChartsSection = memo(({ data, operatorMetrics, rankings }) => {
   const createRankingChart = (Chart) => {
     if (!chartRefs.rankingChart.current || !rankings) return
 
-    // Pegar top 10 operadores do ranking
-    const topRankings = rankings.slice(0, 10)
+    // Pegar top 10 operadores do ranking (excluindo "Sem Operador")
+    const topRankings = rankings
+      .filter(r => r.operator && !r.operator.toLowerCase().includes('sem operador'))
+      .slice(0, 10)
 
     chartInstances.current.rankingChart = new Chart(chartRefs.rankingChart.current, {
       type: 'bar',
