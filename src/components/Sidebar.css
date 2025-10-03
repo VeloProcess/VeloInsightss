@@ -164,6 +164,49 @@
   }
 }
 
+/* Botão de preferências */
+.preferences-button {
+  background: var(--color-blue-primary);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 15px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  width: 100%;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.preferences-button:hover {
+  background: var(--color-blue-light);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(22, 52, 255, 0.3);
+}
+
+/* Tema claro - Botão de preferências */
+.theme-light .preferences-button {
+  background: #1634FF !important;
+}
+
+.theme-light .preferences-button:hover {
+  background: #1e40af !important;
+}
+
+/* Tema escuro - Botão de preferências */
+.theme-dark .preferences-button {
+  background: #60A5FA !important;
+}
+
+.theme-dark .preferences-button:hover {
+  background: #3B82F6 !important;
+}
+
 @media (max-width: 768px) {
   .sidebar {
     width: 100%;

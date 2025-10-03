@@ -1,26 +1,27 @@
 import React from 'react'
 import './Sidebar.css'
 
-const Sidebar = ({ open, currentView, onViewChange, hasData, onClearData, viewMode, onViewModeChange, selectedOperator, onOperatorSelect, operatorMetrics }) => {
+const Sidebar = ({ open, currentView, onViewChange, hasData, onClearData, viewMode, onViewModeChange, selectedOperator, onOperatorSelect, operatorMetrics, onShowPreferences }) => {
   const menuItems = [
     {
-      id: 'upload',
-      label: 'Upload de Dados',
-      icon: '📁',
-      description: 'Carregar arquivos CSV/Excel'
-    },
-    {
       id: 'dashboard',
-      label: 'Dashboard Geral',
-      icon: '🏢',
-      description: 'Visão geral da empresa',
+      label: 'Dashboard Principal',
+      icon: '📊',
+      description: 'Métricas gerais e ranking',
       disabled: !hasData
     },
     {
-      id: 'operators',
-      label: 'Análise por Operador',
-      icon: '👥',
-      description: 'Métricas individuais',
+      id: 'charts',
+      label: 'Gráficos Detalhados',
+      icon: '📈',
+      description: 'Análise visual completa',
+      disabled: !hasData
+    },
+    {
+      id: 'agents',
+      label: 'Visualizar por Agente',
+      icon: '👤',
+      description: 'Métricas de tempo por operador',
       disabled: !hasData
     }
   ]
@@ -70,16 +71,24 @@ const Sidebar = ({ open, currentView, onViewChange, hasData, onClearData, viewMo
           </div>
         )}
         
-        {hasData && (
-          <div className="sidebar-footer">
+        <div className="sidebar-footer">
+          <button 
+            className="preferences-button"
+            onClick={onShowPreferences}
+            title="Gerenciar Preferências"
+          >
+            ⚙️ Preferências
+          </button>
+          
+          {hasData && (
             <button 
               className="btn btn-danger btn-sm"
               onClick={onClearData}
             >
               🗑️ Limpar Dados
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </aside>
     </>
   )

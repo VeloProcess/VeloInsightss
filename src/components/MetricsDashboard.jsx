@@ -1,7 +1,34 @@
 import React, { memo } from 'react'
+import { useCargo } from '../contexts/CargoContext'
 import './MetricsDashboard.css'
 
 const MetricsDashboard = memo(({ metrics, operatorMetrics, rankings, darkList, addToDarkList, removeFromDarkList }) => {
+  const { hasPermission, selectedCargo } = useCargo()
+  
+  // Debug apenas se houver erro
+  if (!metrics && operatorMetrics?.length > 0) {
+    console.error('❌ MetricsDashboard: metrics ausente mas operatorMetrics presente')
+  }
+
+
+  // Verificar permissão para ver métricas gerais
+  if (!hasPermission('canViewGeneralMetrics')) {
+    return (
+      <div className="metrics-dashboard">
+        <div className="card">
+          <div className="card-header">
+            <h2 className="card-title">📊 Métricas Gerais</h2>
+          </div>
+          <div className="card-content">
+            <p>❌ Você não tem permissão para visualizar métricas gerais.</p>
+            <p>Cargo atual: {selectedCargo}</p>
+            <p>Permissão necessária: canViewGeneralMetrics</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   if (!metrics) {
     return (
       <div className="metrics-dashboard">
@@ -48,44 +75,43 @@ const MetricsDashboard = memo(({ metrics, operatorMetrics, rankings, darkList, a
               <div className="metric-label">Abandonada</div>
             </div>
             
-                   {/* Notas */}
-                   <div className="metric-card">
-                     <div className="metric-value">{metrics.avgRatingAttendance || '0.0'}/5</div>
-                     <div className="metric-label">Nota Média de Atendimento</div>
-                   </div>
-                   
-                   <div className="metric-card">
-                     <div className="metric-value">{metrics.avgRatingSolution || '0.0'}/5</div>
-                     <div className="metric-label">Nota Média de Solução</div>
-                   </div>
-                   
-                   {/* Tempos */}
-                   <div className="metric-card">
-                     <div className="metric-value">{metrics.duracaoMediaAtendimento || '0.0'} min</div>
-                     <div className="metric-label">Duração Média de Atendimento</div>
-                   </div>
-                   
-                   <div className="metric-card">
-                     <div className="metric-value">{metrics.tempoMedioEspera || '0.0'} min</div>
-                     <div className="metric-label">Tempo Médio de Espera</div>
-                   </div>
-                   
-                   <div className="metric-card">
-                     <div className="metric-value">{metrics.tempoMedioURA || '0.0'} min</div>
-                     <div className="metric-label">Tempo Médio na URA</div>
-                   </div>
-                   
-                   {/* Taxas */}
-                   <div className="metric-card">
-                     <div className="metric-value">{metrics.taxaAtendimento || '0.0'}%</div>
-                     <div className="metric-label">Taxa de Atendimento</div>
-                   </div>
-                   
-                   <div className="metric-card">
-                     <div className="metric-value">{metrics.taxaAbandono || '0.0'}%</div>
-                     <div className="metric-label">Taxa de Abandono</div>
-                   </div>
-
+            {/* Notas */}
+            <div className="metric-card">
+              <div className="metric-value">{metrics.avgRatingAttendance || '0.0'}/5</div>
+              <div className="metric-label">Nota Média de Atendimento</div>
+            </div>
+            
+            <div className="metric-card">
+              <div className="metric-value">{metrics.avgRatingSolution || '0.0'}/5</div>
+              <div className="metric-label">Nota Média de Solução</div>
+            </div>
+            
+            {/* Tempos */}
+            <div className="metric-card">
+              <div className="metric-value">{metrics.duracaoMediaAtendimento || '0.0'} min</div>
+              <div className="metric-label">Duração Média de Atendimento</div>
+            </div>
+            
+            <div className="metric-card">
+              <div className="metric-value">{metrics.tempoMedioEspera || '0.0'} min</div>
+              <div className="metric-label">Tempo Médio de Espera</div>
+            </div>
+            
+            <div className="metric-card">
+              <div className="metric-value">{metrics.tempoMedioURA || '0.0'} min</div>
+              <div className="metric-label">Tempo Médio na URA</div>
+            </div>
+            
+            {/* Taxas */}
+            <div className="metric-card">
+              <div className="metric-value">{metrics.taxaAtendimento || '0.0'}%</div>
+              <div className="metric-label">Taxa de Atendimento</div>
+            </div>
+            
+            <div className="metric-card">
+              <div className="metric-value">{metrics.taxaAbandono || '0.0'}%</div>
+              <div className="metric-label">Taxa de Abandono</div>
+            </div>
 
             {/* Estatísticas de Chamadas */}
             {metrics.callStatuses && Object.keys(metrics.callStatuses).length > 0 && (

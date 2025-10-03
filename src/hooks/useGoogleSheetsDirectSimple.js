@@ -16,7 +16,7 @@ export const useGoogleSheetsDirectSimple = () => {
 
   // Configurações
   const SPREADSHEET_ID = '1F1VJrAzGage7YyX1tLCUCaIgB2GhvHSqJRVnmwwYhkA'
-  const SHEET_RANGE_INITIAL = 'Base!A1:AC5000'
+  const SHEET_RANGE_INITIAL = 'Base!A1:AC15000' // Aumentado para buscar mais dados dos últimos 60 dias
   const SHEET_RANGE_FULL = 'Base!A1:AC150000'
   const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID
   const DOMINIO_PERMITIDO = '@velotax.com.br'
@@ -126,6 +126,15 @@ export const useGoogleSheetsDirectSimple = () => {
       
       console.log('🎉 Login realizado com sucesso!')
       
+      // Buscar dados automaticamente após login
+      try {
+        console.log('📊 Buscando dados automaticamente após login...')
+        await fetchSheetData(tokenData.access_token)
+        console.log('✅ Dados carregados com sucesso!')
+      } catch (error) {
+        console.error('❌ Erro ao carregar dados após login:', error)
+      }
+      
     } catch (error) {
       console.error('❌ Erro ao trocar código por token:', error)
       setErrors(prev => [...prev, `❌ Erro de autenticação: ${error.message}`])
@@ -200,14 +209,14 @@ export const useGoogleSheetsDirectSimple = () => {
       const scope = 'https://www.googleapis.com/auth/spreadsheets.readonly profile email'
       const responseType = 'code'
       
+      // URL simplificada para evitar 2FA
       const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
         `client_id=${CLIENT_ID}&` +
         `redirect_uri=${encodeURIComponent(redirectUri)}&` +
         `scope=${encodeURIComponent(scope)}&` +
         `response_type=${responseType}&` +
-        `access_type=offline&` +
-        `prompt=consent&` +
-        `hd=${DOMINIO_PERMITIDO}`
+        `access_type=online&` +
+        `prompt=select_account`
 
       console.log('🔗 Redirecionando para Google OAuth...')
       console.log('📋 URL de autorização:', authUrl)
@@ -407,16 +416,28 @@ export const useGoogleSheetsDirectSimple = () => {
       // Processar dados do período
       const dadosProcessados = processarDados(dadosFiltrados)
       
-      // Converter metricasOperadores de objeto para array
-      const operatorMetricsArray = Object.values(dadosProcessados.metricasOperadores).map(op => ({
-        operator: op.operador,
-        totalCalls: op.totalAtendimentos,
-        avgDuration: parseFloat(op.tempoMedio.toFixed(1)),
-        avgRatingAttendance: parseFloat(op.notaMediaAtendimento.toFixed(1)),
-        avgRatingSolution: parseFloat(op.notaMediaSolucao.toFixed(1)),
-        avgPauseTime: 0,
-        totalRecords: op.totalAtendimentos
-      }))
+      // Converter metricasOperadores para o formato esperado pelo AgentAnalysis
+      const operatorMetricsObj = {}
+      Object.values(dadosProcessados.metricasOperadores).forEach(op => {
+        // Filtrar apenas operadores com nomes válidos (excluir "Sem Operador", etc.)
+        if (op.operador && 
+            op.operador !== 'Sem Operador' && 
+            !op.operador.toLowerCase().includes('sem operador') &&
+            op.operador.trim().includes(' ') && // Deve ter pelo menos um espaço (nome completo)
+            op.totalAtendimentos > 0) {
+          
+          operatorMetricsObj[op.operador] = {
+            operator: op.operador,
+            totalCalls: op.totalAtendimentos,
+            avgDuration: parseFloat(op.tempoMedio?.toFixed(1) || 0),
+            avgRatingAttendance: parseFloat(op.notaMediaAtendimento?.toFixed(1) || 0),
+            avgRatingSolution: parseFloat(op.notaMediaSolucao?.toFixed(1) || 0),
+            avgPauseTime: 0,
+            totalRecords: op.totalAtendimentos,
+            score: parseFloat(op.score?.toFixed(2) || 0)
+          }
+        }
+      })
       
       // Aplicar Dark List aos rankings
       const rankingsComDarkList = dadosProcessados.rankings.map(ranking => ({
@@ -427,7 +448,7 @@ export const useGoogleSheetsDirectSimple = () => {
       // Atualizar estados
       setData(dadosProcessados.dadosFiltrados)
       setMetrics(dadosProcessados.metricas)
-      setOperatorMetrics(operatorMetricsArray)
+      setOperatorMetrics(operatorMetricsObj)
       setRankings(rankingsComDarkList)
       setOperators(dadosProcessados.operadores)
       
@@ -441,14 +462,71 @@ export const useGoogleSheetsDirectSimple = () => {
     }
   }
 
-  // Função para buscar dados (simplificada)
-  const fetchSheetData = async (accessToken, mode = 'recent') => {
+  // Função para renovar token de acesso
+  const refreshAccessToken = async () => {
+    if (!userData?.refreshToken) {
+      throw new Error('Refresh token não disponível')
+    }
+
+    const response = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        client_id: CLIENT_ID,
+        client_secret: import.meta.env.VITE_GOOGLE_CLIENT_SECRET,
+        refresh_token: userData.refreshToken,
+        grant_type: 'refresh_token',
+      }),
+    })
+
+    if (!response.ok) {
+      throw new Error('Erro ao renovar token')
+    }
+
+    const tokenData = await response.json()
+    
+    // Atualizar userData com novo token
+    const updatedUserData = {
+      ...userData,
+      accessToken: tokenData.access_token,
+      expiresAt: Date.now() + (tokenData.expires_in * 1000),
+    }
+    
+    setUserData(updatedUserData)
+    localStorage.setItem('veloinsights_user', JSON.stringify(updatedUserData))
+    
+    console.log('✅ Token renovado com sucesso')
+  }
+
+  // Função para buscar dados dos últimos 60 dias
+  const fetchLast60Days = async (accessToken) => {
     try {
       setIsLoading(true)
-      console.log(`🔄 Buscando dados (modo: ${mode})...`)
+      console.log('🔄 Buscando dados dos últimos 60 dias...')
       
-      const range = mode === 'recent' ? SHEET_RANGE_INITIAL : SHEET_RANGE_FULL
-      const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${range}?access_token=${accessToken}`
+      // Verificar se o token está válido
+      let tokenToUse = accessToken
+      if (!tokenToUse && userData) {
+        // Verificar se o token expirou
+        if (userData.expiresAt && Date.now() > userData.expiresAt) {
+          console.log('🔄 Token expirado, renovando...')
+          await refreshAccessToken()
+          tokenToUse = userData.accessToken
+        } else {
+          tokenToUse = userData.accessToken
+        }
+      }
+      
+      if (!tokenToUse) {
+        throw new Error('Token de acesso não disponível')
+      }
+      
+      // Usar range maior para garantir que temos dados dos últimos 60 dias
+      const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${SHEET_RANGE_FULL}?access_token=${tokenToUse}`
+      
+      console.log('🔗 URL da API:', url.replace(tokenToUse, '***'))
       
       const response = await fetch(url)
       
@@ -461,10 +539,10 @@ export const useGoogleSheetsDirectSimple = () => {
       if (result.values && result.values.length > 0) {
         console.log(`✅ ${result.values.length} linhas obtidas`)
         
-        // Processar dados
+        // Processar dados (já filtra os últimos 60 dias)
         const dadosProcessados = processarDados(result.values)
         
-        console.log('📊 Debug - Dados processados:', {
+        console.log('📊 Debug - Dados processados (últimos 60 dias):', {
           dadosFiltrados: dadosProcessados.dadosFiltrados.length,
           metricas: dadosProcessados.metricas,
           metricasOperadores: Object.keys(dadosProcessados.metricasOperadores).length,
@@ -472,16 +550,28 @@ export const useGoogleSheetsDirectSimple = () => {
           operadores: dadosProcessados.operadores.length
         })
         
-        // Converter metricasOperadores de objeto para array para compatibilidade com OperatorAnalysis
-        const operatorMetricsArray = Object.values(dadosProcessados.metricasOperadores).map(op => ({
-          operator: op.operador,
-          totalCalls: op.totalAtendimentos,
-          avgDuration: parseFloat(op.tempoMedio.toFixed(1)),
-          avgRatingAttendance: parseFloat(op.notaMediaAtendimento.toFixed(1)),
-          avgRatingSolution: parseFloat(op.notaMediaSolucao.toFixed(1)),
-          avgPauseTime: 0, // Não temos dados de pausa
-          totalRecords: op.totalAtendimentos
-        }))
+        // Converter metricasOperadores para o formato esperado pelo AgentAnalysis
+        const operatorMetricsObj = {}
+        Object.values(dadosProcessados.metricasOperadores).forEach(op => {
+          // Filtrar apenas operadores com nomes válidos (excluir "Sem Operador", etc.)
+          if (op.operador && 
+              op.operador !== 'Sem Operador' && 
+              !op.operador.toLowerCase().includes('sem operador') &&
+              op.operador.trim().includes(' ') && // Deve ter pelo menos um espaço (nome completo)
+              op.totalAtendimentos > 0) {
+            
+            operatorMetricsObj[op.operador] = {
+              operator: op.operador,
+              totalCalls: op.totalAtendimentos,
+              avgDuration: parseFloat(op.tempoMedio?.toFixed(1) || 0),
+              avgRatingAttendance: parseFloat(op.notaMediaAtendimento?.toFixed(1) || 0),
+              avgRatingSolution: parseFloat(op.notaMediaSolucao?.toFixed(1) || 0),
+              avgPauseTime: 0,
+              totalRecords: op.totalAtendimentos,
+              score: parseFloat(op.score?.toFixed(2) || 0)
+            }
+          }
+        })
         
         // Aplicar Dark List aos rankings
         const rankingsComDarkList = dadosProcessados.rankings.map(ranking => ({
@@ -489,24 +579,16 @@ export const useGoogleSheetsDirectSimple = () => {
           isExcluded: darkList.includes(ranking.operator)
         }))
         
-        console.log('📊 Rankings processados:', rankingsComDarkList.length, 'operadores')
-        console.log('🔍 Debug - Primeiro ranking:', rankingsComDarkList[0])
-        console.log('🔍 Debug - Primeiro operatorMetrics:', operatorMetricsArray[0])
-        
         // Atualizar estados
         setData(dadosProcessados.dadosFiltrados)
         setMetrics(dadosProcessados.metricas)
-        setOperatorMetrics(operatorMetricsArray) // Usar array em vez de objeto
+        setOperatorMetrics(operatorMetricsObj)
         setRankings(rankingsComDarkList)
         setOperators(dadosProcessados.operadores)
+        setErrors(dadosProcessados.erros || [])
+        setFullDataset(result.values)
         
-        console.log('📊 Dados processados:', {
-          totalLinhas: dadosProcessados.dadosFiltrados.length,
-          operadores: dadosProcessados.operadores.length,
-          rankings: dadosProcessados.rankings.length
-        })
-        
-        return dadosProcessados.dadosFiltrados
+        console.log('✅ Dados dos últimos 60 dias carregados com sucesso!')
       } else {
         console.log('⚠️ Nenhum dado encontrado')
         setData([])
@@ -514,80 +596,18 @@ export const useGoogleSheetsDirectSimple = () => {
         setOperatorMetrics({})
         setRankings([])
         setOperators([])
-        return []
+        setErrors(['Nenhum dado encontrado na planilha'])
       }
-      
     } catch (error) {
-      console.error('❌ Erro ao buscar dados:', error)
-      setErrors(prev => [...prev, `❌ Erro ao buscar dados: ${error.message}`])
-      return []
     } finally {
       setIsLoading(false)
     }
   }
 
-  // Função para limpar dados
-  const clearData = () => {
-    setData([])
-    setMetrics({})
-    setOperatorMetrics({})
-    setRankings([])
-    setOperators([])
-    setErrors([])
-  }
-
-  // Funções para Dark List
-  const addToDarkList = (operator) => {
-    const newDarkList = [...darkList, operator]
-    setDarkList(newDarkList)
-    localStorage.setItem('veloinsights_darklist', JSON.stringify(newDarkList))
-    
-    // Recarregar rankings com nova Dark List
-    if (rankings.length > 0) {
-      const rankingsAtualizados = rankings.map(ranking => ({
-        ...ranking,
-        isExcluded: newDarkList.includes(ranking.operator)
-      }))
-      setRankings(rankingsAtualizados)
-    }
-    
-    // Recarregar operatorMetrics com nova Dark List
-    if (operatorMetrics.length > 0) {
-      const operatorMetricsAtualizados = operatorMetrics.map(op => ({
-        ...op,
-        isExcluded: newDarkList.includes(op.operator)
-      }))
-      setOperatorMetrics(operatorMetricsAtualizados)
-    }
-  }
-
-  const removeFromDarkList = (operator) => {
-    const newDarkList = darkList.filter(op => op !== operator)
-    setDarkList(newDarkList)
-    localStorage.setItem('veloinsights_darklist', JSON.stringify(newDarkList))
-    
-    // Recarregar rankings com nova Dark List
-    if (rankings.length > 0) {
-      const rankingsAtualizados = rankings.map(ranking => ({
-        ...ranking,
-        isExcluded: newDarkList.includes(ranking.operator)
-      }))
-      setRankings(rankingsAtualizados)
-    }
-    
-    // Recarregar operatorMetrics com nova Dark List
-    if (operatorMetrics.length > 0) {
-      const operatorMetricsAtualizados = operatorMetrics.map(op => ({
-        ...op,
-        isExcluded: newDarkList.includes(op.operator)
-      }))
-      setOperatorMetrics(operatorMetricsAtualizados)
-    }
-  }
-
-  const clearDarkList = () => {
-    setDarkList([])
-    localStorage.removeItem('veloinsights_darklist')
+  // Função para buscar dados (simplificada) - agora busca últimos 60 dias por padrão
+  const fetchSheetData = async (accessToken, mode = 'recent') => {
+    // Por padrão, buscar dados dos últimos 60 dias
+    return await fetchLast60Days(accessToken)
   }
 
   return {
@@ -604,6 +624,7 @@ export const useGoogleSheetsDirectSimple = () => {
     customDateRange,
     darkList,
     fetchSheetData,
+    fetchLast60Days,
     fetchFullDataset,
     processPeriodData,
     filterDataByPeriod,
@@ -613,9 +634,29 @@ export const useGoogleSheetsDirectSimple = () => {
     setCustomDateRange,
     signIn,
     signOut,
-    clearData,
-    addToDarkList,
-    removeFromDarkList,
-    clearDarkList
+    clearData: () => {
+      setData([])
+      setMetrics({})
+      setOperatorMetrics({})
+      setRankings([])
+      setOperators([])
+      setErrors([])
+    },
+    addToDarkList: (operator) => {
+      const newDarkList = [...darkList, operator]
+      setDarkList(newDarkList)
+      localStorage.setItem('veloinsights_darklist', JSON.stringify(newDarkList))
+      console.log(`🚫 Operador ${operator} adicionado à Dark List`)
+    },
+    removeFromDarkList: (operator) => {
+      const newDarkList = darkList.filter(op => op !== operator)
+      setDarkList(newDarkList)
+      localStorage.setItem('veloinsights_darklist', JSON.stringify(newDarkList))
+      console.log(`✅ Operador ${operator} removido da Dark List`)
+    },
+    clearDarkList: () => {
+      setDarkList([])
+      localStorage.removeItem('veloinsights_darklist')
+    }
   }
 }

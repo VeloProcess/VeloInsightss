@@ -1,6 +1,11 @@
+/* MetricsDashboard.css - Dashboard principal com tema claro/escuro */
+
 .metrics-dashboard {
   max-width: 1200px;
   margin: 0 auto;
+  padding: 20px;
+  background: var(--color-bg-primary);
+  min-height: 100vh;
 }
 
 .rank-badge {
@@ -37,7 +42,7 @@
 
 .score-value {
   font-weight: bold;
-  color: var(--color-blue-light);
+  color: var(--color-blue-primary);
   font-size: 1.1rem;
 }
 
@@ -50,175 +55,380 @@
   font-size: 0.85rem;
 }
 
-.rating.good {
-  background: rgba(21, 162, 55, 0.2);
-  color: var(--color-green);
+.rating.excellent {
+  background: rgba(34, 197, 94, 0.1);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.2);
 }
 
-.rating.medium {
-  background: rgba(252, 194, 0, 0.2);
-  color: var(--color-yellow);
+.rating.good {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.rating.average {
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.2);
 }
 
 .rating.poor {
-  background: rgba(220, 53, 69, 0.2);
-  color: #dc3545;
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.2);
 }
 
-.ranking-footer {
-  text-align: center;
-  padding: 15px;
-  border-top: 1px solid var(--color-border);
-  background: rgba(22, 52, 255, 0.05);
+/* Cards de Métricas */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+  margin-bottom: 30px;
 }
 
-.ranking-footer p {
+.metric-card {
+  background: var(--color-card-bg);
+  border-radius: 12px;
+  padding: 20px;
+  border: 1px solid var(--color-card-border);
+  box-shadow: 0 4px 20px var(--color-shadow);
+  transition: all 0.3s ease;
+}
+
+.metric-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(22, 52, 255, 0.2);
+  border-color: rgba(22, 52, 255, 0.3);
+}
+
+.metric-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 15px;
+}
+
+.metric-title {
+  color: var(--color-text-primary);
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.metric-icon {
+  font-size: 1.5rem;
+  color: var(--color-blue-primary);
+}
+
+.metric-value {
+  color: var(--color-blue-primary);
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.metric-description {
   color: var(--color-text-secondary);
   font-size: 0.9rem;
   margin: 0;
 }
 
-/* Responsividade para tabelas */
-@media (max-width: 768px) {
-  .table-container {
-    font-size: 0.8rem;
-  }
-  
-  .table th,
-  .table td {
-    padding: 8px 10px;
-  }
-  
-  .rank-badge {
-    width: 30px;
-    height: 30px;
-    font-size: 0.7rem;
-  }
-  
-  .score-value {
-    font-size: 1rem;
-  }
-  
-  .rating {
-    padding: 2px 6px;
-    font-size: 0.8rem;
-  }
+/* Rankings */
+.rankings-section {
+  margin-top: 30px;
 }
 
-@media (max-width: 480px) {
-  .table-container {
-    overflow-x: auto;
-    font-size: 0.75rem;
-  }
-  
-  .table th,
-  .table td {
-    padding: 6px 8px;
-    white-space: nowrap;
-  }
-  
-  .rank-badge {
-    width: 25px;
-    height: 25px;
-    font-size: 0.65rem;
-  }
+.rankings-header {
+  text-align: center;
+  margin-bottom: 30px;
 }
 
-/* Estilos para métricas avançadas */
-.metric-card.advanced {
-  border: 1px solid rgba(22, 148, 255, 0.3);
-  background: linear-gradient(135deg, rgba(22, 148, 255, 0.05), rgba(22, 52, 255, 0.05));
+.rankings-header h2 {
+  color: var(--color-text-primary);
+  font-size: 1.8rem;
+  font-weight: 600;
+  margin-bottom: 10px;
 }
 
-.metric-card.highlight {
-  border: 2px solid var(--color-blue-primary);
-  background: linear-gradient(135deg, rgba(22, 52, 255, 0.1), rgba(22, 148, 255, 0.1));
-  box-shadow: 0 4px 20px rgba(22, 52, 255, 0.3);
-  transform: scale(1.02);
+.rankings-header p {
+  color: var(--color-text-secondary);
+  font-size: 1rem;
+  margin: 0;
 }
 
-.metric-card.advanced:hover,
-.metric-card.highlight:hover {
+.rankings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.ranking-card {
+  background: var(--color-card-bg);
+  border-radius: 12px;
+  padding: 20px;
+  border: 1px solid var(--color-card-border);
+  box-shadow: 0 4px 20px var(--color-shadow);
+  transition: all 0.3s ease;
+}
+
+.ranking-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 25px rgba(22, 52, 255, 0.4);
+  box-shadow: 0 8px 25px rgba(22, 52, 255, 0.2);
+  border-color: rgba(22, 52, 255, 0.3);
 }
 
-/* Dark List Styles */
-.excluded-row {
-  opacity: 0.6;
-  background-color: rgba(220, 53, 69, 0.1) !important;
+.ranking-header {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 15px;
 }
 
-.desligado-row {
-  opacity: 0.7;
-  background-color: rgba(108, 117, 125, 0.1) !important;
-}
-
-.excluded-badge {
-  color: var(--color-danger-primary);
-  font-size: 0.8rem;
+.ranking-info h3 {
+  color: var(--color-text-primary);
+  font-size: 1.2rem;
   font-weight: 600;
-  margin-left: 0.5rem;
+  margin: 0 0 5px 0;
 }
 
-.desligado-badge {
-  color: #6c757d;
+.ranking-info p {
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.ranking-stats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 15px;
+}
+
+.stat-item {
+  text-align: center;
+}
+
+.stat-label {
+  color: var(--color-text-secondary);
   font-size: 0.8rem;
+  margin-bottom: 5px;
+}
+
+.stat-value {
+  color: var(--color-text-primary);
+  font-size: 1.1rem;
   font-weight: 600;
-  margin-left: 0.5rem;
 }
 
-.desligado-info {
-  color: #6c757d;
-  font-size: 0.8rem;
-  font-style: italic;
+/* Controles de Drag & Drop */
+  margin-top: 15px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
 }
 
-.action-button {
-  padding: 0.25rem 0.5rem;
+.mode-toggle-button {
+  background: var(--color-blue-primary);
+  color: white;
   border: none;
-  border-radius: 4px;
-  font-size: 0.8rem;
-  font-weight: 500;
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-weight: 600;
+  font-size: 0.9rem;
   cursor: pointer;
-  transition: all 0.2s ease-in-out;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(22, 52, 255, 0.2);
 }
 
-.action-button.exclude {
-  background-color: var(--color-danger-primary);
+.mode-toggle-button:hover {
+  background: var(--color-blue-light);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(22, 52, 255, 0.3);
+}
+
+.mode-toggle-button.active {
+  background: #10B981;
+}
+
+.mode-toggle-button.active:hover {
+  background: #059669;
+}
+
+  background: rgba(22, 52, 255, 0.1);
+  color: var(--color-blue-primary);
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border: 1px solid rgba(22, 52, 255, 0.2);
+}
+
+/* Estados de Drag & Drop para métricas */
+/* Handle de drag para métricas */
+.metric-card .drag-handle {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  color: var(--color-text-secondary);
+  font-size: 1.2rem;
+  cursor: grab;
+  padding: 8px;
+  border-radius: 6px;
+  transition: all 0.3s ease;
+  opacity: 0.7;
+  user-select: none;
+  background: var(--color-bg-tertiary);
+  border: 1px dashed var(--color-border-secondary);
+  z-index: 10;
+}
+
+.metric-card .drag-handle:hover {
+  background: var(--color-blue-primary);
+  opacity: 1;
+  color: white;
+  border-color: var(--color-blue-primary);
+  transform: scale(1.1);
+}
+
+.metric-card .drag-handle:active {
+  cursor: grabbing;
+  transform: scale(0.95);
+}
+
+  position: relative;
+}
+
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px var(--color-shadow-strong);
+}
+
+  cursor: grabbing;
+}
+
+  opacity: 0.5;
+  transform: rotate(2deg) scale(1.05);
+  z-index: 1000;
+  box-shadow: 0 8px 30px rgba(22, 52, 255, 0.3);
+}
+
+.metric-icon {
+  font-size: 2rem;
+  flex-shrink: 0;
+}
+
+.metric-content {
+  flex: 1;
+}
+
+.metric-content .metric-value {
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin-bottom: 5px;
+}
+
+.metric-content .metric-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+/* Botões de ação */
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--color-border-secondary);
+}
+
+.reset-order-button,
+.save-order-button {
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: none;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.reset-order-button {
+  background: #6B7280;
   color: white;
 }
 
-.action-button.exclude:hover {
-  background-color: var(--color-danger-secondary);
+.reset-order-button:hover {
+  background: #4B5563;
+  transform: translateY(-1px);
 }
 
-.action-button.restore {
-  background-color: var(--color-green);
+.save-order-button {
+  background: #10B981;
   color: white;
 }
 
-.action-button.restore:hover {
-  background-color: #0d8a1f;
+.save-order-button:hover {
+  background: #059669;
+  transform: translateY(-1px);
 }
 
-/* Dark theme adjustments */
-.theme-dark .excluded-row {
-  background-color: rgba(248, 113, 113, 0.1) !important;
+/* Tema claro - Drag & Drop */
+.theme-light .mode-toggle-button {
+  background: #1634FF !important;
 }
 
-.theme-dark .desligado-row {
-  background-color: rgba(156, 163, 175, 0.1) !important;
+.theme-light .mode-toggle-button:hover {
+  background: #1e40af !important;
 }
 
-.theme-dark .excluded-badge {
-  color: var(--color-danger-primary);
+.theme-light .mode-toggle-button.active {
+  background: #10B981 !important;
 }
 
-.theme-dark .desligado-badge {
-  color: #9ca3af;
+  color: #1634FF !important;
+  background: rgba(22, 52, 255, 0.1) !important;
 }
 
-.theme-dark .desligado-info {
-  color: #9ca3af;
+/* Tema escuro - Drag & Drop */
+.theme-dark .mode-toggle-button {
+  background: #60A5FA !important;
+}
+
+.theme-dark .mode-toggle-button:hover {
+  background: #3B82F6 !important;
+}
+
+.theme-dark .mode-toggle-button.active {
+  background: #10B981 !important;
+}
+
+  color: #60A5FA !important;
+  background: rgba(96, 165, 250, 0.1) !important;
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+  .metrics-dashboard {
+    padding: 15px;
+  }
+  
+  .metrics-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .rankings-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .metric-value {
+    font-size: 1.5rem;
+  }
+  
+  .rankings-header h2 {
+    font-size: 1.5rem;
+  }
 }

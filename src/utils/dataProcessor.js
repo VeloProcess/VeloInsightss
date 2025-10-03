@@ -17,7 +17,77 @@ export const processarDados = (dados) => {
   const linhasDados = dados.slice(1)
 
   console.log('📋 Cabeçalhos encontrados:', cabecalhos)
+  console.log('🔍 Procurando colunas T M Logado e T M Pausado...')
+  
+  // Encontrar índices das colunas T M Logado / Dia e T M Pausado
+  let indiceTempoLogado = -1
+  let indiceTempoPausado = -1
+  
+  cabecalhos.forEach((cabecalho, index) => {
+    if (cabecalho && cabecalho.includes('T M Logado')) {
+      indiceTempoLogado = index
+      console.log(`✅ T M Logado encontrado na coluna ${index}: ${cabecalho}`)
+    }
+    if (cabecalho && cabecalho.includes('T M Pausado')) {
+      indiceTempoPausado = index
+      console.log(`✅ T M Pausado encontrado na coluna ${index}: ${cabecalho}`)
+    }
+  })
+  
   console.log(`📊 Linhas de dados para processar: ${linhasDados.length}`)
+
+  // Função para filtrar dados dos últimos 60 dias
+  const filtrarUltimos60Dias = (linhas) => {
+    const hoje = new Date()
+    const sessentaDiasAtras = new Date(hoje.getTime() - (60 * 24 * 60 * 60 * 1000)) // 60 dias atrás
+    
+    console.log(`📅 Filtrando dados de ${sessentaDiasAtras.toLocaleDateString()} até ${hoje.toLocaleDateString()}`)
+    
+    return linhas.filter(linha => {
+      const dataStr = linha[3] // Coluna D - Data
+      if (!dataStr) return false
+      
+      try {
+        // Tentar diferentes formatos de data
+        let data
+        if (dataStr.includes('/')) {
+          // Formato DD/MM/YYYY ou DD/MM/YY
+          const partes = dataStr.split('/')
+          if (partes.length === 3) {
+            const dia = parseInt(partes[0])
+            const mes = parseInt(partes[1]) - 1 // Mês é 0-indexado
+            let ano = parseInt(partes[2])
+            
+            // Se ano tem 2 dígitos, assumir 20XX
+            if (ano < 100) {
+              ano += 2000
+            }
+            
+            data = new Date(ano, mes, dia)
+          }
+        } else if (dataStr.includes('-')) {
+          // Formato YYYY-MM-DD
+          data = new Date(dataStr)
+        } else {
+          // Tentar parse direto
+          data = new Date(dataStr)
+        }
+        
+        if (isNaN(data.getTime())) {
+          return false
+        }
+        
+        return data >= sessentaDiasAtras && data <= hoje
+      } catch (error) {
+        console.warn(`⚠️ Erro ao processar data: ${dataStr}`, error)
+        return false
+      }
+    })
+  }
+
+  // Filtrar dados dos últimos 60 dias
+  const linhasFiltradas = filtrarUltimos60Dias(linhasDados)
+  console.log(`📊 Dados filtrados dos últimos 60 dias: ${linhasFiltradas.length} linhas (de ${linhasDados.length} total)`)
 
   // Mapeamento correto das colunas - VERSÃO PERFEITA
   const indices = {
@@ -29,6 +99,8 @@ export const processarDados = (dados) => {
     tempoEspera: 12,   // Coluna M - Tempo De Espera
     tempoFalado: 13,   // Coluna N - Tempo Falado
     tempoTotal: 14,    // Coluna O - Tempo Total
+    tempoLogado: indiceTempoLogado >= 0 ? indiceTempoLogado : -1, // T M Logado / Dia
+    tempoPausado: indiceTempoPausado >= 0 ? indiceTempoPausado : -1, // T M Pausado
     notaAtendimento: 27, // Coluna AB - Pergunta2 1 PERGUNTA ATENDENTE
     notaSolucao: 28     // Coluna AC - Pergunta2 2 PERGUNTA SOLUCAO
   }
@@ -42,7 +114,7 @@ export const processarDados = (dados) => {
   let linhasProcessadas = 0
   let linhasIgnoradas = 0
 
-  linhasDados.forEach((linha, index) => {
+  linhasFiltradas.forEach((linha, index) => {
     try {
       // Verificar se a linha tem dados suficientes
       if (!linha || linha.length < 3) {
@@ -63,6 +135,8 @@ export const processarDados = (dados) => {
         tempoEspera: linha[indices.tempoEspera] || '00:00:00',
         tempoFalado: linha[indices.tempoFalado] || '00:00:00',
         tempoTotal: linha[indices.tempoTotal] || '00:00:00',
+        tempoLogado: indices.tempoLogado >= 0 ? (linha[indices.tempoLogado] || '00:00:00') : '00:00:00',
+        tempoPausado: indices.tempoPausado >= 0 ? (linha[indices.tempoPausado] || '00:00:00') : '00:00:00',
         notaAtendimento: parseFloat(linha[indices.notaAtendimento]) || null,
         notaSolucao: parseFloat(linha[indices.notaSolucao]) || null
       }
@@ -215,6 +289,24 @@ const calcularMetricas = (dados) => {
     ? temposURA.reduce((sum, tempo) => sum + tempo, 0) / temposURA.length
     : 0
 
+  // Tempo médio logado e pausado - NOVOS INDICADORES
+  const temposLogado = dados.map(row => tempoParaMinutos(row.tempoLogado)).filter(tempo => tempo > 0)
+  const tempoMedioLogado = temposLogado.length > 0 
+    ? temposLogado.reduce((sum, tempo) => sum + tempo, 0) / temposLogado.length
+    : 0
+
+  const temposPausado = dados.map(row => tempoParaMinutos(row.tempoPausado)).filter(tempo => tempo > 0)
+  const tempoMedioPausado = temposPausado.length > 0 
+    ? temposPausado.reduce((sum, tempo) => sum + tempo, 0) / temposPausado.length
+    : 0
+
+  console.log(`📊 Debug - Tempos médios:`, {
+    tempoMedioLogado: tempoMedioLogado.toFixed(1),
+    tempoMedioPausado: tempoMedioPausado.toFixed(1),
+    registrosLogado: temposLogado.length,
+    registrosPausado: temposPausado.length
+  })
+
   // Notas médias
   const notasAtendimentoValidas = dados.filter(d => d.notaAtendimento !== null)
   const notaMediaAtendimento = notasAtendimentoValidas.length > 0 ?
@@ -260,6 +352,8 @@ const calcularMetricas = (dados) => {
     duracaoMediaAtendimento: parseFloat(duracaoMediaAtendimento.toFixed(1)),
     tempoMedioEspera: parseFloat(tempoMedioEspera.toFixed(1)),
     tempoMedioURA: parseFloat(tempoMedioURA.toFixed(1)),
+    tempoMedioLogado: parseFloat(tempoMedioLogado.toFixed(1)), // NOVO INDICADOR
+    tempoMedioPausado: parseFloat(tempoMedioPausado.toFixed(1)), // NOVO INDICADOR
     taxaAtendimento: parseFloat(taxaAtendimento.toFixed(1)),
     taxaAbandono: parseFloat(taxaAbandono.toFixed(1))
   }

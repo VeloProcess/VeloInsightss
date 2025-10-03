@@ -3,11 +3,10 @@ import './UploadArea.css'
 
 const UploadArea = ({ onFileUpload, disabled }) => {
   const fileInputRef = useRef(null)
-  const [isDragOver, setIsDragOver] = useState(false)
+  const [uploadedFiles, setUploadedFiles] = useState([])
+  const [isProcessing, setIsProcessing] = useState(false)
 
-  const handleFileSelect = (file) => {
-    if (!file) return
-    
+  const validateFile = (file) => {
     // Validar tipo de arquivo
     const allowedTypes = [
       'text/csv',
@@ -19,42 +18,67 @@ const UploadArea = ({ onFileUpload, disabled }) => {
     const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'))
     
     if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExtension)) {
-      alert('Por favor, selecione um arquivo CSV ou Excel (.csv, .xls, .xlsx)')
-      return
+      return { valid: false, error: 'Tipo de arquivo não suportado' }
     }
     
     // Validar tamanho (40MB limite)
     const maxSize = 40 * 1024 * 1024 // 40MB
     if (file.size > maxSize) {
-      alert('Arquivo muito grande. Tamanho máximo permitido: 40MB')
+      return { valid: false, error: 'Arquivo muito grande (máximo 40MB)' }
+    }
+    
+    return { valid: true }
+  }
+
+  const processFile = async (file) => {
+    const validation = validateFile(file)
+    if (!validation.valid) {
+      alert(validation.error)
       return
     }
-    
-    onFileUpload(file)
-  }
 
-  const handleDrop = (e) => {
-    e.preventDefault()
-    setIsDragOver(false)
+    // Adicionar arquivo à lista com status "processing"
+    const fileId = Date.now() + Math.random()
+    const newFile = {
+      id: fileId,
+      name: file.name,
+      size: file.size,
+      status: 'processing',
+      progress: 0
+    }
     
-    if (disabled) return
+    setUploadedFiles(prev => [...prev, newFile])
     
-    const files = Array.from(e.dataTransfer.files)
-    if (files.length > 0) {
-      handleFileSelect(files[0])
+    // Simular processamento com progresso
+    for (let i = 0; i <= 100; i += 10) {
+      await new Promise(resolve => setTimeout(resolve, 100))
+      setUploadedFiles(prev => 
+        prev.map(f => 
+          f.id === fileId 
+            ? { ...f, progress: i }
+            : f
+        )
+      )
+    }
+    
+    // Atualizar status para "completed"
+    setUploadedFiles(prev => 
+      prev.map(f => 
+        f.id === fileId 
+          ? { ...f, status: 'completed', progress: 100 }
+          : f
+      )
+    )
+    
+    // Chamar callback de upload
+    if (onFileUpload) {
+      onFileUpload(file)
     }
   }
 
-  const handleDragOver = (e) => {
-    e.preventDefault()
-    if (!disabled) {
-      setIsDragOver(true)
-    }
-  }
-
-  const handleDragLeave = (e) => {
-    e.preventDefault()
-    setIsDragOver(false)
+  const handleFileSelect = (file) => {
+    if (!file) return
+    processFile(file)
   }
 
   const handleClick = () => {
@@ -64,10 +88,31 @@ const UploadArea = ({ onFileUpload, disabled }) => {
   }
 
   const handleFileInputChange = (e) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      handleFileSelect(file)
+    const files = Array.from(e.target.files || [])
+    files.forEach(file => {
+      processFile(file)
+    })
+    
+    // Limpar input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
     }
+  }
+
+  const removeFile = (fileId) => {
+    setUploadedFiles(prev => prev.filter(f => f.id !== fileId))
+  }
+
+  const clearAllFiles = () => {
+    setUploadedFiles([])
+  }
+
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return '0 Bytes'
+    const k = 1024
+    const sizes = ['Bytes', 'KB', 'MB', 'GB']
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
   }
 
   return (
@@ -81,16 +126,14 @@ const UploadArea = ({ onFileUpload, disabled }) => {
         </div>
         
         <div 
-          className={`upload-area ${isDragOver ? 'drag-over' : ''} ${disabled ? 'disabled' : ''}`}
-          onDrop={handleDrop}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
+          className="upload-area"
           onClick={handleClick}
         >
           <input
             ref={fileInputRef}
             type="file"
             accept=".csv,.xls,.xlsx"
+            multiple
             onChange={handleFileInputChange}
             style={{ display: 'none' }}
             disabled={disabled}
@@ -98,11 +141,11 @@ const UploadArea = ({ onFileUpload, disabled }) => {
           
           <div className="upload-content">
             <div className="upload-icon">
-              {disabled ? '⏳' : isDragOver ? '📂' : '📁'}
+              📁
             </div>
             
             <h3 className="upload-title">
-              {disabled ? 'Processando...' : isDragOver ? 'Solte o arquivo aqui' : 'Arraste e solte ou clique para selecionar'}
+              Clique para selecionar arquivos
             </h3>
             
             <p className="upload-subtitle">
@@ -119,6 +162,59 @@ const UploadArea = ({ onFileUpload, disabled }) => {
             )}
           </div>
         </div>
+
+        {/* Lista de arquivos */}
+        {uploadedFiles.length > 0 && (
+          <div className="file-list">
+            <div className="file-list-header">
+              <h4>📋 Arquivos Carregados ({uploadedFiles.length})</h4>
+              <button 
+                className="clear-all-button"
+                onClick={clearAllFiles}
+                disabled={isProcessing}
+              >
+                🗑️ Limpar Todos
+              </button>
+            </div>
+            <div className="file-items">
+              {uploadedFiles.map((file) => (
+                <div key={file.id} className="file-item">
+                  <div className="file-info">
+                    <div className="file-icon">
+                      {file.status === 'processing' ? '⏳' : 
+                       file.status === 'completed' ? '✅' : '📄'}
+                    </div>
+                    <div className="file-details">
+                      <div className="file-name">{file.name}</div>
+                      <div className="file-size">{formatFileSize(file.size)}</div>
+                    </div>
+                  </div>
+                  
+                  {file.status === 'processing' && (
+                    <div className="progress-bar">
+                      <div 
+                        className="progress-fill" 
+                        style={{ width: `${file.progress}%` }}
+                      ></div>
+                    </div>
+                  )}
+                  
+                  <div className="file-actions">
+                    {file.status === 'completed' && (
+                      <button 
+                        className="remove-file-button"
+                        onClick={() => removeFile(file.id)}
+                        title="Remover arquivo"
+                      >
+                        ❌
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         
         <div className="upload-info">
           <h4>📋 Instruções:</h4>

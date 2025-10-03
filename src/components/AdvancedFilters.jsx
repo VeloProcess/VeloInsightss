@@ -6,7 +6,8 @@ const AdvancedFilters = memo(({
   filters, 
   onFiltersChange, 
   operatorMetrics = [],
-  data = []
+  data = [],
+  pauseData = [] // Dados da aba Pausas
 }) => {
   const [localFilters, setLocalFilters] = useState(filters)
   const [showAdvanced, setShowAdvanced] = useState(false)
@@ -102,14 +103,49 @@ const AdvancedFilters = memo(({
     })
   }
 
-  const availableOperators = Object.keys(operatorMetrics).sort()
+  // Extrair operadores únicos dos dados - BUSCAR NA COLUNA A DA ABA PAUSAS
+  const availableOperators = React.useMemo(() => {
+    // Priorizar dados da aba Pausas se disponível
+    const sourceData = pauseData && pauseData.length > 0 ? pauseData : data
+    
+    if (!sourceData || sourceData.length === 0) return []
+    
+    const operators = new Set()
+    sourceData.forEach(record => {
+      // Buscar na coluna A (primeiro campo do array ou campo específico)
+      const operatorFromColumnA = record[0] || record.nomeOperador || record.operador || ''
+      
+      if (operatorFromColumnA && operatorFromColumnA.trim()) {
+        // Filtrar operadores válidos (não genéricos)
+        const operator = operatorFromColumnA.trim()
+        if (!operator.toLowerCase().includes('sem operador') &&
+            !operator.toLowerCase().includes('agentes indisponíveis') &&
+            !operator.toLowerCase().includes('rejeitaram') &&
+            !operator.toLowerCase().includes('agente') &&
+            !operator.toLowerCase().includes('indisponível') &&
+            !operator.toLowerCase().includes('atendida') &&
+            !operator.toLowerCase().includes('abandonada') &&
+            !operator.toLowerCase().includes('pausa') &&
+            !/^\d/.test(operator) && // Não começar com número
+            operator.includes(' ')) { // Deve ter pelo menos um espaço
+          operators.add(operator)
+        }
+      }
+    })
+    
+    const result = Array.from(operators).sort()
+    console.log('🔍 Operadores encontrados na coluna A da aba Pausas:', result)
+    console.log('📊 Fonte dos dados:', pauseData && pauseData.length > 0 ? 'Aba Pausas' : 'Dados principais')
+    console.log('📊 Primeiros registros para debug:', sourceData.slice(0, 5).map(r => ({ colunaA: r[0], nomeOperador: r.nomeOperador })))
+    return result
+  }, [data, pauseData])
 
   // Calcular estatísticas para tooltips
   const stats = {
     totalCalls: data.length,
     avgRating: data.reduce((sum, record) => sum + (record.rating_attendance || 0), 0) / data.filter(r => r.rating_attendance).length || 0,
     avgDuration: data.reduce((sum, record) => sum + (record.duration_minutes || 0), 0) / data.length || 0,
-    uniqueOperators: new Set(data.map(r => r.operator)).size
+    uniqueOperators: availableOperators.length
   }
 
   return (

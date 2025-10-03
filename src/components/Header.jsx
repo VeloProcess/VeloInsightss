@@ -18,8 +18,20 @@ const Header = ({ onToggleSidebar, sidebarOpen, theme, onToggleTheme }) => {
           </div>
         </button>
         <div className="header-title">
-          <h1 className="logo-text">VeloInsights</h1>
-          <span className="logo-subtitle">Dashboard de Análise</span>
+          <div className="header-logo-container">
+            <img 
+              src="/logo-veloinsights.png" 
+              alt="VeloInsights Logo" 
+              className="header-logo-image"
+              onError={(e) => {
+                // Fallback caso a imagem não carregue
+                e.target.style.display = 'none'
+                e.target.nextSibling.style.display = 'block'
+              }}
+            />
+            <h1 className="logo-text title-h2 text-gradient" style={{display: 'none'}}>VeloInsights</h1>
+          </div>
+          <span className="logo-subtitle font-body-medium">Dashboard de Análise</span>
         </div>
       </div>
       

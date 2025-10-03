@@ -1,11 +1,12 @@
-/* PeriodSelector.css */
+/* PeriodSelector.css - Seletor de período com tema claro/escuro */
+
 .period-selector {
   background: var(--color-card-bg);
   border-radius: 16px;
   padding: 2rem;
   margin: 2rem 0;
   border: 1px solid var(--color-card-border);
-  box-shadow: 0 4px 12px var(--color-shadow);
+  box-shadow: 0 4px 20px var(--color-shadow);
 }
 
 .period-header {
@@ -42,7 +43,7 @@
   align-items: center;
   gap: 1rem;
   padding: 1.5rem;
-  background: var(--color-bg-primary);
+  background: var(--color-bg-secondary);
   border: 2px solid var(--color-border-secondary);
   border-radius: 12px;
   cursor: pointer;
@@ -52,48 +53,78 @@
 
 .period-btn:hover {
   border-color: var(--color-blue-primary);
-  background: var(--color-card-hover);
   transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(22, 52, 255, 0.2);
 }
 
 .period-btn.active {
   border-color: var(--color-blue-primary);
   background: var(--color-card-hover);
-  box-shadow: 0 4px 12px rgba(22, 52, 255, 0.2);
-}
-
-.period-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
 }
 
 .period-icon {
-  font-size: 2rem;
-  flex-shrink: 0;
+  font-size: 1.5rem;
+  color: var(--color-blue-primary);
 }
 
-.period-info {
-  flex: 1;
-}
-
-.period-title {
+.period-content h4 {
+  color: var(--color-text-primary);
   font-size: 1.1rem;
   font-weight: 600;
-  color: var(--color-text-primary);
-  margin-bottom: 0.25rem;
+  margin: 0 0 0.5rem 0;
 }
 
-.period-desc {
-  font-size: 0.9rem;
+.period-content p {
   color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  margin: 0;
 }
 
-.custom-range {
-  background: var(--color-bg-primary);
-  border-radius: 12px;
-  padding: 1.5rem;
-  border: 1px solid var(--color-border-secondary);
+/* Custom Date Range */
+.custom-date-section {
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid rgba(22, 52, 255, 0.1);
+}
+
+.custom-date-header {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.custom-date-header h4 {
+  color: var(--color-text-primary);
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.custom-date-header p {
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+/* Tema claro - textos pretos */
+.theme-light .custom-date-header h4 {
+  color: #000000;
+  font-weight: 700;
+}
+
+.theme-light .custom-date-header p {
+  color: #333333;
+  font-weight: 500;
+}
+
+/* Tema escuro - textos brancos */
+.theme-dark .custom-date-header h4 {
+  color: #FFFFFF;
+  font-weight: 600;
+}
+
+.theme-dark .custom-date-header p {
+  color: #FFFFFF;
+  opacity: 0.9;
 }
 
 .date-inputs {
@@ -110,96 +141,153 @@
 }
 
 .date-input-group label {
+  color: var(--color-text-primary);
   font-size: 0.9rem;
   font-weight: 500;
-  color: var(--color-text-primary);
+}
+
+/* Tema claro - labels pretos */
+.theme-light .date-input-group label {
+  color: #000000;
+  font-weight: 600;
+}
+
+/* Tema escuro - labels brancos */
+.theme-dark .date-input-group label {
+  color: #FFFFFF;
+  font-weight: 500;
 }
 
 .date-input-group input {
   padding: 0.75rem;
-  border: 1px solid var(--color-border-secondary);
+  border: 1px solid rgba(22, 52, 255, 0.2);
   border-radius: 8px;
-  background: var(--color-bg-secondary);
+  background: var(--color-bg-light);
   color: var(--color-text-primary);
-  font-size: 1rem;
+  font-size: 0.9rem;
   transition: border-color 0.3s ease;
 }
 
-.date-input-group input:focus {
-  outline: none;
-  border-color: var(--color-blue-primary);
+/* Tema claro - inputs brancos com texto preto - REGRAS MAIS ESPECÍFICAS */
+body.theme-light .period-selector .date-input-group input,
+.theme-light .period-selector .date-input-group input,
+body.theme-light .date-input-group input,
+.theme-light .date-input-group input {
+  background: #FFFFFF !important;
+  color: #000000 !important;
+  border: 1px solid #E5E7EB !important;
 }
 
-.date-input-group input:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+body.theme-light .period-selector .date-input-group input:focus,
+.theme-light .period-selector .date-input-group input:focus,
+body.theme-light .date-input-group input:focus,
+.theme-light .date-input-group input:focus {
+  border-color: #1634FF !important;
+  box-shadow: 0 0 0 3px rgba(22, 52, 255, 0.1) !important;
+  background: #FFFFFF !important;
+  color: #000000 !important;
 }
 
-.apply-custom-btn {
+body.theme-light .period-selector .date-input-group input::placeholder,
+.theme-light .period-selector .date-input-group input::placeholder,
+body.theme-light .date-input-group input::placeholder,
+.theme-light .date-input-group input::placeholder {
+  color: #666666 !important;
+}
+
+/* Tema escuro - inputs escuros com texto branco - REGRAS MAIS ESPECÍFICAS */
+body.theme-dark .period-selector .date-input-group input,
+.theme-dark .period-selector .date-input-group input,
+body.theme-dark .date-input-group input,
+.theme-dark .date-input-group input {
+  background: #1F2937 !important;
+  color: #FFFFFF !important;
+  border: 1px solid #374151 !important;
+}
+
+body.theme-dark .period-selector .date-input-group input:focus,
+.theme-dark .period-selector .date-input-group input:focus,
+body.theme-dark .date-input-group input:focus,
+.theme-dark .date-input-group input:focus {
+  border-color: #1634FF !important;
+  box-shadow: 0 0 0 3px rgba(22, 52, 255, 0.1) !important;
+  background: #1F2937 !important;
+  color: #FFFFFF !important;
+}
+
+body.theme-dark .period-selector .date-input-group input::placeholder,
+.theme-dark .period-selector .date-input-group input::placeholder,
+body.theme-dark .date-input-group input::placeholder,
+.theme-dark .date-input-group input::placeholder {
+  color: #B0B0B0 !important;
+}
+
+/* REGRA ULTRA ESPECÍFICA PARA GARANTIR FUNCIONAMENTO */
+input[type="date"],
+input[type="text"][placeholder*="dd/mm"],
+input[placeholder*="dd/mm"] {
+  background: #FFFFFF !important;
+  color: #000000 !important;
+  border: 1px solid #E5E7EB !important;
+}
+
+body.theme-light input[type="date"],
+body.theme-light input[type="text"][placeholder*="dd/mm"],
+body.theme-light input[placeholder*="dd/mm"] {
+  background: #FFFFFF !important;
+  color: #000000 !important;
+  border: 1px solid #E5E7EB !important;
+}
+
+body.theme-dark input[type="date"],
+body.theme-dark input[type="text"][placeholder*="dd/mm"],
+body.theme-dark input[placeholder*="dd/mm"] {
+  background: #1F2937 !important;
+  color: #FFFFFF !important;
+  border: 1px solid #374151 !important;
+}
+
+.custom-date-actions {
   display: flex;
-  align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  padding: 1rem 2rem;
+  gap: 1rem;
+}
+
+.btn-apply {
   background: var(--color-blue-primary);
   color: var(--color-text-light);
   border: none;
+  padding: 0.75rem 1.5rem;
   border-radius: 8px;
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: 0.9rem;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.3s ease;
-  width: 100%;
 }
 
-.apply-custom-btn:hover:not(:disabled) {
+.btn-apply:hover {
   background: var(--color-blue-light);
   transform: translateY(-1px);
 }
 
-.apply-custom-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
-}
-
-.apply-icon {
-  font-size: 1.2rem;
-}
-
-.loading-spinner {
-  width: 16px;
-  height: 16px;
-  border: 2px solid transparent;
-  border-top: 2px solid currentColor;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-.period-status {
-  margin-top: 1.5rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid var(--color-border-secondary);
-}
-
-.status-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+.btn-clear {
+  background: transparent;
   color: var(--color-text-secondary);
+  border: 1px solid rgba(22, 52, 255, 0.2);
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
   font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
 }
 
-.status-icon {
-  font-size: 1rem;
+.btn-clear:hover {
+  border-color: var(--color-blue-primary);
+  color: var(--color-blue-primary);
 }
 
-/* Responsive */
+/* Responsividade */
 @media (max-width: 768px) {
   .period-selector {
     padding: 1.5rem;
@@ -210,11 +298,15 @@
     grid-template-columns: 1fr;
   }
   
-  .period-btn {
-    padding: 1rem;
-  }
-  
   .date-inputs {
     grid-template-columns: 1fr;
+  }
+  
+  .custom-date-actions {
+    flex-direction: column;
+  }
+  
+  .period-header h3 {
+    font-size: 1.3rem;
   }
 }

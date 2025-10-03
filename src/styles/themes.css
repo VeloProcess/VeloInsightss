@@ -1,65 +1,174 @@
 /* ========================================
-   SISTEMA DE TEMAS - VELOINSIGHTS
+   SISTEMA DE TEMAS - VELOINSIGHTS APRIMORADO
+   Baseado nas referências visuais com fonts Anton/Poppins
    ======================================== */
 
-/* === TEMA CLARO (PADRÃO) === */
-.theme-light {
-  --color-bg-primary: #F3F7FC;
-  --color-bg-secondary: #FFFFFF;
-  --color-bg-tertiary: #F8FAFC;
-  --color-bg-dark: #272A30;
-  --color-bg-header: linear-gradient(135deg, #272A30 0%, #1a1d23 100%);
-  --color-bg-sidebar: linear-gradient(180deg, #272A30 0%, #1a1d23 100%);
+/* Importar fonts do Google */
+@import url('https://fonts.googleapis.com/css2?family=Anton:wght@400&family=Poppins:wght@300;400;500;600;700;800&display=swap');
+
+/* === SISTEMA DE DESIGN BASEADO NAS REFERÊNCIAS === */
+:root {
+  /* Hierarchy de Fonts */
+  --font-display: 'Anton', sans-serif;     /* Títulos principais */
+  --font-body: 'Poppins', sans-serif;      /* Textos e subtítulos */
+  --font-mono: 'JetBrains Mono', monospace; /* Códigos e números */
   
-  --color-text-primary: #272A30;
-  --color-text-secondary: #6B7280;
-  --color-text-light: #F3F7FC;
-  --color-text-muted: #9CA3AF;
+  /* Paleta de Cores Extraída das Referências */
+  --color-primary: #1634FF;       /* Azul principal VeloTax */
+  --color-primary-light: #1694FF; /* Azul claro */
+  --color-primary-dark: #000058;  /* Azul escuro */
+  --color-primary-gradient: linear-gradient(135deg, #1634FF 0%, #1694FF 100%);
   
-  --color-border-primary: rgba(22, 148, 255, 0.2);
-  --color-border-secondary: rgba(22, 148, 255, 0.1);
-  --color-border-strong: rgba(22, 148, 255, 0.3);
+  /* Cores Secundárias */
+  --color-secondary: #15A237;     /* Verde confirmação */
+  --color-accent: #FCC200;        /* Amarelo destaque */
+  --color-error: #EF4444;         /* Vermelho erro */
+  --color-warning: #F59E0B;       /* Amarelo alerta */
+  --color-success: #10B981;       /* Verde sucesso */
   
-  --color-blue-primary: #1634FF;
-  --color-blue-light: #1694FF;
-  --color-blue-dark: #000058;
+  /* Neutros Modernos Baseados nas Referências */
+  --color-gray-50: #F9FAFB;
+  --color-gray-100: #F3F4F6;
+  --color-gray-200: #E5E7EB;
+  --color-gray-300: #D1D5DB;
+  --color-gray-400: #9CA3AF;
+  --color-gray-500: #6B7280;
+  --color-gray-600: #4B5563;
+  --color-gray-700: #374151;
+  --color-gray-800: #1F2937;
+  --color-gray-900: #111827;
   
-  --color-shadow: rgba(0, 0, 0, 0.1);
-  --color-shadow-strong: rgba(0, 0, 0, 0.2);
+  /* Gradientes Baseados nas Referências */
+  --gradient-primary: linear-gradient(135deg, #1634FF 0%, #1694FF 100%);
+  --gradient-secondary: linear-gradient(135deg, #1694FF 0%, #15A237 100%);
+  --gradient-surface: linear-gradient(135deg, #1F2937 0%, #374151 100%);
+  --gradient-glass: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
   
-  --color-card-bg: #FFFFFF;
-  --color-card-hover: rgba(22, 148, 255, 0.05);
-  --color-card-border: rgba(22, 148, 255, 0.2);
+  /* Typography Scale */
+  --text-xs: 0.75rem;      /* 12px */
+  --text-sm: 0.875rem;     /* 14px */
+  --text-base: 1rem;       /* 16px */
+  --text-lg: 1.125rem;     /* 18px */
+  --textxl: 1.25rem;       /* 20px */
+  --text-2xl: 1.5rem;      /* 24px */
+  --text-3xl: 1.875rem;    /* 30px */
+  --text-4xl: 2.25rem;     /* 36px */
+  --text-5xl: 3rem;         /* 48px */
+  --text-6xl: 3.75rem;     /* 60px */
+  
+  /* Spacing Scale */
+  --space-1: 0.25rem;      /* 4px */
+  --space-2: 0.5rem;       /* 8px */
+  --space-3: 0.75rem;      /* 12px */
+  --space-4: 1rem;         /* 16px */
+  --space-5: 1.25rem;      /* 20px */
+  --space-6: 1.5rem;       /* 24px */
+  --space-8: 2rem;         /* 32px */
+  --space-10: 2.5rem;      /* 40px */
+  --space-12: 3rem;        /* 48px */
+  
+  /* Border Radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 24px;
+  
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.1);
+  --shadow-2xl: 0 25px 50px rgba(0, 0, 0, 0.15);
+  
+  /* Transitions */
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.3s ease;
+  --transition-slow: 0.5s ease;
 }
 
-/* === TEMA ESCURO === */
+/* === TEMA CLARO APRIMORADO === */
+.theme-light {
+  /* Backgrounds */
+  --color-bg-primary: var(--color-gray-50);
+  --color-bg-secondary: var(--color-gray-100);
+  --color-bg-tertiary: var(--color-gray-200);
+  --color-bg-dark: var(--color-gray-800);
+  --color-bg-header: var(--gradient-primary);
+  --color-bg-sidebar: var(--gradient-surface);
+  
+  /* Typography */
+  --color-text-primary: var(--color-gray-800);
+  --color-text-secondary: var(--color-gray-600);
+  --color-text-light: var(--color-gray-50);
+  --color-text-muted: var(--color-gray-400);
+  
+  /* Borders */
+  --color-border-primary: rgba(22, 52, 255, 0.2);
+  --color-border-secondary: rgba(22, 52, 255, 0.1);
+  --color-border-strong: rgba(22, 52, 255, 0.3);
+  
+  /* Brand Colors */
+  --color-blue-primary: var(--color-primary);
+  --color-blue-light: var(--color-primary-light);
+  --color-blue-dark: var(--color-primary-dark);
+  
+  /* Shadows */
+  --color-shadow: var(--shadow-sm);
+  --color-shadow-strong: var(--shadow-md);
+  
+  /* Cards */
+  --color-card-bg: #FFFFFF;
+  --color-card-hover: var(--gradient-glass);
+  --color-card-border: rgba(22, 52, 255, 0.15);
+  
+  /* Component specific */
+  --color-input-bg: #FFFFFF;
+  --color-input-border: rgba(22, 52, 255, 0.2);
+  --color-button-primary: var(--gradient-primary);
+  --color-button-secondary: var(--color-gray-200);
+}
+
+/* === TEMA ESCURO APRIMORADO === */
 .theme-dark {
-  --color-bg-primary: #1a1d23;
-  --color-bg-secondary: #272A30;
-  --color-bg-tertiary: #2d3138;
-  --color-bg-dark: #1a1d23;
-  --color-bg-header: linear-gradient(135deg, #1a1d23 0%, #0f1115 100%);
-  --color-bg-sidebar: linear-gradient(180deg, #1a1d23 0%, #0f1115 100%);
+  /* Backgrounds */
+  --color-bg-primary: var(--color-gray-900);
+  --color-bg-secondary: var(--color-gray-800);
+  --color-bg-tertiary: var(--color-gray-700);
+  --color-bg-dark: var(--color-gray-900);
+  --color-bg-header: var(--gradient-surface);
+  --color-bg-sidebar: var(--gradient-surface);
   
-  --color-text-primary: #F3F7FC;
-  --color-text-secondary: #B0B8C4;
-  --color-text-light: #F3F7FC;
-  --color-text-muted: #6B7280;
+  /* Typography */
+  --color-text-primary: var(--color-gray-50);
+  --color-text-secondary: var(--color-gray-300);
+  --color-text-light: var(--color-gray-50);
+  --color-text-muted: var(--color-gray-400);
   
+  /* Borders */
   --color-border-primary: rgba(22, 148, 255, 0.3);
   --color-border-secondary: rgba(22, 148, 255, 0.2);
   --color-border-strong: rgba(22, 148, 255, 0.4);
   
-  --color-blue-primary: #1694FF;
+  /* Brand Colors */
+  --color-blue-primary: var(--color-primary-light);
   --color-blue-light: #4A9EFF;
-  --color-blue-dark: #0066CC;
+  --color-blue-dark: var(--color-primary-dark);
   
-  --color-shadow: rgba(0, 0, 0, 0.3);
-  --color-shadow-strong: rgba(0, 0, 0, 0.5);
+  /* Shadows */
+  --color-shadow: var(--shadow-lg);
+  --color-shadow-strong: var(--shadow-xl);
   
-  --color-card-bg: #272A30;
+  /* Cards */
+  --color-card-bg: var(--color-gray-800);
   --color-card-hover: rgba(22, 148, 255, 0.1);
   --color-card-border: rgba(22, 148, 255, 0.3);
+  
+  /* Component specific */
+  --color-input-bg: var(--color-gray-800);
+  --color-input-border: rgba(22, 148, 255, 0.3);
+  --color-button-primary: var(--gradient-primary);
+  --color-button-secondary: var(--color-gray-600);
 }
 
 /* === APLICAÇÃO DOS TEMAS === */
@@ -567,6 +676,214 @@
 .theme-light .advanced-filters .quick-filter-item .filter-label {
   color: var(--color-text-primary) !important;
   font-weight: 500 !important;
+}
+
+/* === CLASSES UTILITÁRIAS DO DESIGN SYSTEM === */
+
+/* Typography Classes - Baseadas nas referências */
+.font-display {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+.font-body {
+  font-family: var(--font-body);
+  font-weight: 400;
+}
+
+.font-body-medium {
+  font-family: var(--font-body);
+  font-weight: 500;
+}
+
+.font-body-semibold {
+  font-family: var(--font-body);
+  font-weight: 600;
+}
+
+.font-body-bold {
+  font-family: var(--font-body);
+  font-weight: 700;
+}
+
+/* Título Levels - Usando Anton/Poppins Hierarchy */
+.title-hero {
+  font-family: var(--font-display);
+  font-size: var(--text-6xl);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.title-h1 {
+  font-family: var(--font-display);
+  font-size: var(--text-4xl);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+.title-h2 {
+  font-family: var(--font-display);
+  font-size: var(--text-3xl);
+  line-height: 1.25;
+  letter-spacing: -0.005em;
+}
+
+.title-h3 {
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: var(--text-2xl);
+  line-height: 1.3;
+}
+
+.title-h4 {
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: var(--text-xl);
+  line-height: 1.35;
+}
+
+.subtitle {
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: var(--text-lg);
+  line-height: 1.4;
+}
+
+/* Card Types - Baseadas nas referências */
+.card-modern {
+  background: var(--color-card-bg);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--color-card-border);
+  transition: var(--transition-normal);
+  backdrop-filter: blur(10px);
+}
+
+.card-modern:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--color-blue-light);
+}
+
+.card-glass {
+  background: var(--gradient-glass);
+  border-radius: var(--radius-xl);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(20px);
+}
+
+/* Button Variants - Baseados nas referências */
+.btn-modern-primary {
+  background: var(--gradient-primary);
+  color: #FFFFFF;
+  border: none;
+  border-radius: var(--radius-lg);
+  padding: var(--space-3) var(--space-6);
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: var(--text-base);
+  transition: var(--transition-normal);
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-modern-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-modern-secondary {
+  background: var(--color-button-secondary);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius-lg);
+  padding: var(--space-3) var(--space-6);
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: var(--text-base);
+  transition: var(--transition-normal);
+  cursor: pointer;
+}
+
+.btn-modern-secondary:hover {
+  background: var(--gradient-primary);
+  color: #FFFFFF;
+  transform: translateY(-1px);
+}
+
+/* Input Styles - Baseados nas referências */
+.input-modern {
+  background: var(--color-input-bg);
+  border: 2px solid var(--color-input-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  color: var(--color-text-primary);
+  transition: var(--transition-normal);
+  width: 100%;
+}
+
+.input-modern:focus {
+  outline: none;
+  border-color: var(--color-blue-light);
+  box-shadow: 0 0 0 3px rgba(22, 148, 255, 0.1);
+}
+
+/* Gradient Text - Efeito das referências */
+.text-gradient {
+  background: linear-gradient(135deg, #1634FF 0%, #1694FF 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.text-gradient-secondary {
+  background: var(--gradient-secondary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Status Indicators */
+.status-success {
+  color: var(--color-success);
+}
+
+.status-warning {
+  color: var(--color-warning);
+}
+
+.status-error {
+  color: var(--color-error);
+}
+
+.status-info {
+  color: var(--color-blue-light);
+}
+
+/* Glassmorphism Effects */
+.glass-effect {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(20px);
+  border-radius: var(--radius-xl);
+}
+
+.glass-effect-dark {
+  background: rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  border-radius: var(--radius-xl);
+}
+
+/* Responsive Typography */
+@media (max-width: 768px) {
+  .title-hero { font-size: var(--text-4xl); }
+  .title-h1 { font-size: var(--text-3xl); }
+  .title-h2 { font-size: var(--text-2xl); }
+  .title-h3 { font-size: var(--text-xl); }
 }
 
 /* Transições suaves entre temas */
