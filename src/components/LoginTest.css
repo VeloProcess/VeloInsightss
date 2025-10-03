@@ -35,16 +35,14 @@
   pointer-events: none;
 }
 
-/* Background com imagem para tema claro */
+/* Background para tema claro */
 .theme-light .modern-login-container {
-  background: linear-gradient(rgba(243, 247, 252, 0.8), rgba(243, 247, 252, 0.9)), 
-              url('/login/1.png') center/cover no-repeat;
+  background: linear-gradient(135deg, rgba(22, 148, 255, 0.05) 0%, rgba(243, 247, 252, 0.9) 50%, rgba(22, 148, 255, 0.05) 100%);
 }
 
-/* Background com imagem para tema escuro */
+/* Background para tema escuro */
 .theme-dark .modern-login-container {
-  background: linear-gradient(rgba(26, 29, 35, 0.8), rgba(26, 29, 35, 0.9)), 
-              url('/login/2.png') center/cover no-repeat;
+  background: linear-gradient(135deg, rgba(22, 148, 255, 0.1) 0%, rgba(26, 29, 35, 0.9) 50%, rgba(22, 148, 255, 0.1) 100%);
 }
 
 /* Container principal com flexbox */
