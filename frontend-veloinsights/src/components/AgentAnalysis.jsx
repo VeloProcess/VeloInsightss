@@ -1,17 +1,53 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react'
 import Chart from 'chart.js/auto'
 import { useTheme } from '../hooks/useTheme'
-import { useAccessControl } from '../hooks/useAccessControl'
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core'
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import {
+  useSortable,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import './AgentAnalysis.css'
 
-// Componente para cada operador
-const OperatorCard = ({ operator, index, onViewAgent, hideNames }) => {
+// Componente para cada operador sortable
+const SortableOperator = ({ operator, index, onViewAgent }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: operator.id || operator.operator || `operator-${index}` })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  }
+
   return (
-    <div className="agent-card">
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`agent-card sortable ${isDragging ? 'dragging' : ''}`}
+    >
       <div className="agent-info">
         <div className="agent-rank">#{index + 1}</div>
         <div className="agent-details">
-          <h3>{hideNames ? 'Operador' : operator.operator}</h3>
+          <h3>{operator.operator}</h3>
           <div className="agent-stats">
             <div className="stat">
               <span className="stat-label">Chamadas:</span>
@@ -23,12 +59,15 @@ const OperatorCard = ({ operator, index, onViewAgent, hideNames }) => {
             </div>
           </div>
         </div>
+        <div className="drag-handle" {...listeners} {...attributes}>
+          ⋮⋮
+        </div>
       </div>
       <button 
         className="view-button"
         onClick={() => onViewAgent(operator)}
       >
-        📊 Visualizar Dados
+        Visualizar Dados
       </button>
     </div>
   )
@@ -36,35 +75,52 @@ const OperatorCard = ({ operator, index, onViewAgent, hideNames }) => {
 
 const AgentAnalysis = ({ data, operatorMetrics, rankings }) => {
   const { theme } = useTheme()
-  const { 
-    canViewOperatorData, 
-    canViewGeneralMetrics, 
-    getVisibleOperators,
-    getCurrentUserInfo 
-  } = useAccessControl()
-  
-  const currentUser = getCurrentUserInfo()
-  const shouldHideNames = currentUser?.level === 1 // Operador
-  
   const [selectedAgent, setSelectedAgent] = useState(null)
   const [agentData, setAgentData] = useState(null)
   const [agentPauses, setAgentPauses] = useState([])
   const [expandedMonths, setExpandedMonths] = useState({})
   const [monthlyData, setMonthlyData] = useState({})
   const [monthlyScores, setMonthlyScores] = useState({})
-  const [showPeriodSelector, setShowPeriodSelector] = useState(false)
-  const [selectedPeriod, setSelectedPeriod] = useState({
-    startDate: '',
-    endDate: ''
-  })
-  const [isLoadingDetails, setIsLoadingDetails] = useState(false)
+  const [useDragDrop, setUseDragDrop] = useState(false)
+  const [sortedOperators, setSortedOperators] = useState([])
   const chartRef = useRef(null)
   const chartInstance = useRef(null)
 
+  // Sensores para drag & drop
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  )
+
+  // Função para lidar com drag & drop
+  const handleDragEnd = (event) => {
+    const { active, over } = event
+
+    if (active.id !== over?.id) {
+      setSortedOperators((items) => {
+        const oldIndex = items.findIndex((item) => item.id === active.id)
+        const newIndex = items.findIndex((item) => item.id === over.id)
+
+        const newOrder = arrayMove(items, oldIndex, newIndex)
+        
+        // Salvar nova ordem no localStorage
+        localStorage.setItem('operatorsOrder', JSON.stringify(newOrder.map(op => op.id)))
+        
+        return newOrder
+      })
+    }
+  }
+
   // Debug inicial - verificar se há dados
-  // console.log('🔍 AgentAnalysis - Dados recebidos:', data ? data.length : 'null')
-  // console.log('🔍 AgentAnalysis - OperatorMetrics:', operatorMetrics ? Object.keys(operatorMetrics).length : 'null')
-  // console.log('🔍 AgentAnalysis - OperatorMetrics keys:', operatorMetrics ? Object.keys(operatorMetrics).slice(0, 3) : 'null')
+  // console.log('🔍 Debug - Componente AgentAnalysis carregado')
+  // console.log('🔍 Debug - Dados recebidos:', data ? data.length : 'null')
+  // console.log('🔍 Debug - OperatorMetrics:', operatorMetrics ? operatorMetrics.length : 'null')
   
   if (!data || data.length === 0) {
     return (
@@ -77,83 +133,94 @@ const AgentAnalysis = ({ data, operatorMetrics, rankings }) => {
     )
   }
 
-  // Filtrar operadores válidos baseado no controle de acesso - memoizado
+  // Filtrar operadores válidos (apenas nomes reais de pessoas) - memoizado
   const validOperators = useMemo(() => {
-    if (!operatorMetrics) return []
+    if (!operatorMetrics || operatorMetrics.length === 0) return []
     
-    // Converter operatorMetrics (objeto) para array
-    const operatorsArray = Object.values(operatorMetrics)
-    if (operatorsArray.length === 0) return []
-    
-    // Primeiro filtrar operadores baseado no controle de acesso
-    const accessFiltered = getVisibleOperators(operatorsArray)
+    const filtered = operatorMetrics.filter(op => 
+      op.operator && 
+      op.totalCalls > 0 &&
+      // Excluir entradas genéricas
+      !op.operator.toLowerCase().includes('sem operador') &&
+      !op.operator.toLowerCase().includes('agentes indisponíveis') &&
+      !op.operator.toLowerCase().includes('agentes rejeitaram') &&
+      !op.operator.toLowerCase().includes('2 agentes') &&
+      !op.operator.toLowerCase().includes('agente') &&
+      !op.operator.toLowerCase().includes('indisponível') &&
+      !op.operator.toLowerCase().includes('rejeitaram') &&
+      // Incluir apenas nomes que parecem ser de pessoas (contêm pelo menos um espaço)
+      op.operator.trim().includes(' ') &&
+      // Excluir números no início
+      !/^\d+/.test(op.operator.trim())
+    )
     
     // Ordenar por score (maior para menor) - melhor atendente primeiro
-    return accessFiltered.sort((a, b) => {
+    return filtered.sort((a, b) => {
       const scoreA = a.score || 0
       const scoreB = b.score || 0
       return scoreB - scoreA // Ordem decrescente (maior score primeiro)
     })
-  }, [operatorMetrics, getVisibleOperators])
+  }, [operatorMetrics])
+
+  // Inicializar ordem dos operadores
+  useEffect(() => {
+    if (validOperators && validOperators.length > 0) {
+      // Garantir que cada operador tenha um ID único
+      const operatorsWithIds = validOperators.map((op, index) => ({
+        ...op,
+        id: op.id || op.operator || `operator-${index}`
+      }))
+      
+      const savedOrder = localStorage.getItem('operatorsOrder')
+      if (savedOrder) {
+        try {
+          const orderIds = JSON.parse(savedOrder)
+          const orderedOperators = orderIds.map(id => 
+            operatorsWithIds.find(op => op.id === id)
+          ).filter(Boolean)
+          
+          // Adicionar operadores que não estavam na ordem salva
+          const remainingOperators = operatorsWithIds.filter(op => 
+            !orderIds.includes(op.id)
+          )
+          
+          setSortedOperators([...orderedOperators, ...remainingOperators])
+        } catch (error) {
+          console.error('Erro ao carregar ordem dos operadores:', error)
+          setSortedOperators(operatorsWithIds)
+        }
+      } else {
+        setSortedOperators(operatorsWithIds)
+      }
+    }
+  }, [validOperators])
 
   // Função para visualizar dados do agente
   const handleViewAgent = (agent) => {
     setSelectedAgent(agent)
-    setShowPeriodSelector(true)
-    setAgentData(null) // Limpar dados anteriores
-    setAgentPauses([])
-    setMonthlyData({})
-    setMonthlyScores({})
-  }
-
-  // Função para carregar dados detalhados do agente com período específico
-  const loadAgentDetails = async () => {
-    if (!selectedAgent || !selectedPeriod.startDate || !selectedPeriod.endDate) {
-      return
-    }
-
-    setIsLoadingDetails(true)
     
-    try {
-      console.log('🔍 Debug - Carregando dados para:', selectedAgent.operator)
-      console.log('🔍 Debug - Período:', selectedPeriod.startDate, 'até', selectedPeriod.endDate)
-      console.log('🔍 Debug - Total de registros disponíveis:', data.length)
-      
-      // Filtrar dados específicos do agente no período selecionado
-      const agentSpecificData = data.filter(record => {
-        if (!record.operador || !record.data) return false
-        
-        // Verificar se é o agente correto
-        const isCorrectAgent = record.operador.toLowerCase() === selectedAgent.operator.toLowerCase()
-        
-        // Verificar se está no período selecionado
-        const recordDate = new Date(record.data.split('/').reverse().join('-')) // DD/MM/YYYY -> YYYY-MM-DD
-        const startDate = new Date(selectedPeriod.startDate)
-        const endDate = new Date(selectedPeriod.endDate)
-        
-        return isCorrectAgent && recordDate >= startDate && recordDate <= endDate
-      })
-      
-      console.log('🔍 Debug - Registros filtrados para o agente:', agentSpecificData.length)
-      
-      setAgentData(agentSpecificData)
-      
-      // Processar dados de atividades (coluna J e O)
-      const timeData = agentSpecificData.filter(record => 
-        (record.atividade || record.tipoAtividade) &&
-        (record.tempoTotal && record.tempoTotal !== '00:00:00')
-      )
-      
-      setAgentPauses(timeData)
-      setShowPeriodSelector(false)
-      
-      console.log('🔍 Debug - Dados de tempo:', timeData.length)
-      
-    } catch (error) {
-      console.error('Erro ao carregar dados do agente:', error)
-    } finally {
-      setIsLoadingDetails(false)
-    }
+    // Debug: verificar estrutura dos dados
+    // console.log('🔍 Debug - Dados recebidos:', data.slice(0, 3))
+    // console.log('🔍 Debug - Agente selecionado:', agent)
+    
+    // Filtrar dados específicos do agente
+    const agentSpecificData = data.filter(record => 
+      record.operador && record.operador.toLowerCase() === agent.operator.toLowerCase()
+    )
+    
+    // console.log('🔍 Debug - Dados do agente:', agentSpecificData.slice(0, 3))
+    // console.log('🔍 Debug - Total de registros do agente:', agentSpecificData.length)
+    
+    setAgentData(agentSpecificData)
+    
+    // Processar dados de atividades (coluna J e O)
+    const timeData = agentSpecificData.filter(record => 
+      (record.atividade || record.tipoAtividade) &&
+      (record.tempoTotal && record.tempoTotal !== '00:00:00')
+    )
+    
+    // console.log('🔍 Debug - Registros com tempo:', timeData.length)
+    setAgentPauses(timeData)
   }
 
   // Função para voltar à lista
@@ -162,9 +229,6 @@ const AgentAnalysis = ({ data, operatorMetrics, rankings }) => {
     setAgentData(null)
     setAgentPauses([])
     setExpandedMonths({})
-    setShowPeriodSelector(false)
-    setSelectedPeriod({ startDate: '', endDate: '' })
-    setIsLoadingDetails(false)
   }
 
   // Função para expandir/colapsar mês
@@ -321,17 +385,6 @@ const AgentAnalysis = ({ data, operatorMetrics, rankings }) => {
   }
 
   // Calcular métricas individuais do agente
-  // Função para formatar minutos em HH:MM:SS
-  const formatarTempo = (minutos) => {
-    if (!minutos || minutos === 0) return 'Em breve'
-    
-    const horas = Math.floor(minutos / 60)
-    const mins = Math.floor(minutos % 60)
-    const segs = Math.floor((minutos % 1) * 60)
-    
-    return `${horas.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${segs.toString().padStart(2, '0')}`
-  }
-
   const calculateAgentMetrics = (agentData) => {
     if (!agentData || agentData.length === 0) {
       // console.log('🔍 Debug - Nenhum dado do agente para calcular métricas')
@@ -430,22 +483,54 @@ const AgentAnalysis = ({ data, operatorMetrics, rankings }) => {
     //   chamada: r.chamada
     // })))
     
-    // Calcular tempo logado e pausado baseado nos dados reais da planilha
+    // Calcular tempo logado e pausado baseado nas colunas J (atividade) e O (duração)
     const calcularTemposLogadoPausado = (records) => {
       let tempoTotalLogado = 0
       let tempoTotalPausado = 0
       let registrosLogado = 0
       let registrosPausado = 0
 
-      // Para tempo logado, vamos deixar de lado por enquanto
-      // (você mencionou que não sabe um cálculo que faria sentido)
-      tempoTotalLogado = 0
-      registrosLogado = 0
+      records.forEach(record => {
+        // Coluna O (duração) - tempo total da atividade
+        const duracao = tempoParaMinutos(record.tempoTotal)
+        
+        // Coluna J (atividade) - tipo de atividade
+        const atividade = record.atividade || record.tipoAtividade || ''
+        const chamada = record.chamada || ''
+        
+        // console.log('🔍 Debug - Processando:', { atividade, duracao, chamada })
+        
+        if (duracao > 0) {
+          // Se a atividade indica que está logado (atendendo, disponível, etc.)
+          if (atividade.toLowerCase().includes('atend') || 
+              atividade.toLowerCase().includes('dispon') ||
+              atividade.toLowerCase().includes('logado') ||
+              atividade.toLowerCase().includes('ativo') ||
+              atividade.toLowerCase().includes('trabalhando') ||
+              chamada.toLowerCase().includes('atendida')) {
+            tempoTotalLogado += duracao
+            registrosLogado++
+            // console.log('🔍 Debug - Tempo logado adicionado:', duracao)
+          }
+          // Se a atividade indica pausa (pausa, almoço, etc.)
+          else if (atividade.toLowerCase().includes('pausa') ||
+                   atividade.toLowerCase().includes('almoço') ||
+                   atividade.toLowerCase().includes('break') ||
+                   atividade.toLowerCase().includes('descanso') ||
+                   atividade.toLowerCase().includes('intervalo')) {
+            tempoTotalPausado += duracao
+            registrosPausado++
+            // console.log('🔍 Debug - Tempo pausado adicionado:', duracao)
+          }
+        }
+      })
 
-      // Para tempo pausado, também vamos deixar de lado por enquanto
-      // até implementarmos a busca na aba "Pausas"
-      tempoTotalPausado = 0
-      registrosPausado = 0
+      // console.log('🔍 Debug - Resultado final:', {
+      //   tempoTotalLogado,
+      //   tempoTotalPausado,
+      //   registrosLogado,
+      //   registrosPausado
+      // })
 
       return {
         tempoTotalLogado,
@@ -587,71 +672,6 @@ const AgentAnalysis = ({ data, operatorMetrics, rankings }) => {
     }
   }, [monthlyData])
 
-  // Seletor de período
-  if (selectedAgent && showPeriodSelector) {
-    return (
-      <div className="agent-analysis">
-        <div className="agent-header">
-          <button 
-            className="back-button"
-            onClick={handleBackToList}
-          >
-            ← Voltar à Lista
-          </button>
-          <h2>👤 {selectedAgent.operator}</h2>
-          <p>Selecione o período para análise detalhada</p>
-        </div>
-
-        <div className="period-selector-container">
-          <div className="period-selector-card">
-            <h3>📅 Seletor de Período</h3>
-            <p>Escolha o período para visualizar as métricas detalhadas do agente:</p>
-            
-            <div className="date-inputs">
-              <div className="date-input-group">
-                <label htmlFor="startDate">Data Inicial:</label>
-                <input
-                  type="date"
-                  id="startDate"
-                  value={selectedPeriod.startDate}
-                  onChange={(e) => setSelectedPeriod(prev => ({ ...prev, startDate: e.target.value }))}
-                  className="date-input"
-                />
-              </div>
-              
-              <div className="date-input-group">
-                <label htmlFor="endDate">Data Final:</label>
-                <input
-                  type="date"
-                  id="endDate"
-                  value={selectedPeriod.endDate}
-                  onChange={(e) => setSelectedPeriod(prev => ({ ...prev, endDate: e.target.value }))}
-                  className="date-input"
-                />
-              </div>
-            </div>
-
-            <div className="period-actions">
-              <button
-                className="load-details-button"
-                onClick={loadAgentDetails}
-                disabled={!selectedPeriod.startDate || !selectedPeriod.endDate || isLoadingDetails}
-              >
-                {isLoadingDetails ? '⏳ Carregando...' : '📊 Carregar Métricas Detalhadas'}
-              </button>
-            </div>
-
-            {selectedPeriod.startDate && selectedPeriod.endDate && (
-              <div className="period-summary">
-                <p>📋 Período selecionado: <strong>{selectedPeriod.startDate}</strong> até <strong>{selectedPeriod.endDate}</strong></p>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    )
-  }
-
   if (selectedAgent && agentMetrics) {
     return (
       <div className="agent-analysis">
@@ -708,7 +728,7 @@ const AgentAnalysis = ({ data, operatorMetrics, rankings }) => {
             <div className="metric-icon">🕐</div>
             <div className="metric-content">
               <h3>Tempo Total Logado</h3>
-              <div className="metric-value">{formatarTempo(agentMetrics.tempoTotalLogado)}</div>
+              <div className="metric-value">{agentMetrics.tempoTotalLogado} min</div>
               <p>Tempo total trabalhando</p>
             </div>
           </div>
@@ -717,7 +737,7 @@ const AgentAnalysis = ({ data, operatorMetrics, rankings }) => {
             <div className="metric-icon">⏸️</div>
             <div className="metric-content">
               <h3>Tempo Total Pausado</h3>
-              <div className="metric-value">{formatarTempo(agentMetrics.tempoTotalPausado)}</div>
+              <div className="metric-value">{agentMetrics.tempoTotalPausado} min</div>
               <p>Tempo total em pausa</p>
             </div>
           </div>
@@ -1014,16 +1034,6 @@ const AgentAnalysis = ({ data, operatorMetrics, rankings }) => {
 
   return (
     <div className="agent-analysis">
-      {/* Mensagem informativa sobre permissões */}
-      {currentUser && currentUser.level === 1 && (
-        <div className="access-info">
-          <div className="info-card">
-            <h3>👤 Modo Operador</h3>
-            <p>Você está visualizando apenas seus próprios dados. Para ver dados de outros operadores, entre em contato com seu gestor.</p>
-          </div>
-        </div>
-      )}
-
       {/* Dashboard Geral */}
       <div className="general-dashboard">
         <h2>📊 Dashboard Geral de Agentes</h2>
@@ -1036,7 +1046,7 @@ const AgentAnalysis = ({ data, operatorMetrics, rankings }) => {
           
           <div className="metric-card">
             <h3>📞 Total de Chamadas</h3>
-            <div className="metric-value">{validOperators.reduce((sum, op) => sum + (op.totalCalls || 0), 0)}</div>
+            <div className="metric-value">{validOperators.reduce((sum, op) => sum + op.totalCalls, 0)}</div>
             <p>Chamadas processadas</p>
           </div>
           
@@ -1044,7 +1054,7 @@ const AgentAnalysis = ({ data, operatorMetrics, rankings }) => {
             <h3>⭐ Nota Média Geral</h3>
             <div className="metric-value">
               {validOperators.length > 0 
-                ? (validOperators.reduce((sum, op) => sum + (op.avgRatingAttendance || 0), 0) / validOperators.length).toFixed(1)
+                ? (validOperators.reduce((sum, op) => sum + op.avgRatingAttendance, 0) / validOperators.length).toFixed(1)
                 : '0.0'
               }
             </div>
@@ -1055,7 +1065,7 @@ const AgentAnalysis = ({ data, operatorMetrics, rankings }) => {
             <h3>🎯 Nota Solução Média</h3>
             <div className="metric-value">
               {validOperators.length > 0 
-                ? (validOperators.reduce((sum, op) => sum + (op.avgRatingSolution || 0), 0) / validOperators.length).toFixed(1)
+                ? (validOperators.reduce((sum, op) => sum + op.avgRatingSolution, 0) / validOperators.length).toFixed(1)
                 : '0.0'
               }
             </div>
@@ -1067,19 +1077,102 @@ const AgentAnalysis = ({ data, operatorMetrics, rankings }) => {
       <div className="agent-header">
         <h2>👤 Visualizar por Agente</h2>
         <p>Selecione um atendente para visualizar suas métricas individuais</p>
+        <div className="drag-drop-controls">
+          <button 
+            className={`mode-toggle-button ${useDragDrop ? 'active' : ''}`}
+            onClick={() => setUseDragDrop(!useDragDrop)}
+          >
+            {useDragDrop ? '📋 Lista Normal' : '🔄 Modo Drag & Drop'}
+          </button>
+          {useDragDrop && (
+            <div className="drag-drop-hint">
+              💡 Arraste os operadores pelos handles ⋮⋮ para reordenar. Ordem padrão: melhor score primeiro.
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className="agents-grid">
+      {useDragDrop ? (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext 
+            items={sortedOperators} 
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="agents-grid">
+              {sortedOperators.map((agent, index) => (
+                <SortableOperator
+                  key={agent.id || agent.operator || index}
+                  operator={agent}
+                  index={index}
+                  onViewAgent={handleViewAgent}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
+      ) : (
+        <div className="agents-grid">
         {validOperators.map((agent, index) => (
-          <OperatorCard
-            key={agent.id || agent.operator || index}
-            operator={agent}
-            index={index}
-            onViewAgent={handleViewAgent}
-            hideNames={shouldHideNames}
-          />
+          <div key={agent.id || agent.operator || index} className="agent-card">
+            <div className="agent-info">
+              <h3>{agent.operator}</h3>
+              <div className="agent-stats">
+                <div className="stat">
+                  <span className="stat-label">📞 Chamadas:</span>
+                  <span className="stat-value">{agent.totalCalls}</span>
+                </div>
+                <div className="stat">
+                  <span className="stat-label">⭐ Nota:</span>
+                  <span className="stat-value">{agent.avgRatingAttendance?.toFixed(1) || 'N/A'}</span>
+                </div>
+                <div className="stat">
+                  <span className="stat-label">⏱️ Duração:</span>
+                  <span className="stat-value">{agent.avgDuration?.toFixed(1) || 'N/A'} min</span>
+                </div>
+              </div>
+            </div>
+            <button 
+              className="view-button"
+              onClick={() => handleViewAgent(agent)}
+            >
+              📊 Visualizar Dados
+            </button>
+          </div>
         ))}
-      </div>
+        </div>
+      )}
+
+      {useDragDrop && (
+        <div className="drag-drop-actions">
+          <button 
+            className="reset-order-button"
+            onClick={() => {
+              // Garantir que cada operador tenha um ID único e ordenar por score
+              const operatorsWithIds = validOperators.map((op, index) => ({
+                ...op,
+                id: op.id || op.operator || `operator-${index}`
+              }))
+              setSortedOperators(operatorsWithIds)
+              localStorage.removeItem('operatorsOrder')
+            }}
+          >
+            🔄 Restaurar Ordem por Score
+          </button>
+          <button 
+            className="save-order-button"
+            onClick={() => {
+              // console.log('Ordem salva:', sortedOperators)
+              alert('Ordem salva com sucesso!')
+            }}
+          >
+            💾 Salvar Ordem
+          </button>
+        </div>
+      )}
 
       {validOperators.length === 0 && (
         <div className="no-agents">

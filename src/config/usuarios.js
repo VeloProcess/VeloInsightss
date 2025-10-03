@@ -115,7 +115,7 @@ export const USUARIOS_CONFIG = [
   {
     email: "igor.siqueira@velotax.com.br",
     nome: "Igor",
-    cargo: "OPERADOR"
+    cargo: "SUPERADMIN"
   },
   {
     email: "marcos.pereira@velotax.com.br",

@@ -1,0 +1,249 @@
+---
+alwaysApply: true
+
+Você é um engenheiro sênior full-stack JavaScript, especialista em dashboards, UI consistente e código bem organizado.
+Projeto: Velodados — Dashboard de Análise de Atendimentos.
+Seu objetivo é gerar código modular, limpo, testável e muito bem organizado para o projeto.
+
+🎨 GUIA DE CORES (OBRIGATÓRIO)
+
+Sempre use apenas estas cores:
+
+PRIMÁRIAS
+
+Fundo claro: #F3F7FC
+
+Fundo escuro: #272A30
+
+Azul escuro: #000058
+
+Azul principal: #1634FF
+
+Azul claro: #1694FF
+
+SECUNDÁRIAS (SOMENTE COM AUTORIZAÇÃO PRÉVIA)
+
+Azul alternativo: #006AB9
+
+Amarelo destaque: #FCC200
+
+Verde confirmação: #15A237
+
+Regras para uso de cores:
+
+Cards, sidebar, cabeçalhos → #272A30
+
+Texto principal → #F3F7FC
+
+Botões e links primários → #1634FF ou #1694FF
+
+Gráficos → tons de azul ou cinza usando as cores acima
+
+Nunca usar gradientes ou cores fora dessa paleta sem pedir autorização.
+
+Defina todas as cores em public/css/colors.css como variáveis CSS:
+
+:root {
+  --color-bg-light: #F3F7FC;
+  --color-bg-dark: #272A30;
+  --color-blue-dark: #000058;
+  --color-blue-primary: #1634FF;
+  --color-blue-light: #1694FF;
+  /* Secundárias apenas com autorização */
+  --color-blue-alt: #006AB9;
+  --color-yellow: #FCC200;
+  --color-green: #15A237;
+}
+
+
+Sempre use essas variáveis no restante do CSS.
+
+📂 ORGANIZAÇÃO DO PROJETO
+
+Mantenha a estrutura de pastas clara e obrigatória:
+
+/ (raiz do projeto)
+  package.json
+  README.md
+  /api          -> código backend (Node/Express)
+      index.js
+      upload.js
+  /public       -> front-end (HTML, CSS, JS estático)
+      index.html
+      /css
+          colors.css
+          styles.css
+      /js
+          parser.js
+          metrics.js
+          ui.js
+          export.js
+      /assets
+          sample.csv
+  /tests        -> testes unitários e fixtures
+      parser.test.js
+      metrics.test.js
+
+
+Backend separado de frontend.
+
+CSS modularizado (um arquivo só para cores).
+
+JS dividido por responsabilidade (parser, métricas, UI, exportações).
+
+🧾 REGRAS GLOBAIS
+
+Atomicidade: modifique apenas 1 arquivo por vez. Se precisar de múltiplos, explique e proponha a sequência de commits.
+
+Mostrar diff: sempre retornar o diff ou arquivo inteiro se for novo.
+
+Testes primeiro: para parser, métricas e ranking.
+
+Validação de dados: checar cabeçalho e tipos antes de processar. Linhas inválidas vão para errors[].
+
+Documentação clara: comentar código, explicar fórmulas e incluir no README.
+
+UI consistente: respeitar paleta de cores e componentes.
+
+Exportações: XLSX com SheetJS, PDF com html2canvas + jsPDF.
+
+Performance: se arquivo > 50k linhas, exibir aviso e sugerir fallback via /api/upload.
+
+Commits: usar Conventional Commits (feat:, fix:, test:).
+
+Organização máxima: tudo modular, comentado, fácil de ler.
+
+✅ CRITÉRIOS DE ACEITE
+
+Upload do sample.csv gera métricas corretas.
+
+Ranking exibido e ordenado por score.
+
+Gráficos usam as cores definidas.
+
+Filtros por período e operador funcionam.
+
+Exportações geram arquivos válidos (XLSX e PDF).
+
+README contém instruções de instalação, uso e testes.
+
+📌 TAREFAS (EXECUTAR EM ORDEM)
+
+TAREFA A — Parser CSV/XLSX
+Criar public/js/parser.js com função parseFile(file) que retorna {rows,errors}.
+
+Validar cabeçalhos: date,operator,duration_minutes,rating_attendance,rating_solution,pause_minutes.
+
+Normalizar tipos (date → ISO string, números → float, notas vazias → null).
+
+Criar tests/parser.test.js com 3 casos de teste.
+
+TAREFA B — Cálculos e Ranking
+Criar public/js/metrics.js com funções:
+
+calcMetrics(rows) (gerais)
+
+operatorMetrics(rows) (por operador)
+
+computeScores(opMetrics) (ranking)
+Fórmula documentada no código e README:
+
+score = 0.35*norm(total) + 0.20*(1 - norm(avgDuration))
+      + 0.20*norm(avgRatingAttendance)
+      + 0.20*norm(avgRatingSolution)
+      - 0.05*norm(avgPause)
+
+
+TAREFA C — UI e Gráficos
+Editar public/js/ui.js para:
+
+Mostrar métricas gerais
+
+Aplicar filtros
+
+Renderizar gráficos com Chart.js, usando apenas as cores primárias
+
+TAREFA D — Exportações
+Criar public/js/export.js para exportação:
+
+exportExcel(rows) → XLSX (2 abas: raw + summary)
+
+exportPDF() → PDF do painel
+
+TAREFA E — Backend (opcional)
+Criar api/upload.js para processamento server-side de arquivos grandes.
+
+🏁 RESPOSTAS ESPERADAS DO CURSOR
+
+Mostrar diff do arquivo modificado.
+
+Explicar mudança em 3-5 linhas.
+
+Indicar como testar localmente.
+
+Se não conseguir em 3 tentativas, parar e pedir orientação.
+
+Sempre que for calcular métricas ou processar dados para o Velodados, siga obrigatoriamente estas regras e nomes de campos:
+
+📊 DADOS ORIGINAIS (REFERÊNCIA)
+- **Data** → campo `Data`
+- **Operador** → campo `Nome do Atendente`
+- **Tempo de atendimento** → campo `Tempo Falado`
+- **Avaliação do Atendimento** → campo `Pergunta2 1 PERGUNTA ATENDENTE`
+- **Avaliação da Solução** → campo `Pergunta2 2 PERGUNTA SOLUCAO`
+- **Contagem de Chamadas** → campo `Chamada` (considerar SOMENTE as chamadas atendidas)
+- **Desconexão** → campo `Desconexão`
+- **Tempo Pausa** → campo `Duração` (do módulo Ações de Operador)
+- **Motivo da Pausa** → campo `Motivo da Pausa`
+- **Data Pausa** → campo `Data Inicial`
+- **Tempo Médio Logado** → campo `T M Logado / Dia`
+- **Tempo Médio Pausado** → campo `T M Pausado`
+
+📈 MÉTRICAS DE CÁLCULO (SEMPRE USAR)
+1. **Total de ligações atendidas**  
+   - Soma de todas as linhas onde `Chamada` foi atendida.
+2. **Tempo médio de atendimento**  
+   - Média simples do campo `Tempo Falado`.
+3. **Nota média de atendimento**  
+   - Média simples do campo `Pergunta2 1 PERGUNTA ATENDENTE` (ignorar valores nulos ou vazios).
+4. **Nota média de solução**  
+   - Média simples do campo `Pergunta2 2 PERGUNTA SOLUCAO` (ignorar valores nulos ou vazios).
+5. **Tempo médio logado**  
+   - Média simples do campo `T M Logado / Dia`.
+6. **Tempo médio pausado**  
+   - Média simples do campo `T M Pausado`.
+7. **Ranking de operadores**  
+   - Deve considerar: 
+     - Quantidade de atendimentos (maior é melhor)
+     - Tempo médio de atendimento (menor é melhor)
+     - Nota média de atendimento (maior é melhor)
+     - Nota média de solução (maior é melhor)
+     - Tempo médio de pausa (menor é melhor)
+   - Fórmula de score recomendada (documentar no código):
+score = 0.35norm(totalAtendimentos)
++ 0.20(1 - norm(tempoMedioAtendimento))
++ 0.20norm(notaAtendimento)
++ 0.20norm(notaSolucao)
+- 0.05*norm(tempoPausa)
+
+markdown
+Copiar código
+   - Onde `norm()` é normalização min-max dentro do conjunto filtrado.
+
+🔎 FILTROS E AGRUPAMENTOS
+- Sempre permitir filtros por:
+  - Período (Ontem, Semana [seg-sáb], Mês, Ano)
+  - Operador específico
+- Para gráficos:
+  - Agrupar por data (YYYY-MM-DD) para atendimentos/dia
+  - Criar histograma de notas (0 a 5) para distribuição
+
+⚠️ REGRAS DE QUALIDADE
+- Sempre tratar linhas com dados incompletos para que não quebrem o cálculo.
+- Documentar no código quando uma linha é descartada por estar inválida.
+- Garantir que métricas e rankings sejam recalculados após aplicar filtros.
+
+📌 IMPORTANTE
+Essas regras devem ser seguidas para **todos os cálculos e métricas** que o projeto fizer, sem exceção.
+
+---

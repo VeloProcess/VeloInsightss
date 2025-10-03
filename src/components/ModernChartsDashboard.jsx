@@ -441,9 +441,14 @@ const ModernChartsDashboard = ({ data, operatorMetrics, rankings, selectedPeriod
       .sort((a, b) => (b.totalCalls || 0) - (a.totalCalls || 0))
       .slice(0, 8)
 
-    const labels = topOperators.map(op => 
-      op.operator.length > 10 ? op.operator.substring(0, 10) + '...' : op.operator
-    )
+    // Verificar se deve esconder nomes - usar uso do useAccessControl
+    const shouldHideNames = document.body.getAttribute('data-hide-names') === 'true'
+    
+    const labels = shouldHideNames 
+      ? topOperators.map((_, index) => `Operador ${index + 1}`)
+      : topOperators.map(op => 
+          op.operator.length > 10 ? op.operator.substring(0, 10) + '...' : op.operator
+        )
     const calls = topOperators.map(op => op.totalCalls || 0)
 
     const chart = new Chart(chartRefs.usersChart.current, {
@@ -734,9 +739,14 @@ const ModernChartsDashboard = ({ data, operatorMetrics, rankings, selectedPeriod
       .sort((a, b) => (b.avgRatingAttendance || 0) - (a.avgRatingAttendance || 0))
       .slice(0, 6)
 
-    const labels = topOperators.map(op => 
-      op.operator.length > 12 ? op.operator.substring(0, 12) + '...' : op.operator
-    )
+    // Verificar se deve esconder nomes
+    const shouldHideNames = document.body.getAttribute('data-hide-names') === 'true'
+    
+    const labels = shouldHideNames 
+      ? topOperators.map((_, index) => `Operador ${index + 1}`)
+      : topOperators.map(op => 
+          op.operator.length > 12 ? op.operator.substring(0, 12) + '...' : op.operator
+        )
     const ratings = topOperators.map(op => op.avgRatingAttendance || 0)
 
     const chart = new Chart(chartRefs.activityChart.current, {

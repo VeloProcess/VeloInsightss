@@ -14,15 +14,12 @@ import DarkListManager from './components/DarkListManager'
 import ChartsDetailedTab from './components/ChartsDetailedTab'
 import AgentAnalysis from './components/AgentAnalysis'
 import PreferencesManager from './components/PreferencesManager'
-import CargoSelection from './components/CargoSelection'
-import { CargoProvider, useCargo } from './contexts/CargoContext'
 import { useGoogleSheetsDirectSimple } from './hooks/useGoogleSheetsDirectSimple'
 import { useDataFilters } from './hooks/useDataFilters'
 import { useTheme } from './hooks/useTheme'
 import './styles/App.css'
 
-// Componente interno que usa o hook useCargo
-function AppContent() {
+function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [currentView, setCurrentView] = useState('fetch')
   const [selectedOperator, setSelectedOperator] = useState(null)
@@ -31,31 +28,10 @@ function AppContent() {
   const [showNewLogin, setShowNewLogin] = useState(false) // Para mostrar a nova tela de login
   const [showPreferences, setShowPreferences] = useState(false)
   
-  // Hook do sistema de cargos
-  const { 
-    selectedCargo, 
-    userEmail, 
-    showCargoSelection, 
-    selectCargo, 
-    logout,
-    hasPermission,
-    canViewUserData 
-  } = useCargo()
-  
   
   // Sistema de temas
   const { theme, toggleTheme } = useTheme()
   
-  // Controle de ocultação de nomes baseado no cargo
-  useEffect(() => {
-    const shouldHideNames = selectedCargo === 'OPERADOR'
-    document.body.setAttribute('data-hide-names', shouldHideNames.toString())
-    
-    // Limpar quando sair da sessão
-    return () => {
-      document.body.removeAttribute('data-hide-names')
-    }
-  }, [selectedCargo])
 
   // Hook do Google Sheets
   const {
@@ -71,7 +47,6 @@ function AppContent() {
     selectedPeriod,
     customDateRange,
     fetchSheetData,
-    fetchLast60Days,
     fetchFullDataset,
     processPeriodData,
     fetchDataByPeriod,
@@ -115,18 +90,6 @@ function AppContent() {
     }
   }, [isAuthenticated, userData, showNewLogin])
 
-  // Função para lidar com seleção de cargo
-  const handleCargoSelected = (cargo) => {
-    if (userData?.email) {
-      const success = selectCargo(cargo, userData.email)
-      if (success) {
-        console.log('✅ Cargo selecionado:', cargo)
-        // Navegar para dashboard após seleção
-        setCurrentView('dashboard')
-      }
-    }
-  }
-
   const handleFetchData = async () => {
     try {
       if (!isAuthenticated || !userData) {
@@ -134,13 +97,21 @@ function AppContent() {
         return
       }
       
-      console.log('🔄 Iniciando carregamento dos dados dos últimos 60 dias...')
+      console.log('🔄 Iniciando carregamento do dataset completo...')
       
-      // Carregar dados dos últimos 60 dias
-      await fetchLast60Days(userData.accessToken)
+      // Carregar dataset completo da planilha
+      await fetchFullDataset(userData.accessToken)
       
-      console.log('✅ Dados carregados, navegando para dashboard...')
-      setCurrentView('dashboard')
+      // Aguardar um pouco para o estado ser atualizado
+      setTimeout(() => {
+        console.log('📊 Dados após busca:', data.length)
+        if (data && data.length > 0) {
+          console.log('✅ Navegando para dashboard...')
+          setCurrentView('dashboard')
+        } else {
+          console.log('⚠️ Nenhum dado encontrado')
+        }
+      }, 1000)
       
     } catch (error) {
       console.error("Erro ao buscar dados:", error)
@@ -310,44 +281,6 @@ function AppContent() {
                         addToDarkList={addToDarkList}
                         removeFromDarkList={removeFromDarkList}
                       />
-                      
-                      
-                      {/* Debug info apenas se houver problema */}
-                      {(!metrics || !rankings || !operatorMetrics) && (
-                        <div style={{ 
-                          padding: '20px', 
-                          backgroundColor: '#ffebee', 
-                          color: '#c62828', 
-                          margin: '20px', 
-                          borderRadius: '8px', 
-                          fontSize: '14px',
-                          border: '1px solid #f44336'
-                        }}>
-                          <h4>⚠️ Problema Detectado:</h4>
-                          <p>📊 Metrics: {metrics ? '✅ Presente' : '❌ Ausente'}</p>
-                          <p>👥 Operator Metrics: {operatorMetrics ? Object.keys(operatorMetrics).length : 0} operadores</p>
-                          <p>🏆 Rankings: {rankings?.length || 0} rankings</p>
-                          <p>📋 Data: {data?.length || 0} registros</p>
-                          <p>🎯 Selected Cargo: {selectedCargo}</p>
-                          <button 
-                            onClick={() => {
-                              localStorage.clear()
-                              window.location.reload()
-                            }}
-                            style={{
-                              padding: '10px 20px',
-                              backgroundColor: '#f44336',
-                              color: 'white',
-                              border: 'none',
-                              borderRadius: '4px',
-                              cursor: 'pointer',
-                              marginTop: '10px'
-                            }}
-                          >
-                            🔄 Limpar Cache e Recarregar
-                          </button>
-                        </div>
-                      )}
                     </>
                   )}
                   
@@ -439,25 +372,7 @@ function AppContent() {
         isOpen={showPreferences}
         onClose={() => setShowPreferences(false)}
       />
-
-      {/* Cargo Selection */}
-      {showCargoSelection && userData?.email && (
-        <CargoSelection
-          userEmail={userData.email}
-          onCargoSelected={handleCargoSelected}
-        />
-      )}
-      
     </div>
-  )
-}
-
-// Componente principal que envolve tudo com o CargoProvider
-function App() {
-  return (
-    <CargoProvider>
-      <AppContent />
-    </CargoProvider>
   )
 }
 
