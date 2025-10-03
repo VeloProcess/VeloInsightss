@@ -1,5 +1,5 @@
 import { useCargo } from '../contexts/CargoContext'
-import { getUserByEmail, getUserCargo } from '../config/usuarios'
+import { getUserByEmail, getUserCargo, USUARIOS_CONFIG } from '../config/usuarios'
 import { getCargoConfig } from '../config/cargos'
 
 // Hook personalizado para controle de acesso
@@ -11,6 +11,12 @@ export const useAccessControl = () => {
     canViewUserData,
     getCurrentCargoConfig 
   } = useCargo()
+
+  // Função para obter o nome do operador baseado no email do usuário
+  const getOperatorNameFromEmail = (email) => {
+    const user = USUARIOS_CONFIG.find(u => u.email.toLowerCase() === email.toLowerCase())
+    return user ? user.nome : null
+  }
 
   // Verificar se pode ver dados de um operador específico
   const canViewOperatorData = (operatorEmail) => {
@@ -51,9 +57,12 @@ export const useAccessControl = () => {
     
     // Operador só vê seus próprios dados
     if (cargoConfig.level === 1) {
+      const operatorName = getOperatorNameFromEmail(userEmail)
+      
       return data.filter(record => {
-        const recordEmail = record.email || record.operador || record.chamada
-        return recordEmail && recordEmail.toLowerCase().includes(userEmail.toLowerCase())
+        // Comparar por campo operador (nome na planilha)
+        const recordOperator = record.operador || record.chamada
+        return operatorName && recordOperator && recordOperator.toLowerCase().includes(operatorName.toLowerCase())
       })
     }
     
@@ -69,9 +78,17 @@ export const useAccessControl = () => {
     
     // Operador só vê seus próprios dados
     if (cargoConfig.level === 1) {
+      const operatorName = getOperatorNameFromEmail(userEmail)
+      console.log('🔍 Debug getVisibleOperators:', {
+        userEmail,
+        operatorName,
+        operatorsCount: operators.length,
+        operatorsSample: operators.slice(0, 3).map(op => op.operator)
+      })
+      
       return operators.filter(op => {
-        const opEmail = op.email || op.operator
-        return opEmail && opEmail.toLowerCase().includes(userEmail.toLowerCase())
+        // Comparar por nome do operador (não por email)
+        return operatorName && op.operator && op.operator.toLowerCase().includes(operatorName.toLowerCase())
       })
     }
     
@@ -127,6 +144,7 @@ export const useAccessControl = () => {
     getVisibleOperators,
     canAccessView,
     getCurrentUserInfo,
+    getOperatorNameFromEmail,
     hasPermission
   }
 }
