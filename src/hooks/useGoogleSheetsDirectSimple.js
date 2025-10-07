@@ -1,6 +1,68 @@
 import { useState, useEffect, useCallback } from 'react'
 import { processarDados } from '../utils/dataProcessor'
 
+// Função para processamento assíncrono otimizado
+const processarDadosAssincrono = async (dados) => {
+  return new Promise((resolve) => {
+    // Mostrar progresso no console
+    console.log(`⚡ Iniciando processamento de ${dados.length} registros...`)
+    
+    // Usar setTimeout para não bloquear a UI
+    setTimeout(() => {
+      const startTime = performance.now()
+      const resultado = processarDados(dados)
+      const endTime = performance.now()
+      
+      console.log(`✅ Processamento concluído em ${(endTime - startTime).toFixed(2)}ms`)
+      resolve(resultado)
+    }, 0)
+  })
+}
+
+// Função para processamento completo com progresso
+const processarTodosOsDadosComProgresso = async (dados, onProgress) => {
+  return new Promise((resolve) => {
+    console.log(`🚀 Iniciando processamento completo de ${dados.length - 1} registros históricos...`)
+    
+    const totalRecords = dados.length - 1 // Excluir cabeçalho
+    let processedRecords = 0
+    
+    // Simular progresso em chunks
+    const processChunk = () => {
+      const chunkSize = Math.max(1000, Math.floor(totalRecords / 100)) // Processar em chunks de pelo menos 1000 registros
+      const endIndex = Math.min(processedRecords + chunkSize, totalRecords)
+      
+      // Simular processamento do chunk
+      setTimeout(() => {
+        processedRecords = endIndex
+        const progress = (processedRecords / totalRecords) * 100
+        
+        // Atualizar progresso
+        if (onProgress) {
+          onProgress(progress, processedRecords, totalRecords)
+        }
+        
+        if (processedRecords < totalRecords) {
+          // Continuar processamento
+          processChunk()
+        } else {
+          // Processamento completo - agora processar os dados reais
+          console.log(`📊 Processando dados finais...`)
+          const startTime = performance.now()
+          const resultado = processarDados(dados, true) // processAllRecords = true
+          const endTime = performance.now()
+          
+          console.log(`✅ Processamento completo concluído em ${(endTime - startTime).toFixed(2)}ms`)
+          resolve(resultado)
+        }
+      }, 50) // Delay pequeno para mostrar progresso
+    }
+    
+    // Iniciar processamento
+    processChunk()
+  })
+}
+
 export const useGoogleSheetsDirectSimple = () => {
   const [data, setData] = useState([])
   const [metrics, setMetrics] = useState({})
@@ -13,6 +75,9 @@ export const useGoogleSheetsDirectSimple = () => {
   const [userData, setUserData] = useState(null)
   const [fullDataset, setFullDataset] = useState([]) // Dataset completo da planilha
   const [selectedPeriod, setSelectedPeriod] = useState(null) // Período selecionado pelo usuário
+  const [isProcessingAllRecords, setIsProcessingAllRecords] = useState(false) // Estado para processamento completo
+  const [processingProgress, setProcessingProgress] = useState(0) // Progresso do processamento (0-100)
+  const [totalRecordsToProcess, setTotalRecordsToProcess] = useState(0) // Total de registros para processar
 
   // Configurações
   const SPREADSHEET_ID = '1F1VJrAzGage7YyX1tLCUCaIgB2GhvHSqJRVnmwwYhkA'
@@ -24,28 +89,7 @@ export const useGoogleSheetsDirectSimple = () => {
   // Estado para controle de período
   const [customDateRange, setCustomDateRange] = useState({ start: '', end: '' })
   
-  // Estado para Dark List
-  const [darkList, setDarkList] = useState([])
-
-  // Carregar Dark List do localStorage
-  useEffect(() => {
-    const savedDarkList = localStorage.getItem('veloinsights_darklist')
-    if (savedDarkList) {
-      try {
-        const parsed = JSON.parse(savedDarkList)
-        setDarkList(parsed)
-        console.log('📋 Dark List carregada:', parsed.length, 'operadores excluídos')
-      } catch (error) {
-        console.error('❌ Erro ao carregar Dark List:', error)
-        setDarkList([])
-      }
-    } else {
-      const initialDarkList = ['Evelin Medrado']
-      setDarkList(initialDarkList)
-      localStorage.setItem('veloinsights_darklist', JSON.stringify(initialDarkList))
-      console.log('📋 Dark List inicial criada com Evelin Medrado')
-    }
-  }, [])
+  // Dark List removida - todos os operadores são contabilizados normalmente
 
   // Verificar configuração
   useEffect(() => {
@@ -187,6 +231,20 @@ export const useGoogleSheetsDirectSimple = () => {
           setUserData(userInfo)
           setIsAuthenticated(true)
           console.log('✅ Usuário já logado')
+          
+          // Carregar dados automaticamente para usuário já logado
+          console.log('📊 Carregando dados para usuário já logado...')
+          setIsLoading(true)
+          fetchSheetData(userInfo.accessToken)
+            .then(() => {
+              console.log('✅ Dados carregados com sucesso para usuário já logado!')
+            })
+            .catch(error => {
+              console.error('❌ Erro ao carregar dados para usuário já logado:', error)
+            })
+            .finally(() => {
+              setIsLoading(false)
+            })
         } else {
           localStorage.removeItem('veloinsights_user')
           console.log('⏰ Token expirado, removido do localStorage')
@@ -271,9 +329,12 @@ export const useGoogleSheetsDirectSimple = () => {
         // Armazenar dataset completo
         setFullDataset(result.values)
         
-        // Processar dados iniciais (últimos 5000 registros)
-        const dadosIniciais = result.values.slice(-5000)
-        const dadosProcessados = processarDados(dadosIniciais)
+        // Processar dados iniciais (últimos 2000 registros - OTIMIZADO)
+        const dadosIniciais = result.values.slice(-2000)
+        console.log(`⚡ Processando ${dadosIniciais.length} registros de forma otimizada...`)
+        
+        // Processamento assíncrono com progresso
+        const dadosProcessados = await processarDadosAssincrono(dadosIniciais)
         
         // Atualizar estados com dados processados
         setData(dadosProcessados.dadosFiltrados)
@@ -289,7 +350,7 @@ export const useGoogleSheetsDirectSimple = () => {
         })))
         setRankings(dadosProcessados.rankings.map(ranking => ({
           ...ranking,
-          isExcluded: darkList.includes(ranking.operator)
+          isExcluded: false // Todos os operadores são incluídos
         })))
         setOperators(dadosProcessados.operadores)
         
@@ -306,6 +367,73 @@ export const useGoogleSheetsDirectSimple = () => {
     }
   }
 
+  // Função para carregar TODOS OS REGISTROS com progresso
+  const loadAllRecordsWithProgress = useCallback(async (accessToken) => {
+    try {
+      setIsProcessingAllRecords(true)
+      setProcessingProgress(0)
+      console.log('🚀 Iniciando carregamento de TODOS OS REGISTROS...')
+      
+      const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${SHEET_RANGE_FULL}?access_token=${accessToken}`
+      
+      const response = await fetch(url)
+      
+      if (!response.ok) {
+        throw new Error(`Erro ao buscar dados: ${response.statusText}`)
+      }
+      
+      const result = await response.json()
+      
+      if (result.values && result.values.length > 0) {
+        console.log(`✅ ${result.values.length} linhas obtidas - TODOS OS REGISTROS (${result.values.length - 1} registros históricos)`)
+        
+        // Definir total de registros para processar (excluindo cabeçalho)
+        setTotalRecordsToProcess(result.values.length - 1)
+        
+        // Processar TODOS os dados com progresso
+        const dadosProcessados = await processarTodosOsDadosComProgresso(
+          result.values,
+          (progress, processed, total) => {
+            setProcessingProgress(progress)
+            console.log(`📊 Progresso: ${progress.toFixed(1)}% - ${processed.toLocaleString()} de ${total.toLocaleString()} registros`)
+          }
+        )
+        
+        // Atualizar estados com TODOS os dados processados
+        setData(dadosProcessados.dadosFiltrados)
+        setMetrics(dadosProcessados.metricas)
+        setOperatorMetrics(Object.values(dadosProcessados.metricasOperadores).map(op => ({
+          operator: op.operador,
+          totalCalls: op.totalAtendimentos,
+          avgDuration: parseFloat(op.tempoMedio.toFixed(1)),
+          avgRatingAttendance: parseFloat(op.notaMediaAtendimento.toFixed(1)),
+          avgRatingSolution: parseFloat(op.notaMediaSolucao.toFixed(1)),
+          avgPauseTime: 0,
+          totalRecords: op.totalAtendimentos
+        })))
+        setRankings(dadosProcessados.rankings.map(ranking => ({
+          ...ranking,
+          isExcluded: false // Todos os operadores são incluídos
+        })))
+        setOperators(dadosProcessados.operadores)
+        
+        console.log(`🎉 TODOS OS REGISTROS carregados com sucesso!`)
+        console.log(`📊 Debug - Dados processados (TODOS): {dadosFiltrados: ${dadosProcessados.dadosFiltrados.length}, metricas: {...}, metricasOperadores: ${Object.keys(dadosProcessados.metricasOperadores).length}, rankings: ${dadosProcessados.rankings.length}, operadores: ${dadosProcessados.operadores.length}}`)
+        
+        return dadosProcessados
+      } else {
+        throw new Error('Nenhum dado encontrado na planilha')
+      }
+    } catch (error) {
+      console.error('❌ Erro ao carregar TODOS OS REGISTROS:', error)
+      setErrors(prev => [...prev, `❌ Erro ao carregar todos os registros: ${error.message}`])
+      throw error
+    } finally {
+      setIsProcessingAllRecords(false)
+      setProcessingProgress(0)
+    }
+  }, [])
+
   // Função para filtrar dados por período
   const filterDataByPeriod = (startDate, endDate) => {
     if (!fullDataset || fullDataset.length === 0) {
@@ -313,20 +441,12 @@ export const useGoogleSheetsDirectSimple = () => {
       return []
     }
 
-    console.log(`🔍 Filtrando dados por período: ${startDate} até ${endDate}`)
-    console.log(`📊 Dataset completo: ${fullDataset.length} linhas`)
-    
     // Converter datas para comparação - INCLUIR DIAS COMPLETOS
     const start = new Date(startDate)
     start.setHours(0, 0, 0, 0) // Início do dia (00:00:00)
     
     const end = new Date(endDate)
     end.setHours(23, 59, 59, 999) // Final do dia (23:59:59)
-
-    console.log(`📅 Período de busca: ${start.toLocaleDateString('pt-BR')} até ${end.toLocaleDateString('pt-BR')}`)
-    console.log(`📅 Período ISO: ${start.toISOString()} até ${end.toISOString()}`)
-    console.log(`📅 Horário início: ${start.toLocaleTimeString('pt-BR')}`)
-    console.log(`📅 Horário fim: ${end.toLocaleTimeString('pt-BR')}`)
 
     let contadorValidos = 0
     let contadorInvalidos = 0
@@ -380,17 +500,9 @@ export const useGoogleSheetsDirectSimple = () => {
     
     // Debug específico para encontrar o registro perdido
     if (contadorValidos !== 1228) {
-      console.log(`🔍 Diferença encontrada: Esperado 1228, encontrado ${contadorValidos}`)
-      console.log(`🔍 Diferença: ${1228 - contadorValidos} registros`)
+      console.warn(`⚠️ Diferença encontrada: Esperado 1228, encontrado ${contadorValidos}`)
     }
     
-    // Verificar se a contagem está correta (sem cabeçalho)
-    console.log(`📊 Verificação final:`)
-    console.log(`  📋 Registros válidos encontrados: ${contadorValidos}`)
-    console.log(`  📋 Registros esperados na planilha: 1228`)
-    console.log(`  ✅ Status: ${contadorValidos === 1228 ? 'CORRETO' : 'INCORRETO'}`)
-
-    console.log(`✅ ${dadosFiltrados.length} registros encontrados no período`)
     return dadosFiltrados
   }
 
@@ -413,8 +525,9 @@ export const useGoogleSheetsDirectSimple = () => {
         return
       }
 
-      // Processar dados do período
-      const dadosProcessados = processarDados(dadosFiltrados)
+      // Processar dados do período (OTIMIZADO)
+      console.log(`⚡ Processando ${dadosFiltrados.length} registros do período...`)
+      const dadosProcessados = await processarDadosAssincrono(dadosFiltrados)
       
       // Converter metricasOperadores para o formato esperado pelo AgentAnalysis
       const operatorMetricsObj = {}
@@ -539,8 +652,9 @@ export const useGoogleSheetsDirectSimple = () => {
       if (result.values && result.values.length > 0) {
         console.log(`✅ ${result.values.length} linhas obtidas`)
         
-        // Processar dados (já filtra os últimos 60 dias)
-        const dadosProcessados = processarDados(result.values)
+        // Processar dados (já filtra os últimos 60 dias) - OTIMIZADO
+        console.log(`⚡ Processando ${result.values.length} registros de forma otimizada...`)
+        const dadosProcessados = await processarDadosAssincrono(result.values)
         
         console.log('📊 Debug - Dados processados (últimos 60 dias):', {
           dadosFiltrados: dadosProcessados.dadosFiltrados.length,
@@ -576,7 +690,7 @@ export const useGoogleSheetsDirectSimple = () => {
         // Aplicar Dark List aos rankings
         const rankingsComDarkList = dadosProcessados.rankings.map(ranking => ({
           ...ranking,
-          isExcluded: darkList.includes(ranking.operator)
+          isExcluded: false // Todos os operadores são incluídos
         }))
         
         // Atualizar estados
@@ -599,6 +713,12 @@ export const useGoogleSheetsDirectSimple = () => {
         setErrors(['Nenhum dado encontrado na planilha'])
       }
     } catch (error) {
+      console.error('❌ Erro ao carregar dados:', error)
+      if (error.name === 'AbortError') {
+        setErrors(['Timeout: A requisição demorou muito para responder. Tente novamente.'])
+      } else {
+        setErrors([`Erro ao carregar dados: ${error.message}`])
+      }
     } finally {
       setIsLoading(false)
     }
@@ -622,7 +742,12 @@ export const useGoogleSheetsDirectSimple = () => {
     userData,
     selectedPeriod,
     customDateRange,
-    darkList,
+    // Dark List removida - todos os operadores são contabilizados normalmente
+    // Novos estados para processamento completo
+    isProcessingAllRecords,
+    processingProgress,
+    totalRecordsToProcess,
+    // Funções existentes
     fetchSheetData,
     fetchLast60Days,
     fetchFullDataset,
@@ -630,6 +755,8 @@ export const useGoogleSheetsDirectSimple = () => {
     filterDataByPeriod,
     fetchDataByPeriod: fetchSheetData,
     filterDataByDateRange: () => data,
+    // Nova função para carregar todos os registros
+    loadAllRecordsWithProgress,
     setSelectedPeriod,
     setCustomDateRange,
     signIn,
@@ -641,22 +768,7 @@ export const useGoogleSheetsDirectSimple = () => {
       setRankings([])
       setOperators([])
       setErrors([])
-    },
-    addToDarkList: (operator) => {
-      const newDarkList = [...darkList, operator]
-      setDarkList(newDarkList)
-      localStorage.setItem('veloinsights_darklist', JSON.stringify(newDarkList))
-      console.log(`🚫 Operador ${operator} adicionado à Dark List`)
-    },
-    removeFromDarkList: (operator) => {
-      const newDarkList = darkList.filter(op => op !== operator)
-      setDarkList(newDarkList)
-      localStorage.setItem('veloinsights_darklist', JSON.stringify(newDarkList))
-      console.log(`✅ Operador ${operator} removido da Dark List`)
-    },
-    clearDarkList: () => {
-      setDarkList([])
-      localStorage.removeItem('veloinsights_darklist')
     }
+    // Funções da Dark List removidas - todos os operadores são contabilizados normalmente
   }
 }

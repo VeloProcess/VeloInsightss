@@ -3,6 +3,12 @@ import Chart from 'chart.js/auto'
 import { useTheme } from '../hooks/useTheme'
 import PersonalCharts from './PersonalCharts'
 import ModernChartsDashboard from './ModernChartsDashboard'
+import { 
+  calcEvolucaoAtendimentos, 
+  calcTopOperadores, 
+  calcPerformanceMelhores, 
+  calcRankingQualidade 
+} from '../utils/dataProcessor'
 import './ChartsDetailedPage.css'
 
 const ChartsDetailedPage = ({ data, operatorMetrics, rankings, selectedPeriod, pauseData }) => {
@@ -15,7 +21,12 @@ const ChartsDetailedPage = ({ data, operatorMetrics, rankings, selectedPeriod, p
     durationChart: useRef(null),
     hourlyChart: useRef(null),
     rankingChart: useRef(null),
-    trendChart: useRef(null)
+    trendChart: useRef(null),
+    // Gráficos avançados
+    evolucaoAtendimentos: useRef(null),
+    topOperadores: useRef(null),
+    performanceMelhores: useRef(null),
+    rankingQualidade: useRef(null)
   }
 
   const chartInstances = useRef({})
@@ -107,6 +118,7 @@ const ChartsDetailedPage = ({ data, operatorMetrics, rankings, selectedPeriod, p
       },
       options: {
         responsive: true,
+        maintainAspectRatio: false,
         plugins: {
           title: {
             display: true,
@@ -172,6 +184,7 @@ const ChartsDetailedPage = ({ data, operatorMetrics, rankings, selectedPeriod, p
       },
       options: {
         responsive: true,
+        maintainAspectRatio: false,
         plugins: {
           title: {
             display: true,
@@ -229,6 +242,7 @@ const ChartsDetailedPage = ({ data, operatorMetrics, rankings, selectedPeriod, p
       },
       options: {
         responsive: true,
+        maintainAspectRatio: false,
         plugins: {
           title: {
             display: true,
@@ -290,6 +304,7 @@ const ChartsDetailedPage = ({ data, operatorMetrics, rankings, selectedPeriod, p
       },
       options: {
         responsive: true,
+        maintainAspectRatio: false,
         plugins: {
           title: {
             display: true,
@@ -360,6 +375,7 @@ const ChartsDetailedPage = ({ data, operatorMetrics, rankings, selectedPeriod, p
       },
       options: {
         responsive: true,
+        maintainAspectRatio: false,
         plugins: {
           title: {
             display: true,
@@ -488,6 +504,7 @@ const ChartsDetailedPage = ({ data, operatorMetrics, rankings, selectedPeriod, p
       },
       options: {
         responsive: true,
+        maintainAspectRatio: false,
         plugins: {
           title: {
             display: true,
@@ -576,6 +593,252 @@ const ChartsDetailedPage = ({ data, operatorMetrics, rankings, selectedPeriod, p
     }
   }, [data, operatorMetrics, rankings])
 
+  // useEffect para gráficos avançados
+  useEffect(() => {
+    if (activeTab === 'advanced' && data && operatorMetrics) {
+      // Destruir gráficos avançados existentes
+      const advancedChartRefs = [
+        chartRefs.evolucaoAtendimentos,
+        chartRefs.topOperadores,
+        chartRefs.performanceMelhores,
+        chartRefs.rankingQualidade
+      ]
+      advancedChartRefs.forEach(ref => {
+        if (ref.current) {
+          const chart = Chart.getChart(ref.current)
+          if (chart) chart.destroy()
+        }
+      })
+
+      // Criar gráficos avançados
+      setTimeout(() => {
+        createAdvancedCharts()
+      }, 100)
+    }
+  }, [activeTab, data, operatorMetrics, theme])
+
+  const createAdvancedCharts = () => {
+    if (!data || !operatorMetrics) {
+      console.log('❌ Dados não disponíveis para gráficos avançados:', { data: !!data, operatorMetrics: !!operatorMetrics })
+      return
+    }
+
+    console.log('🎨 Criando gráficos avançados...', { 
+      dataLength: data.length, 
+      operatorMetricsCount: Object.keys(operatorMetrics).length,
+      firstDataItem: data[0],
+      operatorMetricsKeys: Object.keys(operatorMetrics).slice(0, 3)
+    })
+
+    // Cores baseadas no tema
+    const colors = theme === 'dark' ? {
+      text: '#E5E7EB',
+      ticks: '#9CA3AF',
+      grid: 'rgba(156, 163, 175, 0.1)',
+      primary: '#60A5FA',
+      light: '#93C5FD',
+      dark: '#3B82F6'
+    } : {
+      text: '#374151',
+      ticks: '#6B7280',
+      grid: 'rgba(107, 114, 128, 0.1)',
+      primary: '#1634FF',
+      light: '#1694FF',
+      dark: '#000058'
+    }
+
+    // 1. Gráfico de Evolução dos Atendimentos
+    console.log('📈 Criando gráfico de evolução...')
+    const evolucaoData = calcEvolucaoAtendimentos(data)
+    console.log('📈 Dados de evolução:', evolucaoData)
+    if (chartRefs.evolucaoAtendimentos.current) {
+      console.log('📈 Canvas encontrado, criando gráfico...')
+      new Chart(chartRefs.evolucaoAtendimentos.current, {
+        type: 'line',
+        data: evolucaoData,
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { 
+              display: true,
+              labels: { color: colors.text }
+            },
+            tooltip: {
+              backgroundColor: 'rgba(0, 0, 0, 0.9)',
+              titleColor: '#ffffff',
+              bodyColor: '#ffffff'
+            }
+          },
+          scales: {
+            x: { 
+              display: true,
+              ticks: { color: colors.ticks },
+              grid: { color: colors.grid }
+            },
+            y: { 
+              display: true,
+              beginAtZero: true,
+              ticks: { color: colors.ticks },
+              grid: { color: colors.grid }
+            }
+          }
+        }
+      })
+      console.log('✅ Gráfico de evolução criado!')
+    } else {
+      console.log('❌ Canvas não encontrado para evolução')
+    }
+
+    // 2. Gráfico de Top Operadores
+    console.log('🏆 Criando gráfico de top operadores...')
+    const topData = calcTopOperadores(operatorMetrics, 5)
+    console.log('🏆 Dados de top operadores:', topData)
+    if (chartRefs.topOperadores.current) {
+      console.log('🏆 Canvas encontrado, criando gráfico...')
+      new Chart(chartRefs.topOperadores.current, {
+        type: 'bar',
+        data: topData,
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          indexAxis: 'y',
+          plugins: {
+            legend: { 
+              display: true,
+              labels: { color: colors.text }
+            },
+            tooltip: {
+              backgroundColor: 'rgba(0, 0, 0, 0.9)',
+              titleColor: '#ffffff',
+              bodyColor: '#ffffff'
+            }
+          },
+          scales: {
+            x: { 
+              display: true,
+              beginAtZero: true,
+              ticks: { color: colors.ticks },
+              grid: { color: colors.grid }
+            },
+            y: { 
+              display: true,
+              ticks: { color: colors.ticks },
+              grid: { color: colors.grid }
+            }
+          }
+        }
+      })
+      console.log('✅ Gráfico de top operadores criado!')
+    } else {
+      console.log('❌ Canvas não encontrado para top operadores')
+    }
+
+    // 3. Gráfico de Performance dos Melhores
+    const perfData = calcPerformanceMelhores(operatorMetrics, 5)
+    if (chartRefs.performanceMelhores.current) {
+      new Chart(chartRefs.performanceMelhores.current, {
+        type: 'bar',
+        data: perfData,
+        options: {
+          ...perfData.options,
+          plugins: {
+            ...perfData.options.plugins,
+            legend: { 
+              ...perfData.options.plugins.legend,
+              labels: { 
+                ...perfData.options.plugins.legend.labels,
+                color: colors.text 
+              } 
+            },
+            tooltip: {
+              ...perfData.options.plugins.tooltip,
+              backgroundColor: 'rgba(0, 0, 0, 0.9)',
+              titleColor: '#ffffff',
+              bodyColor: '#ffffff'
+            }
+          },
+          scales: {
+            x: { 
+              ...perfData.options.scales.x,
+              ticks: { 
+                ...perfData.options.scales.x.ticks,
+                color: colors.ticks 
+              }, 
+              grid: { 
+                ...perfData.options.scales.x.grid,
+                color: colors.grid 
+              } 
+            },
+            y: { 
+              ...perfData.options.scales.y,
+              ticks: { 
+                ...perfData.options.scales.y.ticks,
+                color: colors.ticks 
+              }, 
+              grid: { 
+                ...perfData.options.scales.y.grid,
+                color: colors.grid 
+              } 
+            }
+          }
+        }
+      })
+    }
+
+    // 4. Gráfico de Ranking de Qualidade
+    const rankingData = calcRankingQualidade(operatorMetrics)
+    if (chartRefs.rankingQualidade.current) {
+      new Chart(chartRefs.rankingQualidade.current, {
+        type: 'bar',
+        data: rankingData,
+        options: {
+          ...rankingData.options,
+          plugins: {
+            ...rankingData.options.plugins,
+            legend: { 
+              ...rankingData.options.plugins.legend,
+              labels: { 
+                ...rankingData.options.plugins.legend.labels,
+                color: colors.text 
+              } 
+            },
+            tooltip: {
+              ...rankingData.options.plugins.tooltip,
+              backgroundColor: 'rgba(0, 0, 0, 0.9)',
+              titleColor: '#ffffff',
+              bodyColor: '#ffffff'
+            }
+          },
+          scales: {
+            x: { 
+              ...rankingData.options.scales.x,
+              ticks: { 
+                ...rankingData.options.scales.x.ticks,
+                color: colors.ticks 
+              }, 
+              grid: { 
+                ...rankingData.options.scales.x.grid,
+                color: colors.grid 
+              } 
+            },
+            y: { 
+              ...rankingData.options.scales.y,
+              ticks: { 
+                ...rankingData.options.scales.y.ticks,
+                color: colors.ticks 
+              }, 
+              grid: { 
+                ...rankingData.options.scales.y.grid,
+                color: colors.grid 
+              } 
+            }
+          }
+        }
+      })
+    }
+  }
+
   if (!data || data.length === 0) {
     return (
       <div className="charts-page">
@@ -618,6 +881,12 @@ const ChartsDetailedPage = ({ data, operatorMetrics, rankings, selectedPeriod, p
           onClick={() => setActiveTab('personal')}
         >
           🎯 Análise Personalizada
+        </button>
+        <button 
+          className={`tab-button ${activeTab === 'advanced' ? 'active' : ''}`}
+          onClick={() => setActiveTab('advanced')}
+        >
+          📈 Gráficos Avançados
         </button>
       </div>
 
@@ -705,6 +974,56 @@ const ChartsDetailedPage = ({ data, operatorMetrics, rankings, selectedPeriod, p
 
       {activeTab === 'personal' && (
         <PersonalCharts data={data} pauseData={pauseData} />
+      )}
+
+      {activeTab === 'advanced' && (
+        <div className="advanced-charts">
+          <div className="charts-grid">
+            {/* Gráfico de Evolução dos Atendimentos */}
+            <div className="chart-card">
+              <div className="chart-header">
+                <h3>📈 Evolução dos Atendimentos</h3>
+                <p>Linha temporal diária com zoom e drill-down</p>
+              </div>
+              <div className="chart-container">
+                <canvas ref={chartRefs.evolucaoAtendimentos} id="evolucaoAtendimentos"></canvas>
+              </div>
+            </div>
+
+            {/* Gráfico de Top Operadores */}
+            <div className="chart-card">
+              <div className="chart-header">
+                <h3>🏆 Top Operadores</h3>
+                <p>Top 5 operadores por total de atendimentos</p>
+              </div>
+              <div className="chart-container">
+                <canvas ref={chartRefs.topOperadores} id="topOperadores"></canvas>
+              </div>
+            </div>
+
+            {/* Gráfico de Performance dos Melhores */}
+            <div className="chart-card full-width">
+              <div className="chart-header">
+                <h3>📊 Performance dos Melhores</h3>
+                <p>Multi-barra com TMA, Nota Atendimento e Nota Solução</p>
+              </div>
+              <div className="chart-container">
+                <canvas ref={chartRefs.performanceMelhores} id="performanceMelhores"></canvas>
+              </div>
+            </div>
+
+            {/* Gráfico de Ranking de Qualidade */}
+            <div className="chart-card full-width">
+              <div className="chart-header">
+                <h3>🎯 Ranking de Qualidade</h3>
+                <p>Score de qualidade baseado na fórmula oficial</p>
+              </div>
+              <div className="chart-container">
+                <canvas ref={chartRefs.rankingQualidade} id="rankingQualidade"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

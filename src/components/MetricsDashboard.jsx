@@ -2,14 +2,13 @@ import React, { memo } from 'react'
 import { useCargo } from '../contexts/CargoContext'
 import './MetricsDashboard.css'
 
-const MetricsDashboard = memo(({ metrics, operatorMetrics, rankings, darkList, addToDarkList, removeFromDarkList }) => {
+const MetricsDashboard = memo(({ metrics, operatorMetrics, rankings, darkList, addToDarkList, removeFromDarkList, periodo }) => {
   const { hasPermission, selectedCargo } = useCargo()
   
   // Debug apenas se houver erro
   if (!metrics && operatorMetrics?.length > 0) {
     console.error('❌ MetricsDashboard: metrics ausente mas operatorMetrics presente')
   }
-
 
   // Verificar permissão para ver métricas gerais
   if (!hasPermission('canViewGeneralMetrics')) {
@@ -49,40 +48,49 @@ const MetricsDashboard = memo(({ metrics, operatorMetrics, rankings, darkList, a
       <div className="card">
         <div className="card-header">
           <h2 className="card-title">📊 Métricas Gerais</h2>
+          {periodo && (
+            <div className="period-info">
+              <div className="period-label">📅 Período:</div>
+              <div className="period-value">{periodo.periodLabel}</div>
+              <div className="period-details">
+                {periodo.totalDays} dias • {periodo.totalRecords.toLocaleString()} registros
+              </div>
+            </div>
+          )}
         </div>
         
         <div className="card-content">
           <div className="metrics-grid">
             {/* Total de Chamadas */}
             <div className="metric-card">
-              <div className="metric-value">{metrics.totalCalls || 0}</div>
+              <div className="metric-value">{(metrics.totalChamadas || metrics.totalCalls || 0).toLocaleString()}</div>
               <div className="metric-label">Total de Chamadas</div>
             </div>
             
             {/* Status das Chamadas */}
             <div className="metric-card">
-              <div className="metric-value">{metrics.retidaURA || 0}</div>
+              <div className="metric-value">{(metrics.retidaURA || 0).toLocaleString()}</div>
               <div className="metric-label">Retida na URA</div>
             </div>
             
             <div className="metric-card">
-              <div className="metric-value">{metrics.atendida || 0}</div>
+              <div className="metric-value">{(metrics.atendida || 0).toLocaleString()}</div>
               <div className="metric-label">Atendida</div>
             </div>
             
             <div className="metric-card">
-              <div className="metric-value">{metrics.abandonada || 0}</div>
+              <div className="metric-value">{(metrics.abandonada || 0).toLocaleString()}</div>
               <div className="metric-label">Abandonada</div>
             </div>
             
             {/* Notas */}
             <div className="metric-card">
-              <div className="metric-value">{metrics.avgRatingAttendance || '0.0'}/5</div>
+              <div className="metric-value">{metrics.avgRatingAttendance || metrics.notaMediaAtendimento || '0.0'}/5</div>
               <div className="metric-label">Nota Média de Atendimento</div>
             </div>
             
             <div className="metric-card">
-              <div className="metric-value">{metrics.avgRatingSolution || '0.0'}/5</div>
+              <div className="metric-value">{metrics.avgRatingSolution || metrics.notaMediaSolucao || '0.0'}/5</div>
               <div className="metric-label">Nota Média de Solução</div>
             </div>
             
@@ -97,17 +105,7 @@ const MetricsDashboard = memo(({ metrics, operatorMetrics, rankings, darkList, a
               <div className="metric-label">Tempo Médio de Espera</div>
             </div>
             
-            <div className="metric-card">
-              <div className="metric-value">{metrics.tempoMedioURA || '0.0'} min</div>
-              <div className="metric-label">Tempo Médio na URA</div>
-            </div>
-            
             {/* Taxas */}
-            <div className="metric-card">
-              <div className="metric-value">{metrics.taxaAtendimento || '0.0'}%</div>
-              <div className="metric-label">Taxa de Atendimento</div>
-            </div>
-            
             <div className="metric-card">
               <div className="metric-value">{metrics.taxaAbandono || '0.0'}%</div>
               <div className="metric-label">Taxa de Abandono</div>
@@ -121,8 +119,8 @@ const MetricsDashboard = memo(({ metrics, operatorMetrics, rankings, darkList, a
                     <div className="metric-value">{count}</div>
                     <div className="metric-label">
                       {status.toLowerCase().includes('atendida') ? 'Chamadas Atendidas' : 
-                       status.toLowerCase().includes('retida') ? 'Retidas na URA' : 
-                       status}
+                        status.toLowerCase().includes('retida') ? 'Retidas na URA' : 
+                        status}
                     </div>
                   </div>
                 ))}
@@ -155,7 +153,7 @@ const MetricsDashboard = memo(({ metrics, operatorMetrics, rankings, darkList, a
                 </thead>
                 <tbody>
                   {rankings.slice(0, 10).map((operator, index) => (
-                    <tr key={operator.operator} className={`${index < 3 ? 'top-3' : ''} ${operator.isExcluded ? 'excluded-row' : ''} ${operator.isDesligado ? 'desligado-row' : ''}`}>
+                    <tr key={`${operator.operator}-${index}`} className={`${index < 3 ? 'top-3' : ''} ${operator.isExcluded ? 'excluded-row' : ''} ${operator.isDesligado ? 'desligado-row' : ''}`}>
                       <td className="position">
                         {operator.isExcluded ? '🚫' : operator.isDesligado ? '👤' : (
                           <>
@@ -188,13 +186,7 @@ const MetricsDashboard = memo(({ metrics, operatorMetrics, rankings, darkList, a
                         ) : operator.isDesligado ? (
                           <span className="desligado-info">Desligado</span>
                         ) : (
-                          <button 
-                            className="action-button exclude"
-                            onClick={() => addToDarkList(operator.operator)}
-                            title="Excluir da análise"
-                          >
-                            🚫 Excluir
-                          </button>
+                          <span className="active-info">Ativo</span>
                         )}
                       </td>
                     </tr>

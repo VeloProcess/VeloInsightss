@@ -1,8 +1,22 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import './LoginTest.css'
 
-const LoginTest = ({ onContinue, onSignIn, isLoading }) => {
-  const [email, setEmail] = useState('')
+const LoginTest = ({ onContinue, onSignIn, isLoading, isLoggedIn }) => {
+  // Estado para controlar se o usuário está logado ou não
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false)
+  
+  // Monitorar mudança no estado de autenticação
+  useEffect(() => {
+    if (isLoggedIn) {
+      console.log('✅ Usuário autenticado, mostrando sucesso...')
+      setShowSuccessMessage(true)
+    }
+  }, [isLoggedIn])
+  
+  // Debug reduzido
+  if (isLoggedIn !== showSuccessMessage) {
+    console.log('🔍 Estado atual - isLoggedIn:', isLoggedIn, 'showSuccessMessage:', showSuccessMessage);
+  }
 
 
   return (
@@ -84,29 +98,9 @@ const LoginTest = ({ onContinue, onSignIn, isLoading }) => {
             </div>
             
             <p className="login-subtitle font-body-medium">
-              Coloque seu e-mail corporativo<br />
-              e faça login seguro com Google
+              Faça login seguro com sua conta Google<br />
+              e ocupe acesso total ao dashboard
             </p>
-            
-            {/* Input inteligente com animação */}
-            <div className="input-wrapper animated">
-              <i className="bx bx-envelope input-icon"></i>
-              <input 
-                type="email" 
-                id="email" 
-                name="email" 
-                placeholder="seu@email.corporativo.com" 
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="input-modern"
-                required 
-              />
-              {email && (
-                <div className="input-success">
-                  <i className="bx bx-check"></i>
-                </div>
-              )}
-            </div>
             
             <div className="form-validation">
               <div className="validation-check">
@@ -117,33 +111,51 @@ const LoginTest = ({ onContinue, onSignIn, isLoading }) => {
                 <i className="bx bx-shield"></i>
                 <span>Dados protegidos</span>
               </div>
+              <div className="validation-check">
+                <i className="bx bx-lock-alt"></i>
+                <span>Autenticação Google</span>
+              </div>
             </div>
 
             {/* Botão de Login */}
-            <button 
-              onClick={() => {
-                console.log('🔑 Botão de login clicado!')
-                if (onSignIn) {
-                  onSignIn()
-                } else {
-                  console.error('❌ onSignIn não está definido!')
-                }
-              }}
-              disabled={isLoading}
-              className="login-button btn-modern-primary pulse-on-hover"
-            >
-              {isLoading ? (
-                <>
-                  <i className="bx bx-loader-alt bx-spin"></i>
-                  Conectando...
-                </>
-              ) : (
-                <>
-                  <i className="bx bx-google"></i>
-                  Entrar com Google
-                </>
-              )}
-            </button>
+            {!showSuccessMessage ? (
+              <button 
+                onClick={() => {
+                  console.log('🔑 Botão de login clicado!')
+                  if (onSignIn) {
+                    onSignIn()
+                  } else {
+                    console.error('❌ onSignIn não está definido!')
+                  }
+                }}
+                disabled={isLoading}
+                className="login-button btn-modern-primary pulse-on-hover"
+              >
+                {isLoading ? (
+                  <>
+                    <i className="bx bx-loader-alt bx-spin"></i>
+                    Conectando...
+                  </>
+                ) : (
+                  <>
+                    <i className="bx bx-google"></i>
+                    Entrar com Google
+                  </>
+                )}
+              </button>
+            ) : (
+              <div className="success-message">
+                <i className="bx bx-check-circle"></i>
+                <span>Conectado com sucesso!</span>
+                <button 
+                  onClick={onContinue}
+                  className="continue-button"
+                >
+                  <i className="bx bx-right-arrow-alt"></i>
+                  Continuar para Dashboard
+                </button>
+              </div>
+            )}
             
             {/* Cards de recursos destacados */}
             <div className="feature-cards">
@@ -160,20 +172,6 @@ const LoginTest = ({ onContinue, onSignIn, isLoading }) => {
                 <span>Insights Inteligentes</span>
               </div>
             </div>
-
-            {/* Status de autenticação */}
-            <div className="success-message">
-              <i className="bx bx-check-circle"></i>
-              <span>Conectado com sucesso!</span>
-              <button 
-                onClick={onContinue}
-                className="continue-button"
-              >
-                <i className="bx bx-right-arrow-alt"></i>
-                Continuar para Dashboard
-              </button>
-            </div>
-
           </div>
         </div>
       </div>

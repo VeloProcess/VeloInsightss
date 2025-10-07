@@ -1,6 +1,8 @@
 import React, { useRef, useEffect, useState } from 'react'
 import Chart from 'chart.js/auto'
 import { useTheme } from '../hooks/useTheme'
+import PeriodSelectorV2 from './PeriodSelectorV2'
+import TemporalComparison from './TemporalComparison'
 import './ModernChartsDashboard.css'
 
 const ModernChartsDashboard = ({ data, operatorMetrics, rankings, selectedPeriod }) => {
@@ -9,6 +11,11 @@ const ModernChartsDashboard = ({ data, operatorMetrics, rankings, selectedPeriod
   const [isLoading, setIsLoading] = useState(true)
   const [hasError, setHasError] = useState(false)
   const [loadingProgress, setLoadingProgress] = useState(0)
+  
+  // Estados para período temporal
+  const [currentPeriod, setCurrentPeriod] = useState(null)
+  const [showPeriodSelector, setShowPeriodSelector] = useState(false)
+  const [periodComparison, setPeriodComparison] = useState(null)
   
   // Referências para os canvas dos gráficos
   const chartRefs = {
@@ -335,20 +342,44 @@ const ModernChartsDashboard = ({ data, operatorMetrics, rankings, selectedPeriod
 
   // Destruir gráficos existentes
   const destroyCharts = () => {
+    // Destruir instâncias conhecidas
     Object.values(chartInstances).forEach(chart => {
       if (chart && typeof chart.destroy === 'function') {
-        chart.destroy()
+        try {
+          chart.destroy()
+        } catch (error) {
+          console.warn('Erro ao destruir gráfico:', error)
+        }
       }
     })
+    
+    // Destruir gráficos que podem existir no Chart.js registry
+    if (Chart && Chart.instances) {
+      // Chart.instances é um objeto, não array
+      Object.values(Chart.instances).forEach((chart) => {
+        try {
+          chart.destroy()
+        } catch (error) {
+          console.warn('Erro ao destruir gráfico do registry:', error)
+        }
+      })
+    }
+    
     setChartInstances({})
     
     // Limpar todos os canvas
     Object.values(chartRefs).forEach(ref => {
       if (ref.current) {
         const canvas = ref.current
-        const ctx = canvas.getContext('2d')
-        if (ctx) {
-          ctx.clearRect(0, 0, canvas.width, canvas.height)
+        try {
+          const ctx = canvas.getContext('2d')
+          if (ctx) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height)
+          }
+          // Remover qualquer ID do canvas
+          canvas.removeAttribute('id')
+        } catch (error) {
+          console.warn('Erro ao limpar canvas:', error)
         }
       }
     })
@@ -825,36 +856,151 @@ const ModernChartsDashboard = ({ data, operatorMetrics, rankings, selectedPeriod
     setChartInstances(prev => ({ ...prev, activityChart: chart }))
   }
 
+  // Função para calcular métricas de um período específico
+  const calculatePeriodMetrics = (startDate, endDate) => {
+    const filteredData = data.filter(record => {
+      if (!record.data) return false
+      const recordDate = new Date(record.data.split('/').reverse().join('-'))
+      const start = new Date(startDate)
+      const end = new Date(endDate)
+      return recordDate >= start && recordDate <= end
+    })
+
+    const totalCalls = filteredData.length
+    const atendidas = filteredData.filter(r => r.status === 'Atendida').length
+    const abandonadas = filteredData.filter(r => r.status === 'Abandonada').length
+    const retidasURA = filteredData.filter(r => r.status === 'Retida na URA').length
+
+    const ratings = filteredData
+      .map(r => ({ attendance: r.notaAtendimento, solution: r.notaSolucao }))
+      .filter(r => r.attendance || r.solution)
+    
+    const avgRatingAttendance = ratings.length > 0 
+      ? ratings.reduce((sum, r) => sum + (r.attendance || 0), 0) / ratings.length 
+      : 0
+    const avgRatingSolution = ratings.length > 0 
+      ? ratings.reduce((sum, r) => sum + (r.solution || 0), 0) / ratings.length 
+      : 0
+
+    const operatorMetricsArray = Object.values(operatorMetrics || {})
+    const filteredOperators = operatorMetricsArray.filter(op => 
+      op.operator && !op.operator.toLowerCase().includes('sem operador')
+    )
+
+    return {
+      totalCalls,
+      atendidas,
+      abandonadas,
+      retidasURA,
+      avgRatingAttendance: parseFloat(avgRatingAttendance.toFixed(2)),
+      avgRatingSolution: parseFloat(avgRatingSolution.toFixed(2)),
+      satisfactionRate: totalCalls > 0 ? Math.round((atendidas / totalCalls) * 100) : 0,
+      totalOperators: filteredOperators.length,
+      avgRating: avgRatingAttendance
+    }
+  }
+
+  // Função para lidar com seleção de período
+  const handlePeriodSelect = (periodData) => {
+    console.log('📅 Período selecionado nas métricas gerais:', periodData)
+    
+    // Calcular métricas do período atual
+    const currentMetrics = calculatePeriodMetrics(periodData.startDate, periodData.endDate)
+    
+    // Calcular período anterior para comparação
+    let previousMetrics = null
+    if (periodData.type === 'currentMonth' || periodData.type === 'lastMonth' || periodData.type === 'twoMonthsAgo') {
+      // Para períodos mensais, calcular o mês anterior
+      const currentMonth = new Date(periodData.startDate)
+      const previousMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1)
+      const previousMonthEnd = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 0)
+      
+      previousMetrics = calculatePeriodMetrics(
+        previousMonth.toISOString().split('T')[0],
+        previousMonthEnd.toISOString().split('T')[0]
+      )
+    } else if (periodData.type === 'last7Days' || periodData.type === 'last15Days') {
+      // Para períodos de dias, calcular o período anterior equivalente
+      const days = periodData.type === 'last7Days' ? 7 : 15
+      const endDate = new Date(periodData.startDate)
+      const startDate = new Date(endDate.getTime() - (days * 24 * 60 * 60 * 1000))
+      
+      previousMetrics = calculatePeriodMetrics(
+        startDate.toISOString().split('T')[0],
+        endDate.toISOString().split('T')[0]
+      )
+    }
+
+    setCurrentPeriod({
+      ...periodData,
+      metrics: currentMetrics
+    })
+
+    setPeriodComparison({
+      current: currentMetrics,
+      previous: previousMetrics,
+      periodName: periodData.label
+    })
+
+    setShowPeriodSelector(false)
+  }
+
+  // Inicializar com período padrão (mês atual)
+  useEffect(() => {
+    if (!data || data.length === 0) return
+
+    const now = new Date()
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+    
+    handlePeriodSelect({
+      type: 'currentMonth',
+      label: `Mês atual (${now.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })})`,
+      startDate: startOfMonth.toISOString().split('T')[0],
+      endDate: endOfMonth.toISOString().split('T')[0]
+    })
+  }, [data])
+
   // Criar todos os gráficos
   const createAllCharts = () => {
+    console.log('🔄 Criando gráficos...')
+    
+    // Destruir gráficos existentes primeiro
     destroyCharts()
     
     // Aguardar um pouco mais para garantir que os canvas foram limpos
     setTimeout(() => {
       try {
+        console.log('📊 Criando gráficos após limpeza...')
         createSalesChart()
         createUsersChart()
         createSatisfactionChart()
         createReferralChart()
         createPerformanceChart()
         createActivityChart()
+        console.log('✅ Todos os gráficos criados com sucesso')
       } catch (error) {
         console.warn('Erro ao criar gráficos:', error)
         // Tentar novamente após um delay maior
         setTimeout(() => {
           try {
-            createSalesChart()
-            createUsersChart()
-            createSatisfactionChart()
-            createReferralChart()
-            createPerformanceChart()
-            createActivityChart()
+            console.log('🔄 Tentando recriar gráficos...')
+            destroyCharts() // Destruir novamente antes de tentar
+            setTimeout(() => {
+              createSalesChart()
+              createUsersChart()
+              createSatisfactionChart()
+              createReferralChart()
+              createPerformanceChart()
+              createActivityChart()
+              console.log('✅ Gráficos recriados com sucesso')
+            }, 100)
           } catch (retryError) {
             console.error('Erro ao recriar gráficos:', retryError)
           }
         }, 500)
       }
-    }, 200)
+    }, 300) // Aumentei o delay para 300ms
   }
 
   // Calcular métricas gerais
@@ -1010,23 +1156,63 @@ const ModernChartsDashboard = ({ data, operatorMetrics, rankings, selectedPeriod
         </div>
       </div>
 
+      {/* Período Atual e Botão de Seleção */}
+      <div className="period-info-section">
+        <div className="period-display">
+          <h3>📅 Período Selecionado</h3>
+          <span className="current-period">{currentPeriod?.label || 'Carregando...'}</span>
+        </div>
+        <button 
+          className="btn-modern-secondary"
+          onClick={() => setShowPeriodSelector(true)}
+        >
+          📅 Alterar Período
+        </button>
+      </div>
+
+      {/* Comparações Temporais */}
+      {periodComparison && (
+        <TemporalComparison 
+          comparison={periodComparison}
+          metricKeys={['totalCalls', 'avgRatingAttendance', 'totalOperators', 'satisfactionRate']}
+        />
+      )}
+
       {/* Métricas Principais */}
       <div className="metrics-grid">
         <div className="metric-card">
           <div className="metric-icon">📞</div>
           <div className="metric-content">
             <h3>Total de Atendimentos</h3>
-            <div className="metric-value">{metrics.totalCalls.toLocaleString()}</div>
-            <div className="metric-change positive">+12% este mês</div>
+            <div className="metric-value">
+              {(currentPeriod?.metrics?.totalCalls || metrics.totalCalls).toLocaleString()}
+            </div>
+            {periodComparison && (
+              <div className={`metric-change ${periodComparison.current.totalCalls > periodComparison.previous?.totalCalls ? 'positive' : periodComparison.current.totalCalls < periodComparison.previous?.totalCalls ? 'negative' : 'neutral'}`}>
+                {periodComparison.previous ? 
+                  `${periodComparison.current.totalCalls > periodComparison.previous.totalCalls ? '+' : ''}${(((periodComparison.current.totalCalls - periodComparison.previous.totalCalls) / periodComparison.previous.totalCalls) * 100).toFixed(1)}%` 
+                  : 'Sem comparação' 
+                }
+              </div>
+            )}
           </div>
         </div>
 
         <div className="metric-card">
           <div className="metric-icon">⭐</div>
           <div className="metric-content">
-            <h3>Nota Média</h3>
-            <div className="metric-value">{metrics.avgRating.toFixed(1)}</div>
-            <div className="metric-change positive">+0.3 pontos</div>
+            <h3>Nota Média de Atendimento</h3>
+            <div className="metric-value">
+              {currentPeriod?.metrics?.avgRatingAttendance || metrics.avgRating.toFixed(1)}
+            </div>
+            {periodComparison && (
+              <div className={`metric-change ${periodComparison.current.avgRatingAttendance > periodComparison.previous?.avgRatingAttendance ? 'positive' : periodComparison.current.avgRatingAttendance < periodComparison.previous?.avgRatingAttendance ? 'negative' : 'neutral'}`}>
+                {periodComparison.previous ? 
+                  `${periodComparison.current.avgRatingAttendance > periodComparison.previous.avgRatingAttendance ? '+' : ''}${(periodComparison.current.avgRatingAttendance - periodComparison.previous.avgRatingAttendance).toFixed(1)} pontos` 
+                  : 'Sem comparação' 
+                }
+              </div>
+            )}
           </div>
         </div>
 
@@ -1034,20 +1220,50 @@ const ModernChartsDashboard = ({ data, operatorMetrics, rankings, selectedPeriod
           <div className="metric-icon">👥</div>
           <div className="metric-content">
             <h3>Operadores Ativos</h3>
-            <div className="metric-value">{metrics.totalOperators}</div>
-            <div className="metric-change neutral">Estável</div>
+            <div className="metric-value">
+              {currentPeriod?.metrics?.totalOperators || metrics.totalOperators}
+            </div>
+            {periodComparison && (
+              <div className={`metric-change ${periodComparison.current.totalOperators > periodComparison.previous?.totalOperators ? 'positive' : periodComparison.current.totalOperators < periodComparison.previous?.totalOperators ? 'negative' : 'neutral'}`}>
+                {periodComparison.previous ? 
+                  `${periodComparison.current.totalOperators > periodComparison.previous.totalOperators ? '+' : ''}${periodComparison.current.totalOperators - periodComparison.previous.totalOperators} operador${Math.abs(periodComparison.current.totalOperators - periodComparison.previous.totalOperators) !== 1 ? 'es' : ''}` 
+                  : 'Sem comparação' 
+                }
+              </div>
+            )}
           </div>
         </div>
 
         <div className="metric-card">
           <div className="metric-icon">📈</div>
           <div className="metric-content">
-            <h3>Performance Geral</h3>
-            <div className="metric-value">{metrics.satisfactionRate}%</div>
-            <div className="metric-change positive">+5% este mês</div>
+            <h3>Taxa de Satisfação</h3>
+            <div className="metric-value">
+              {currentPeriod?.metrics?.satisfactionRate || metrics.satisfactionRate}%
+            </div>
+            {periodComparison && (
+              <div className={`metric-change ${periodComparison.current.satisfactionRate > periodComparison.previous?.satisfactionRate ? 'positive' : periodComparison.current.satisfactionRate < periodComparison.previous?.satisfactionRate ? 'negative' : 'neutral'}`}>
+                {periodComparison.previous ? 
+                  `${periodComparison.current.satisfactionRate > periodComparison.previous.satisfactionRate ? '+' : ''}${periodComparison.current.satisfactionRate - periodComparison.previous.satisfactionRate}%` 
+                  : 'Sem comparação' 
+                }
+              </div>
+            )}
           </div>
         </div>
       </div>
+
+      {/* Seletor de Período */}
+      {showPeriodSelector && (
+        <div className="period-selector-overlay">
+          <div className="period-selector-container">
+            <PeriodSelectorV2 
+              onPeriodSelect={handlePeriodSelect}
+              isLoading={false}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Seção Superior */}
       <div className="charts-section-top">

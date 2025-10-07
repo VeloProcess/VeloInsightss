@@ -2,6 +2,15 @@
    VELOINSIGHTS - DESIGN PROFISSIONAL
    ======================================== */
 
+.loading-container {
+  padding: 40px;
+  text-align: center;
+  color: #F3F7FC;
+  background-color: #272A30;
+  border-radius: 12px;
+  margin: 20px;
+}
+
 /* Importar sistema de temas */
 @import './themes.css';
 

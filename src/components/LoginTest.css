@@ -541,7 +541,8 @@
   line-height: 1.5;
 }
 
-/* Estilos do formulário e input */
+/* Estilos do formulário e input - Comentados pois removemos o campo de email */
+/*
 .input-wrapper {
   position: relative;
   margin-bottom: 12px;
@@ -555,7 +556,9 @@
   font-size: 20px;
   color: #808080;
 }
+*/
 
+/*
 #email {
   width: 100%;
   height: 56px;
@@ -579,6 +582,7 @@
   color: var(--color-text-secondary);
   margin-bottom: 24px;
 }
+*/
 
 /* Estilo do botão */
 .login-button {

@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef, useMemo } from 'react'
 import Chart from 'chart.js/auto'
 import { useTheme } from '../hooks/useTheme'
 import { useAccessControl } from '../hooks/useAccessControl'
+import PeriodSelectorV2 from './PeriodSelectorV2'
+import TemporalComparison from './TemporalComparison'
 import './AgentAnalysis.css'
 
 // Componente para cada operador
@@ -107,18 +109,17 @@ const AgentAnalysis = ({ data, operatorMetrics, rankings }) => {
   }
 
   // Função para carregar dados detalhados do agente com período específico
-  const loadAgentDetails = async () => {
-    if (!selectedAgent || !selectedPeriod.startDate || !selectedPeriod.endDate) {
+  const loadAgentDetails = async (startDateOverride = null, endDateOverride = null) => {
+    const startDate = startDateOverride || selectedPeriod.startDate
+    const endDate = endDateOverride || selectedPeriod.endDate
+    
+    if (!selectedAgent || !startDate || !endDate) {
       return
     }
 
     setIsLoadingDetails(true)
     
     try {
-      console.log('🔍 Debug - Carregando dados para:', selectedAgent.operator)
-      console.log('🔍 Debug - Período:', selectedPeriod.startDate, 'até', selectedPeriod.endDate)
-      console.log('🔍 Debug - Total de registros disponíveis:', data.length)
-      
       // Filtrar dados específicos do agente no período selecionado
       const agentSpecificData = data.filter(record => {
         if (!record.operador || !record.data) return false
@@ -128,13 +129,11 @@ const AgentAnalysis = ({ data, operatorMetrics, rankings }) => {
         
         // Verificar se está no período selecionado
         const recordDate = new Date(record.data.split('/').reverse().join('-')) // DD/MM/YYYY -> YYYY-MM-DD
-        const startDate = new Date(selectedPeriod.startDate)
-        const endDate = new Date(selectedPeriod.endDate)
+        const startDateObj = new Date(startDate)
+        const endDateObj = new Date(endDate)
         
-        return isCorrectAgent && recordDate >= startDate && recordDate <= endDate
+        return isCorrectAgent && recordDate >= startDateObj && recordDate <= endDateObj
       })
-      
-      console.log('🔍 Debug - Registros filtrados para o agente:', agentSpecificData.length)
       
       setAgentData(agentSpecificData)
       
@@ -146,8 +145,6 @@ const AgentAnalysis = ({ data, operatorMetrics, rankings }) => {
       
       setAgentPauses(timeData)
       setShowPeriodSelector(false)
-      
-      console.log('🔍 Debug - Dados de tempo:', timeData.length)
       
     } catch (error) {
       console.error('Erro ao carregar dados do agente:', error)
@@ -588,6 +585,20 @@ const AgentAnalysis = ({ data, operatorMetrics, rankings }) => {
   }, [monthlyData])
 
   // Seletor de período
+  // Função para lidar com seleção de período do PeriodSelectorV2
+  const handlePeriodSelect = (periodData) => {
+    console.log('📅 Período selecionado:', periodData)
+    
+    // Atualizar o estado com o período selecionado
+    setSelectedPeriod({
+      startDate: periodData.startDate,
+      endDate: periodData.endDate
+    })
+    
+    // Carregar dados automaticamente com as novas datas
+    loadAgentDetails(periodData.startDate, periodData.endDate)
+  }
+
   if (selectedAgent && showPeriodSelector) {
     return (
       <div className="agent-analysis">
@@ -602,52 +613,10 @@ const AgentAnalysis = ({ data, operatorMetrics, rankings }) => {
           <p>Selecione o período para análise detalhada</p>
         </div>
 
-        <div className="period-selector-container">
-          <div className="period-selector-card">
-            <h3>📅 Seletor de Período</h3>
-            <p>Escolha o período para visualizar as métricas detalhadas do agente:</p>
-            
-            <div className="date-inputs">
-              <div className="date-input-group">
-                <label htmlFor="startDate">Data Inicial:</label>
-                <input
-                  type="date"
-                  id="startDate"
-                  value={selectedPeriod.startDate}
-                  onChange={(e) => setSelectedPeriod(prev => ({ ...prev, startDate: e.target.value }))}
-                  className="date-input"
-                />
-              </div>
-              
-              <div className="date-input-group">
-                <label htmlFor="endDate">Data Final:</label>
-                <input
-                  type="date"
-                  id="endDate"
-                  value={selectedPeriod.endDate}
-                  onChange={(e) => setSelectedPeriod(prev => ({ ...prev, endDate: e.target.value }))}
-                  className="date-input"
-                />
-              </div>
-            </div>
-
-            <div className="period-actions">
-              <button
-                className="load-details-button"
-                onClick={loadAgentDetails}
-                disabled={!selectedPeriod.startDate || !selectedPeriod.endDate || isLoadingDetails}
-              >
-                {isLoadingDetails ? '⏳ Carregando...' : '📊 Carregar Métricas Detalhadas'}
-              </button>
-            </div>
-
-            {selectedPeriod.startDate && selectedPeriod.endDate && (
-              <div className="period-summary">
-                <p>📋 Período selecionado: <strong>{selectedPeriod.startDate}</strong> até <strong>{selectedPeriod.endDate}</strong></p>
-              </div>
-            )}
-          </div>
-        </div>
+        <PeriodSelectorV2 
+          onPeriodSelect={handlePeriodSelect}
+          isLoading={isLoadingDetails}
+        />
       </div>
     )
   }

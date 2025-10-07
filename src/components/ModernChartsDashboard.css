@@ -7,6 +7,87 @@
   font-family: 'Poppins', sans-serif;
 }
 
+/* Seção de Informação de Período */
+.period-info-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 24px 0;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.period-display h3 {
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  margin: 0;
+  margin-bottom: 4px;
+}
+
+.current-period {
+  font-family: 'Anton', sans-serif;
+  font-size: 1.25rem;
+  font-weight: 400;
+  color: #60A5FA;
+}
+
+/* Botão Moderno Secundário */
+.btn-modern-secondary {
+  padding: 12px 24px;
+  border: 2px solid #60A5FA;
+  background: transparent;
+  color: #60A5FA;
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(96, 165, 250, 0.2);
+}
+
+.btn-modern-secondary:hover {
+  background: #60A5FA;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(96, 165, 250, 0.3);
+}
+
+.btn-modern-secondary:active {
+  transform: translateY(0);
+}
+
+/* Overlay do Seletor de Período */
+.period-selector-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease;
+}
+
+.period-selector-container {
+  background: rgba(26, 29, 35, 0.95);
+  border-radius: 24px;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+  max-width: 600px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
 /* Header */
 .charts-header {
   margin-bottom: 32px;
@@ -385,6 +466,19 @@
 }
 
 /* Responsividade */
+@media (max-width: 1400px) {
+  .charts-section-top {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  
+  .charts-section-main,
+  .charts-section-bottom {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+  }
+}
+
 @media (max-width: 1200px) {
   .charts-section-top {
     grid-template-columns: 1fr;
@@ -396,6 +490,10 @@
     grid-template-columns: 1fr;
     gap: 20px;
   }
+  
+  .chart-container {
+    height: 350px;
+  }
 }
 
 @media (max-width: 768px) {
@@ -404,7 +502,7 @@
   }
   
   .metrics-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
     gap: 16px;
   }
   
@@ -451,6 +549,52 @@
     width: 100px;
     height: 100px;
   }
+  
+  .charts-section-main,
+  .charts-section-bottom {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
+
+@media (max-width: 600px) {
+  .modern-charts-dashboard {
+    padding: 12px;
+  }
+  
+  .metrics-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
+  .metric-card {
+    padding: 16px;
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .metric-icon {
+    width: 45px;
+    height: 45px;
+    font-size: 1.8rem;
+  }
+  
+  .metric-value {
+    font-size: 1.3rem;
+  }
+  
+  .chart-container {
+    height: 220px;
+  }
+  
+  .welcome-card {
+    padding: 20px;
+  }
+  
+  .welcome-visual {
+    width: 80px;
+    height: 80px;
+  }
 }
 
 @media (max-width: 480px) {
@@ -461,15 +605,31 @@
   .metric-card {
     flex-direction: column;
     text-align: center;
+    padding: 14px;
+  }
+  
+  .metric-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 1.6rem;
+  }
+  
+  .metric-value {
+    font-size: 1.2rem;
   }
   
   .welcome-visual {
-    width: 80px;
-    height: 80px;
+    width: 70px;
+    height: 70px;
   }
   
   .chart-container {
     height: 200px;
+  }
+  
+  .charts-section-main,
+  .charts-section-bottom {
+    gap: 12px;
   }
 }
 

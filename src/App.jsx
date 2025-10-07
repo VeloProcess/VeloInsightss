@@ -8,13 +8,13 @@ import ChartsSection from './components/ChartsSection'
 import ExportSection from './components/ExportSection'
 import OperatorAnalysis from './components/OperatorAnalysis'
 import ProgressIndicator from './components/ProgressIndicator'
-import PeriodSelector from './components/PeriodSelector'
 import AdvancedFilters from './components/AdvancedFilters'
-import DarkListManager from './components/DarkListManager'
+import { processarDados } from './utils/dataProcessor'
 import ChartsDetailedTab from './components/ChartsDetailedTab'
 import AgentAnalysis from './components/AgentAnalysis'
 import PreferencesManager from './components/PreferencesManager'
 import CargoSelection from './components/CargoSelection'
+import ProcessingLoader from './components/ProcessingLoader'
 import { CargoProvider, useCargo } from './contexts/CargoContext'
 import { useGoogleSheetsDirectSimple } from './hooks/useGoogleSheetsDirectSimple'
 import { useDataFilters } from './hooks/useDataFilters'
@@ -31,202 +31,430 @@ function AppContent() {
   const [showNewLogin, setShowNewLogin] = useState(false) // Para mostrar a nova tela de login
   const [showPreferences, setShowPreferences] = useState(false)
   
-  // Hook do sistema de cargos
+  // Hook do sistema de cargos - apenas para cargo selecionado
   const { 
     selectedCargo, 
-    userEmail, 
-    showCargoSelection, 
-    selectCargo, 
-    logout,
-    hasPermission,
-    canViewUserData 
+    selectCargo,
+    showCargoSelection
   } = useCargo()
   
-  
-  // Sistema de temas
+  // Hook para tema
   const { theme, toggleTheme } = useTheme()
   
-  // Controle de ocultação de nomes baseado no cargo
-  useEffect(() => {
-    const shouldHideNames = selectedCargo === 'OPERADOR'
-    document.body.setAttribute('data-hide-names', shouldHideNames.toString())
-    
-    // Limpar quando sair da sessão
-    return () => {
-      document.body.removeAttribute('data-hide-names')
-    }
-  }, [selectedCargo])
-
-  // Hook do Google Sheets
+  // Estados para dados e outras configurações
+  // Dark List removida - todos os operadores são contabilizados normalmente
+  const [filters, setFilters] = useState({})
+  const [filteredData, setFilteredData] = useState([])
+  const [filteredMetrics, setFilteredMetrics] = useState(null)
+  const [filteredOperatorMetrics, setFilteredOperatorMetrics] = useState(null)
+  const [allRecordsLoadingStarted, setAllRecordsLoadingStarted] = useState(false)
+  const [filteredRankings, setFilteredRankings] = useState(null)
+  
+  // Hook do Google Sheets - fonte principal de autenticação e dados
   const {
     data,
     metrics,
     operatorMetrics,
     rankings,
     errors,
-    operators,
     isLoading,
-    isAuthenticated,
-    userData,
-    selectedPeriod,
-    customDateRange,
-    fetchSheetData,
-    fetchLast60Days,
-    fetchFullDataset,
-    processPeriodData,
-    fetchDataByPeriod,
-    filterDataByDateRange,
-    setSelectedPeriod,
-    setCustomDateRange,
     signIn,
     signOut,
-    clearData,
-    // Dark List functions
-    darkList,
-    addToDarkList,
-    removeFromDarkList,
-    clearDarkList
+    isAuthenticated,
+    userData,
+    // Novos estados para processamento completo
+    isProcessingAllRecords,
+    processingProgress,
+    totalRecordsToProcess,
+    loadAllRecordsWithProgress
   } = useGoogleSheetsDirectSimple()
 
-  const {
-    filters,
-    filteredData,
-    handleFiltersChange
-  } = useDataFilters(data)
-
-  // Mostrar nova tela de login apenas se não estiver autenticado
+  // Processar dados quando filtros mudam
   useEffect(() => {
-    if (!isAuthenticated && currentView === 'fetch') {
-      setShowNewLogin(true)
+    if (data && data.length > 0) {
+      // console.log('🔄 Aplicando filtros aos dados...', filters)
+      
+      // Se não há filtros ativos, usar dados originais
+      if (!filters.period) {
+        // console.log('🔍 Sem filtros ativos, usando dados originais')
+        setFilteredData(data)
+        setFilteredMetrics(metrics)
+        setFilteredOperatorMetrics(operatorMetrics)
+        setFilteredRankings(rankings)
+        return
+      }
+
+      // Se o filtro for "allRecords", carregar todos os registros (apenas uma vez)
+      if (filters.period === 'allRecords' && !isProcessingAllRecords && !allRecordsLoadingStarted) {
+        console.log('🚀 Filtro TODOS OS REGISTROS selecionado - iniciando carregamento completo...')
+        setAllRecordsLoadingStarted(true)
+        
+        // Obter token de acesso do localStorage
+        const userData = localStorage.getItem('veloinsights_user')
+        const accessToken = userData ? JSON.parse(userData).accessToken : null
+        if (accessToken && loadAllRecordsWithProgress) {
+          loadAllRecordsWithProgress(accessToken)
+            .then((resultado) => {
+              console.log('✅ Todos os registros carregados com sucesso!')
+              // Os dados já são atualizados automaticamente pelo hook
+            })
+            .catch((error) => {
+              console.error('❌ Erro ao carregar todos os registros:', error)
+              setAllRecordsLoadingStarted(false) // Reset em caso de erro
+            })
+        } else {
+          console.warn('⚠️ Token de acesso não encontrado ou função não disponível')
+          setAllRecordsLoadingStarted(false) // Reset em caso de erro
+        }
+        return
+      }
+      
+      // console.log('🔍 Filtro ativo:', filters.period)
+
+      // Encontrar a última data disponível nos dados
+      const ultimaDataDisponivel = data.reduce((ultima, item) => {
+        if (!item.data) return ultima
+        
+        let itemDate
+        if (typeof item.data === 'string') {
+          const [dia, mes, ano] = item.data.split('/')
+          itemDate = new Date(ano, mes - 1, dia)
+        } else {
+          itemDate = new Date(item.data)
+        }
+        
+        return itemDate > ultima ? itemDate : ultima
+      }, new Date(0))
+      
+      // console.log(`🔍 Última data disponível: ${ultimaDataDisponivel.toLocaleDateString('pt-BR')}`)
+      
+      // Aplicar filtros de data
+      const now = new Date()
+      let startDate, endDate
+
+      switch (filters.period) {
+        case 'last7Days':
+          startDate = new Date(ultimaDataDisponivel.getTime() - (7 * 24 * 60 * 60 * 1000))
+          endDate = ultimaDataDisponivel
+          break
+        case 'last15Days':
+          startDate = new Date(ultimaDataDisponivel.getTime() - (15 * 24 * 60 * 60 * 1000))
+          endDate = ultimaDataDisponivel
+          break
+        case 'ultimoMes':
+          startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+          endDate = new Date(now.getFullYear(), now.getMonth(), 0)
+          break
+        case 'penultimoMes':
+          startDate = new Date(now.getFullYear(), now.getMonth() - 2, 1)
+          endDate = new Date(now.getFullYear(), now.getMonth() - 1, 0)
+          break
+        case 'currentMonth':
+          startDate = new Date(now.getFullYear(), now.getMonth(), 1)
+          endDate = now
+          break
+        case 'custom':
+          if (filters.customStartDate && filters.customEndDate) {
+            startDate = new Date(filters.customStartDate)
+            endDate = new Date(filters.customEndDate)
+          } else {
+            setFilteredData(data)
+            setFilteredMetrics(metrics)
+            setFilteredOperatorMetrics(operatorMetrics)
+            setFilteredRankings(rankings)
+            return
+          }
+          break
+        default:
+          setFilteredData(data)
+          setFilteredMetrics(metrics)
+          setFilteredOperatorMetrics(operatorMetrics)
+          setFilteredRankings(rankings)
+          return
+      }
+
+      // Debug das datas de filtro
+      console.log(`🔍 Filtro ${filters.period}:`)
+      console.log(`🔍 Data início: ${startDate.toLocaleDateString('pt-BR')}`)
+      console.log(`🔍 Data fim: ${endDate.toLocaleDateString('pt-BR')}`)
+      console.log(`🔍 Total de dados para filtrar: ${data.length}`)
+      
+      // Verificar algumas datas dos dados
+      if (data.length > 0) {
+        // console.log('🔍 Primeiras 5 datas dos dados:')
+        // data.slice(0, 5).forEach((item, index) => {
+        //   console.log(`  ${index + 1}. ${item.data}`)
+        // })
+        
+        // console.log('🔍 Últimas 5 datas dos dados:')
+        // data.slice(-5).forEach((item, index) => {
+        //   console.log(`  ${index + 1}. ${item.data}`)
+        // })
+      }
+      
+      // Filtrar dados por data
+      const filtered = data.filter(item => {
+        if (!item.data) return false
+        
+        // Converter data para formato correto
+        let itemDate
+        if (typeof item.data === 'string') {
+          // Formato DD/MM/YYYY
+          const [dia, mes, ano] = item.data.split('/')
+          itemDate = new Date(ano, mes - 1, dia)
+        } else {
+          itemDate = new Date(item.data)
+        }
+        
+        const isValid = itemDate >= startDate && itemDate <= endDate
+        
+        // Debug específico para último mês
+        if (filters.period === 'ultimoMes' && data.indexOf(item) < 10) {
+          console.log(`🔍 Item ${data.indexOf(item)}: ${item.data} -> ${itemDate.toLocaleDateString('pt-BR')} -> ${isValid ? 'VÁLIDO' : 'INVÁLIDO'}`)
+        }
+        
+        return isValid
+      })
+
+      console.log(`📊 Dados filtrados: ${filtered.length} de ${data.length} registros`)
+
+      // Usar dados filtrados diretamente (já são objetos processados)
+      if (filtered.length > 0) {
+        setFilteredData(filtered)
+        
+        // Recalcular métricas apenas com dados filtrados
+        const totalChamadas = filtered.length
+        
+        console.log(`🔍 Filtro ${filters.period}: ${filtered.length} registros encontrados`)
+        
+        const retidaURA = filtered.filter(item => item.chamada === 'Retida na URA').length
+        const atendida = filtered.filter(item => item.chamada === 'Atendida').length
+        const abandonada = filtered.filter(item => item.chamada === 'Abandonada').length
+        
+        
+        // Calcular notas médias
+        const notasAtendimento = filtered
+          .filter(item => item.notaAtendimento && !isNaN(parseFloat(item.notaAtendimento)))
+          .map(item => parseFloat(item.notaAtendimento))
+        
+        const notasSolucao = filtered
+          .filter(item => item.notaSolucao && !isNaN(parseFloat(item.notaSolucao)))
+          .map(item => parseFloat(item.notaSolucao))
+        
+        const notaMediaAtendimento = notasAtendimento.length > 0 
+          ? (notasAtendimento.reduce((sum, nota) => sum + nota, 0) / notasAtendimento.length).toFixed(1)
+          : '0.0'
+        
+        const notaMediaSolucao = notasSolucao.length > 0 
+          ? (notasSolucao.reduce((sum, nota) => sum + nota, 0) / notasSolucao.length).toFixed(1)
+          : '0.0'
+        
+        // Calcular tempos médios
+        const tempoParaMinutos = (tempo) => {
+          if (!tempo || tempo === '00:00:00') return 0
+          if (typeof tempo === 'number') return tempo
+          
+          try {
+            const [horas, minutos, segundos] = tempo.split(':').map(Number)
+            return horas * 60 + minutos + segundos / 60
+          } catch (error) {
+            console.warn('Erro ao converter tempo:', tempo, error)
+            return 0
+          }
+        }
+        
+        const temposFalado = filtered
+          .filter(item => item.tempoFalado && item.tempoFalado !== '00:00:00')
+          .map(item => tempoParaMinutos(item.tempoFalado))
+          .filter(tempo => tempo > 0)
+        
+        const temposEspera = filtered
+          .filter(item => item.tempoEspera && item.tempoEspera !== '00:00:00')
+          .map(item => tempoParaMinutos(item.tempoEspera))
+          .filter(tempo => tempo > 0)
+        
+        const tempoMedioFalado = temposFalado.length > 0 
+          ? (temposFalado.reduce((sum, tempo) => sum + tempo, 0) / temposFalado.length).toFixed(1)
+          : '0.0'
+        
+        const tempoMedioEspera = temposEspera.length > 0 
+          ? (temposEspera.reduce((sum, tempo) => sum + tempo, 0) / temposEspera.length).toFixed(1)
+          : '0.0'
+        
+        
+        // Calcular métricas completas
+        const metricasFiltradas = {
+          totalChamadas,
+          retidaURA,
+          atendida,
+          abandonada,
+          taxaAtendimento: totalChamadas > 0 ? ((atendida / totalChamadas) * 100).toFixed(1) : '0.0',
+          taxaAbandono: totalChamadas > 0 ? ((abandonada / totalChamadas) * 100).toFixed(1) : '0.0',
+          notaMediaAtendimento,
+          notaMediaSolucao,
+          duracaoMediaAtendimento: tempoMedioFalado,
+          tempoMedioEspera: tempoMedioEspera
+        }
+        
+        // Calcular métricas por operador
+        const operadoresMap = new Map()
+        filtered.forEach(item => {
+          if (item.operador && item.operador !== 'Sem Operador') {
+            if (!operadoresMap.has(item.operador)) {
+              operadoresMap.set(item.operador, {
+                operador: item.operador,
+                totalChamadas: 0,
+                atendidas: 0,
+                retidasURA: 0,
+                abandonadas: 0,
+                notasAtendimento: [],
+                notasSolucao: [],
+                temposFalado: []
+              })
+            }
+            
+            const op = operadoresMap.get(item.operador)
+            op.totalChamadas++
+            
+            if (item.chamada === 'Atendida') op.atendidas++
+            else if (item.chamada === 'Retida na URA') op.retidasURA++
+            else if (item.chamada === 'Abandonada') op.abandonadas++
+            
+            if (item.notaAtendimento && !isNaN(parseFloat(item.notaAtendimento))) {
+              op.notasAtendimento.push(parseFloat(item.notaAtendimento))
+            }
+            if (item.notaSolucao && !isNaN(parseFloat(item.notaSolucao))) {
+              op.notasSolucao.push(parseFloat(item.notaSolucao))
+            }
+            if (item.tempoFalado && !isNaN(parseFloat(item.tempoFalado))) {
+              op.temposFalado.push(parseFloat(item.tempoFalado))
+            }
+          }
+        })
+        
+        // Processar métricas dos operadores
+        const metricasOperadoresFiltradas = {}
+        operadoresMap.forEach((op, nome) => {
+          metricasOperadoresFiltradas[nome] = {
+            totalChamadas: op.totalChamadas,
+            atendidas: op.atendidas,
+            retidasURA: op.retidasURA,
+            abandonadas: op.abandonadas,
+            taxaAtendimento: op.totalChamadas > 0 ? ((op.atendidas / op.totalChamadas) * 100).toFixed(1) : '0.0',
+            notaMediaAtendimento: op.notasAtendimento.length > 0 
+              ? (op.notasAtendimento.reduce((sum, nota) => sum + nota, 0) / op.notasAtendimento.length).toFixed(1)
+              : '0.0',
+            notaMediaSolucao: op.notasSolucao.length > 0 
+              ? (op.notasSolucao.reduce((sum, nota) => sum + nota, 0) / op.notasSolucao.length).toFixed(1)
+              : '0.0',
+            tempoMedioFalado: op.temposFalado.length > 0 
+              ? (op.temposFalado.reduce((sum, tempo) => sum + tempo, 0) / op.temposFalado.length).toFixed(1)
+              : '0.0'
+          }
+        })
+        
+        // Criar ranking dos operadores
+        const rankingFiltrado = Object.entries(metricasOperadoresFiltradas)
+          .map(([nome, metrica]) => ({
+            operator: nome, // Campo esperado pelo MetricsDashboard
+            operador: nome, // Campo alternativo
+            score: (parseFloat(metrica.notaMediaAtendimento) + parseFloat(metrica.notaMediaSolucao)).toFixed(1), // Score simples baseado nas notas
+            totalCalls: metrica.totalChamadas, // Campo esperado pelo MetricsDashboard
+            totalAtendimentos: metrica.totalChamadas, // Campo alternativo
+            avgDuration: parseFloat(metrica.tempoMedioFalado), // Campo esperado pelo MetricsDashboard
+            avgRatingAttendance: parseFloat(metrica.notaMediaAtendimento), // Campo esperado pelo MetricsDashboard
+            avgRatingSolution: parseFloat(metrica.notaMediaSolucao), // Campo esperado pelo MetricsDashboard
+            // Campos originais para compatibilidade
+            totalChamadas: metrica.totalChamadas,
+            tempoMedioFalado: metrica.tempoMedioFalado,
+            notaMediaAtendimento: metrica.notaMediaAtendimento,
+            notaMediaSolucao: metrica.notaMediaSolucao,
+            taxaAtendimento: metrica.taxaAtendimento
+          }))
+          .sort((a, b) => b.totalCalls - a.totalCalls)
+          .slice(0, 10) // Top 10
+        
+        
+        setFilteredMetrics(metricasFiltradas)
+        setFilteredOperatorMetrics(metricasOperadoresFiltradas)
+        setFilteredRankings(rankingFiltrado)
+      } else {
+        setFilteredData([])
+        // Criar métricas zeradas quando não há dados filtrados
+        const metricasZeradas = {
+          totalChamadas: 0,
+          retidaURA: 0,
+          atendida: 0,
+          abandonada: 0,
+          taxaAtendimento: '0.0',
+          taxaAbandono: '0.0',
+          notaMediaAtendimento: '0.0',
+          notaMediaSolucao: '0.0',
+          duracaoMediaAtendimento: '0.0'
+        }
+        setFilteredMetrics(metricasZeradas)
+        setFilteredOperatorMetrics({})
+        setFilteredRankings([])
+      }
+    }
+  }, [data, filters, metrics, operatorMetrics, rankings, isProcessingAllRecords, allRecordsLoadingStarted])
+
+  // Reset do estado de carregamento quando o filtro mudar
+  useEffect(() => {
+    if (filters.period !== 'allRecords') {
+      setAllRecordsLoadingStarted(false)
+    }
+  }, [filters.period])
+
+  // Autenticação: navegar automaticamente para dashboard quando logado
+  useEffect(() => {
+    if (isAuthenticated && currentView === 'fetch') {
+      console.log('🎯 Usuário autenticado, navegando automaticamente para dashboard...')
+      setCurrentView('dashboard')
     }
   }, [isAuthenticated, currentView])
 
-  // Navegar automaticamente para o dashboard quando autenticado
+  // Debug do dashboard
   useEffect(() => {
-    if (isAuthenticated && userData && !showNewLogin) {
-      console.log('🎯 Usuário autenticado, navegando para dashboard...')
-      setCurrentView('dashboard')
-      
-      // Se não há dados, tentar carregar
-      if (data.length === 0) {
-        console.log('📊 Carregando dados automaticamente...')
-        handleFetchData()
-      }
+    if (currentView === 'dashboard') {
+      // console.log('📊 Dashboard estado - data:', data?.length, 'isLoading:', isLoading, 'metrics:', !!metrics, 'operatorMetrics:', !!operatorMetrics)
     }
-  }, [isAuthenticated, userData, showNewLogin])
+  }, [currentView, data, isLoading, metrics, operatorMetrics])
 
-  // Função para lidar com seleção de cargo
+
+  // Função para lidar com cargo selecionado
   const handleCargoSelected = (cargo) => {
     if (userData?.email) {
       const success = selectCargo(cargo, userData.email)
       if (success) {
-        console.log('✅ Cargo selecionado:', cargo)
-        // Navegar para dashboard após seleção
-        setCurrentView('dashboard')
+        console.log('🎯 Cargo selecionado:', cargo)
+      } else {
+        console.error('❌ Erro ao selecionar cargo')
       }
+    } else {
+      console.error('❌ Email do usuário não disponível')
     }
   }
 
-  const handleFetchData = async () => {
-    try {
-      if (!isAuthenticated || !userData) {
-        console.error('❌ Usuário não autenticado!')
-        return
-      }
-      
-      console.log('🔄 Iniciando carregamento dos dados dos últimos 60 dias...')
-      
-      // Carregar dados dos últimos 60 dias
-      await fetchLast60Days(userData.accessToken)
-      
-      console.log('✅ Dados carregados, navegando para dashboard...')
-      setCurrentView('dashboard')
-      
-    } catch (error) {
-      console.error("Erro ao buscar dados:", error)
-    }
-  }
-
-  const handleSignIn = async () => {
-    try {
-      await signIn()
-    } catch (error) {
-      console.error("Erro ao fazer login:", error)
-    }
-  }
-
-  const handleSignOut = async () => {
-    try {
-      await signOut()
-      setCurrentView('fetch')
-    } catch (error) {
-      console.error("Erro ao fazer logout:", error)
-    }
-  }
-
-
-  // Funções para controle de período
-  const handlePeriodChange = (period) => {
-    setSelectedPeriod(period)
-  }
-
-  const handleCustomDateChange = (dateRange) => {
-    setCustomDateRange(dateRange)
-  }
-
-  const handlePeriodSelect = async (startDate, endDate) => {
-    try {
-      console.log(`🔄 Processando dados do período: ${startDate} até ${endDate}`)
-      await processPeriodData(startDate, endDate)
-    } catch (error) {
-      console.error('❌ Erro ao processar período:', error)
-    }
-  }
-
-  const handleFetchFullData = async () => {
-    try {
-      if (!isAuthenticated || !userData) {
-        console.error('❌ Usuário não autenticado!')
-        return
-      }
-      
-      console.log('🔄 Carregando dados completos...')
-      await fetchDataByPeriod('full')
-      
-    } catch (error) {
-      console.error("Erro ao carregar dados completos:", error)
-    }
-  }
-
+  // Função para alternar sidebar
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen)
   }
 
+  // Função para mudar visualização
   const handleViewChange = (view) => {
     setCurrentView(view)
-    setSidebarOpen(false)
-    
-    // Resetar seleção de operador ao mudar de view
-    if (view !== 'operators') {
+    if (view === 'agents') {
       setSelectedOperator(null)
     }
   }
 
-  const handleClearData = () => {
-    clearData()
-    setCurrentView('fetch')
-    setSelectedOperator(null)
-    setViewMode('company')
+  // Função para selecionar operador
+  const handleOperatorSelect = (op) => {
+    setSelectedOperator(op)
   }
 
-  const handleOperatorSelect = (operator) => {
-    setSelectedOperator(operator || null)
-  }
-
-  const updateDarkList = (newDarkList) => {
-    setDarkList(newDarkList)
-  }
-
+  // Funções da Dark List removidas - todos os operadores são contabilizados normalmente
 
   return (
     <div className="app">
@@ -243,7 +471,7 @@ function AppContent() {
           currentView={currentView}
           onViewChange={handleViewChange}
           hasData={data && data.length > 0}
-          onClearData={handleClearData}
+          onClearData={() => {}}
           viewMode={viewMode}
           onViewModeChange={setViewMode}
           selectedOperator={selectedOperator}
@@ -259,118 +487,149 @@ function AppContent() {
               onCancel={() => {}}
             />
           )}
+
+          {/* Tela de carregamento para TODOS OS REGISTROS */}
+          <ProcessingLoader 
+            isVisible={isProcessingAllRecords}
+            progress={processingProgress}
+            currentRecord={Math.round((processingProgress / 100) * totalRecordsToProcess)}
+            totalRecords={totalRecordsToProcess}
+          />
           
           {(currentView === 'fetch' || showNewLogin) && (
             <LoginTest
-              onContinue={() => setShowNewLogin(false)}
+              onContinue={() => {
+                console.log('🚀 Continuando para dashboard...')
+                setShowNewLogin(false)
+                setCurrentView('dashboard')
+              }}
               onSignIn={signIn}
               isLoading={isLoading}
+              isLoggedIn={isAuthenticated} // Usar o estado real de autenticação
             />
           )}
           
           {currentView === 'dashboard' && (
             <>
-              {data && data.length > 0 ? (
+              {!isLoading && data && data.length > 0 ? (
                 <>
-                  
-                  {/* Conteúdo da Aba Dashboard Principal */}
-                  {currentView === 'dashboard' && (
-                    <>
-                      <PeriodSelector
-                        onPeriodSelect={handlePeriodSelect}
-                        isLoading={isLoading}
-                        selectedPeriod={selectedPeriod}
-                      />
-                      
-                      <AdvancedFilters
-                        filters={filters}
-                        onFiltersChange={handleFiltersChange}
-                        operatorMetrics={operatorMetrics}
-                        data={data}
-                        pauseData={data}
-                      />
-                      
-                      {/* Botão para gerenciar Dark List */}
-                      <div className="dark-list-controls">
-                        <button 
-                          className="btn btn-dark-list"
-                          onClick={() => setShowDarkList(true)}
-                          title="Gerenciar Dark List de operadores"
-                        >
-                          🎯 Gerenciar Dark List ({darkList.length} excluídos)
-                        </button>
-                      </div>
-                      
-                      <MetricsDashboard 
-                        metrics={metrics}
-                        operatorMetrics={operatorMetrics}
-                        rankings={rankings}
-                        filteredData={filteredData}
-                        darkList={darkList}
-                        addToDarkList={addToDarkList}
-                        removeFromDarkList={removeFromDarkList}
-                      />
-                      
-                      
-                      {/* Debug info apenas se houver problema */}
-                      {(!metrics || !rankings || !operatorMetrics) && (
-                        <div style={{ 
-                          padding: '20px', 
-                          backgroundColor: '#ffebee', 
-                          color: '#c62828', 
-                          margin: '20px', 
-                          borderRadius: '8px', 
-                          fontSize: '14px',
-                          border: '1px solid #f44336'
-                        }}>
-                          <h4>⚠️ Problema Detectado:</h4>
-                          <p>📊 Metrics: {metrics ? '✅ Presente' : '❌ Ausente'}</p>
-                          <p>👥 Operator Metrics: {operatorMetrics ? Object.keys(operatorMetrics).length : 0} operadores</p>
-                          <p>🏆 Rankings: {rankings?.length || 0} rankings</p>
-                          <p>📋 Data: {data?.length || 0} registros</p>
-                          <p>🎯 Selected Cargo: {selectedCargo}</p>
-                          <button 
-                            onClick={() => {
-                              localStorage.clear()
-                              window.location.reload()
-                            }}
-                            style={{
-                              padding: '10px 20px',
-                              backgroundColor: '#f44336',
-                              color: 'white',
-                              border: 'none',
-                              borderRadius: '4px',
-                              cursor: 'pointer',
-                              marginTop: '10px'
-                            }}
-                          >
-                            🔄 Limpar Cache e Recarregar
-                          </button>
-                        </div>
-                      )}
-                    </>
-                  )}
-                  
-                  {/* Export Section disponível em todas as abas */}
-                  <ExportSection 
-                    data={data}
-                    metrics={metrics}
+                  <AdvancedFilters
+                    filters={filters}
+                    onFiltersChange={setFilters}
                     operatorMetrics={operatorMetrics}
-                    rankings={rankings}
+                    data={data}
+                    pauseData={data}
+                  />
+                  
+                  <div className="dark-list-controls">
+                    <button 
+                      className="btn btn-dark-list"
+                      onClick={() => setShowDarkList(true)}
+                      title="Gerenciar Dark List de operadores"
+                    >
+                      Gerenciar Operadores
+                    </button>
+                  </div>
+                  
+                  <MetricsDashboard 
+                    metrics={filteredMetrics && Object.keys(filteredMetrics).length > 0 ? filteredMetrics : metrics}
+                    operatorMetrics={filteredOperatorMetrics && Object.keys(filteredOperatorMetrics).length > 0 ? filteredOperatorMetrics : operatorMetrics}
+                    rankings={filteredRankings && filteredRankings.length > 0 ? filteredRankings : rankings}
+                    filteredData={filteredData.length > 0 ? filteredData : data}
+                    data={filteredData.length > 0 ? filteredData : data}
+                    periodo={(() => {
+                      // Se há filtros ativos, sempre usar filteredData (mesmo que vazio)
+                      const currentData = filters.period ? filteredData : data
+                      
+                      
+                      if (!currentData || currentData.length === 0) {
+                        return {
+                          startDate: null,
+                          endDate: null,
+                          totalDays: 0,
+                          totalRecords: 0,
+                          periodLabel: 'Nenhum dado disponível'
+                        }
+                      }
+                      
+                      // Verificar se os dados são objetos ou arrays
+                      const firstItem = currentData[0]
+                      const isObject = typeof firstItem === 'object' && !Array.isArray(firstItem)
+                      
+                      let datas = []
+                      
+                      if (isObject) {
+                        // Dados são objetos - acessar propriedade 'data'
+                        datas = currentData.map(d => d.data).filter(d => d && d.trim() !== '')
+                      } else {
+                        // Dados são arrays - acessar índice 3
+                        datas = currentData.map(d => d[3]).filter(d => d && d.trim() !== '')
+                      }
+                      
+                      if (datas.length === 0) {
+                        return {
+                          startDate: null,
+                          endDate: null,
+                          totalDays: 0,
+                          totalRecords: currentData.length,
+                          periodLabel: 'Datas não disponíveis'
+                        }
+                      }
+                      
+                      // Ordenar datas para encontrar início e fim
+                      const datasUnicas = [...new Set(datas)].sort((a, b) => {
+                        // Converter para Date para ordenação correta
+                        const dateA = new Date(a.split('/').reverse().join('-'))
+                        const dateB = new Date(b.split('/').reverse().join('-'))
+                        return dateA - dateB
+                      })
+                      const startDate = datasUnicas[0]
+                      const endDate = datasUnicas[datasUnicas.length - 1]
+                      
+                      
+                      return {
+                        startDate,
+                        endDate,
+                        totalDays: datasUnicas.length,
+                        totalRecords: currentData.length,
+                        periodLabel: `${startDate} a ${endDate}`
+                      }
+                    })()}
+                  />
+                  
+                  <ExportSection 
+                    data={filteredData.length > 0 ? filteredData : data}
+                    metrics={filteredMetrics || metrics}
+                    operatorMetrics={filteredOperatorMetrics || operatorMetrics}
+                    rankings={filteredRankings || rankings}
                   />
                 </>
-              ) : (
-                <div style={{ 
-                  padding: '40px', 
-                  textAlign: 'center', 
-                  color: '#F3F7FC',
-                  backgroundColor: '#272A30',
-                  borderRadius: '12px',
-                  margin: '20px'
-                }}>
-                  <h2>📊 Carregando dados da planilha...</h2>
+              ) : isLoading ? (
+                <div className="loading-container">
+                  <h2>🔄 Carregando dados da planilha...</h2>
                   <p>Por favor, aguarde enquanto os dados são processados.</p>
-                  {isLoading && <div className="loading-spinner">⏳</div>}
+                  <div className="loading-spinner">⏳</div>
+                </div>
+              ) : (
+                <div className="error-container">
+                  <h2>❌ Erro ao carregar dados</h2>
+                  <p>Não foi possível carregar os dados da planilha.</p>
+                  {errors && errors.length > 0 && (
+                    <div className="error-details">
+                      <p>Detalhes do erro:</p>
+                      <ul>
+                        {errors.map((error, index) => (
+                          <li key={index}>{error}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  <button 
+                    className="btn btn-primary"
+                    onClick={() => window.location.reload()}
+                  >
+                    🔄 Tentar Novamente
+                  </button>
                 </div>
               )}
             </>
@@ -379,12 +638,12 @@ function AppContent() {
           {/* Aba Gráficos Detalhados */}
           {currentView === 'charts' && data && data.length > 0 && (
             <ChartsDetailedTab 
-              data={data}
-              operatorMetrics={operatorMetrics}
-              rankings={rankings}
-              selectedPeriod={selectedPeriod}
+              data={filteredData.length > 0 ? filteredData : data}
+              operatorMetrics={filteredOperatorMetrics || operatorMetrics}
+              rankings={filteredRankings || rankings}
+              selectedPeriod={null}
               isLoading={isLoading}
-              pauseData={data}
+              pauseData={filteredData.length > 0 ? filteredData : data}
             />
           )}
           
@@ -406,11 +665,10 @@ function AppContent() {
           )}
           
           {errors.length > 0 && (
-            <div className="error-summary">
-              <h3>⚠️ Erros encontrados durante o processamento:</h3>
-              <p>Total de erros: {errors.length}</p>
+            <div className="error-container">
+              <h3>Erros encontrados:</h3>
               <details>
-                <summary>Ver detalhes dos erros</summary>
+                <summary>Mostrar erros ({errors.length})</summary>
                 <ul>
                   {errors.slice(0, 10).map((error, index) => (
                     <li key={index}>{error}</li>
@@ -423,16 +681,7 @@ function AppContent() {
         </main>
       </div>
       
-      {/* Dark List Manager */}
-      {showDarkList && (
-        <DarkListManager
-          operators={operators}
-          darkList={darkList}
-          onDarkListChange={updateDarkList}
-          isVisible={showDarkList}
-          onToggle={() => setShowDarkList(!showDarkList)}
-        />
-      )}
+      {/* Dark List Manager removido - todos os operadores são contabilizados normalmente */}
 
       {/* Preferences Manager */}
       <PreferencesManager

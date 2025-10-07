@@ -1,5 +1,152 @@
+// ========================================
+// PROCESSAMENTO DE DADOS - VELOINSIGHTS
+// ========================================
+
+// ========================================
+// SISTEMA DE PAGINAÇÃO E PERFORMANCE
+// ========================================
+
+// Configurações de paginação OTIMIZADAS
+const PAGINATION_CONFIG = {
+  DEFAULT_PAGE_SIZE: 500,    // Reduzido de 1000 para 500
+  MAX_PAGE_SIZE: 2000,       // Reduzido de 5000 para 2000
+  MIN_PAGE_SIZE: 50,         // Reduzido de 100 para 50
+  CHUNK_SIZE: 100,           // Processamento em chunks de 100
+  BATCH_DELAY: 10            // Delay entre batches (ms)
+}
+
+// Cache de métricas para otimização
+const metricsCache = new Map()
+const CACHE_DURATION = 5 * 60 * 1000 // 5 minutos
+
+// Função para gerar chave de cache
+const generateCacheKey = (dataHash, page, pageSize, filters) => {
+  return `${dataHash}_${page}_${pageSize}_${JSON.stringify(filters)}`
+}
+
+// Função para verificar se cache é válido
+const isCacheValid = (cacheEntry) => {
+  if (!cacheEntry) return false
+  return Date.now() - cacheEntry.timestamp < CACHE_DURATION
+}
+
+// Função para gerar hash dos dados
+const generateDataHash = (dados) => {
+  const dataString = JSON.stringify(dados.slice(0, 10)) // Primeiras 10 linhas para hash
+  let hash = 0
+  for (let i = 0; i < dataString.length; i++) {
+    const char = dataString.charCodeAt(i)
+    hash = ((hash << 5) - hash) + char
+    hash = hash & hash // Convert to 32bit integer
+  }
+  return hash.toString()
+}
+
+// Função para processar dados com paginação OTIMIZADA
+export const processarDadosPaginado = async (dados, page = 1, pageSize = PAGINATION_CONFIG.DEFAULT_PAGE_SIZE, filters = {}) => {
+  console.log(`⚡ Processando página ${page} com ${pageSize} registros (OTIMIZADO)...`)
+  
+  const startTime = performance.now()
+  const dataHash = generateDataHash(dados)
+  const cacheKey = generateCacheKey(dataHash, page, pageSize, filters)
+  
+  // Verificar cache
+  const cachedResult = metricsCache.get(cacheKey)
+  if (isCacheValid(cachedResult)) {
+    console.log('✅ Usando cache para métricas')
+    return cachedResult.data
+  }
+
+  // Processamento em chunks assíncronos para melhor performance
+  const processChunk = async (chunk) => {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        const processed = processarDados(chunk)
+        resolve(processed)
+      }, PAGINATION_CONFIG.BATCH_DELAY)
+    })
+  }
+  
+  // Calcular índices de paginação
+  const startIndex = (page - 1) * pageSize
+  const endIndex = startIndex + pageSize
+  const totalRecords = dados.length
+  const totalPages = Math.ceil(totalRecords / pageSize)
+  
+  // Aplicar filtros se necessário
+  let dadosFiltrados = dados
+  if (filters.dateRange) {
+    dadosFiltrados = dados.filter(linha => {
+      const data = linha[3] // Coluna D - Data
+      if (!data) return false
+      const dataObj = new Date(data.split('/').reverse().join('-'))
+      return dataObj >= filters.dateRange.start && dataObj <= filters.dateRange.end
+    })
+  }
+  
+  // Paginar dados
+  const dadosPagina = dadosFiltrados.slice(startIndex, endIndex)
+  
+  // Processar métricas da página usando funções existentes
+  const metricas = calcularMetricasGerais(dadosPagina)
+  const metricasOperadores = calcularMetricasOperadores(dadosPagina)
+  const rankings = calcularRanking(metricasOperadores)
+  
+  const result = {
+    dadosFiltrados: dadosPagina,
+    metricas,
+    metricasOperadores,
+    rankings,
+    operadores: Object.keys(metricasOperadores),
+    pagination: {
+      currentPage: page,
+      pageSize,
+      totalRecords,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPrevPage: page > 1,
+      startIndex: startIndex + 1,
+      endIndex: Math.min(endIndex, totalRecords)
+    },
+    period: {
+      startDate: dadosPagina.length > 0 ? dadosPagina[0][3] : null,
+      endDate: dadosPagina.length > 0 ? dadosPagina[dadosPagina.length - 1][3] : null,
+      totalDays: dadosPagina.length > 0 ? new Set(dadosPagina.map(d => d[3])).size : 0
+    }
+  }
+  
+  // Armazenar no cache
+  metricsCache.set(cacheKey, {
+    data: result,
+    timestamp: Date.now()
+  })
+  
+  const endTime = performance.now()
+  console.log(`✅ Página ${page} processada em ${(endTime - startTime).toFixed(2)}ms`)
+  
+  return result
+}
+
+// Função para limpar cache
+export const clearMetricsCache = () => {
+  metricsCache.clear()
+  console.log('🗑️ Cache de métricas limpo')
+}
+
+// Função para obter estatísticas de cache
+export const getCacheStats = () => {
+  return {
+    size: metricsCache.size,
+    entries: Array.from(metricsCache.keys())
+  }
+}
+
+// ========================================
+// PROCESSAMENTO TRADICIONAL (MANTIDO PARA COMPATIBILIDADE)
+// ========================================
+
 // Função para processar dados da planilha - VERSÃO PERFEITA IMPLEMENTADA
-export const processarDados = (dados) => {
+export const processarDados = (dados, processAllRecords = false) => {
   if (!dados || dados.length === 0) {
     console.log('⚠️ Nenhum dado para processar')
     return {
@@ -10,7 +157,7 @@ export const processarDados = (dados) => {
     }
   }
 
-  console.log(`🔄 Processando ${dados.length} linhas...`)
+  console.log(`🔄 Processando ${dados.length} linhas (${dados.length - 1} registros + 1 cabeçalho)...`)
 
   // Primeira linha são os cabeçalhos
   const cabecalhos = dados[0]
@@ -36,8 +183,13 @@ export const processarDados = (dados) => {
   
   console.log(`📊 Linhas de dados para processar: ${linhasDados.length}`)
 
-  // Função para filtrar dados dos últimos 60 dias
+  // Função para filtrar dados dos últimos 60 dias (ou todos se processAllRecords = true)
   const filtrarUltimos60Dias = (linhas) => {
+    // Se processAllRecords for true, retornar todos os dados sem filtro
+    if (processAllRecords) {
+      console.log(`📅 Processando TODOS OS REGISTROS (${linhas.length} registros históricos)`)
+      return linhas
+    }
     const hoje = new Date()
     const sessentaDiasAtras = new Date(hoje.getTime() - (60 * 24 * 60 * 60 * 1000)) // 60 dias atrás
     
@@ -156,14 +308,8 @@ export const processarDados = (dados) => {
   console.log(`  ❌ Linhas ignoradas: ${linhasIgnoradas}`)
   console.log(`  📋 Total esperado: ${linhasDados.length}`)
   
-  // Debug específico para encontrar diferenças
-  if (linhasProcessadas !== linhasDados.length) {
-    console.log(`🔍 Diferença no processamento: Esperado ${linhasDados.length}, processado ${linhasProcessadas}`)
-    console.log(`🔍 Diferença: ${linhasDados.length - linhasProcessadas} linhas`)
-  }
-
-  console.log(`✅ ${dadosProcessados.length} linhas processadas`)
-  console.log(`👥 ${operadoresEncontrados.size} operadores encontrados`)
+  // A diferença é esperada, pois 'linhasProcessadas' já está filtrada pelos últimos 60 dias.
+  // console.warn(`⚠️ Diferença no processamento: Esperado ${linhasDados.length}, processado ${linhasProcessadas}`)
 
   // Calcular métricas gerais - VERSÃO PERFEITA IMPLEMENTADA
   const metricas = calcularMetricas(dadosProcessados)
@@ -172,18 +318,28 @@ export const processarDados = (dados) => {
   const metricasOperadores = calcularMetricasOperadores(dadosProcessados)
 
   // Calcular ranking
-  console.log('🔍 Debug - Chamando calcularRanking com:', Object.keys(metricasOperadores).length, 'operadores')
-  console.log('🔍 Debug - Primeiro operador:', Object.values(metricasOperadores)[0])
   const rankings = calcularRanking(metricasOperadores)
-  console.log('🔍 Debug - Rankings retornados:', rankings.length, 'itens')
-  console.log('🔍 Debug - Primeiro ranking:', rankings[0])
+
+  // Calcular informações de período
+  const datas = dadosProcessados.map(d => d[3]).filter(d => d)
+  const datasUnicas = [...new Set(datas)].sort()
+  const periodo = {
+    startDate: datasUnicas.length > 0 ? datasUnicas[0] : null,
+    endDate: datasUnicas.length > 0 ? datasUnicas[datasUnicas.length - 1] : null,
+    totalDays: datasUnicas.length,
+    totalRecords: dadosProcessados.length,
+    periodLabel: datasUnicas.length > 0 ? 
+      `${datasUnicas[0]} a ${datasUnicas[datasUnicas.length - 1]}` : 
+      'Período não disponível'
+  }
 
   return {
     dadosFiltrados: dadosProcessados,
     operadores: Array.from(operadoresEncontrados),
     metricas,
     metricasOperadores,
-    rankings
+    rankings,
+    periodo
   }
 }
 
@@ -526,4 +682,1019 @@ const calcularRanking = (metricasOperadores) => {
 
   // Ordenar por score (maior primeiro)
   return rankings.sort((a, b) => parseFloat(b.score) - parseFloat(a.score))
+}
+
+// Função auxiliar para normalização (já no sistema, mas repetida para clareza)
+const normalizar = (valor, min, max) => {
+  if (max === min) return 0.5
+  const norm = (valor - min) / (max - min)
+  return Math.max(0, Math.min(1, norm))
+}
+
+/**
+ * Calcula dados para gráfico "Evolução dos Atendimentos" (linha temporal diária).
+ * @param {Array<Object>} dados - Dados filtrados.
+ * @returns {Object} Dataset Chart.js para linha.
+ */
+export const calcEvolucaoAtendimentos = (dados) => {
+  console.log('🔍 calcEvolucaoAtendimentos - Dados recebidos:', dados?.length)
+  
+  if (!dados || dados.length === 0) {
+    console.log('❌ Nenhum dado disponível para evolução')
+    return {
+      labels: [],
+      datasets: [{
+        label: 'Atendimentos por Dia',
+        data: [],
+        borderColor: 'var(--color-blue-primary)',
+        backgroundColor: 'rgba(22, 52, 255, 0.1)',
+        borderWidth: 3,
+        pointBackgroundColor: 'var(--color-blue-primary)',
+        pointBorderColor: '#ffffff',
+        pointBorderWidth: 2,
+        pointRadius: 6,
+        pointHoverRadius: 8,
+        fill: true,
+        tension: 0.4
+      }],
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { 
+          legend: { display: true },
+          tooltip: { enabled: true }
+        },
+        scales: {
+          x: { display: true },
+          y: { display: true, beginAtZero: true }
+        }
+      }
+    }
+  }
+  
+  const atendimentosPorData = {}
+  dados.forEach((d) => {
+    // Verificar se o campo é 'data' ou 'date'
+    const dataField = d.data || d.date
+    if (!dataField) return
+    
+    const dataISO = new Date(dataField.split('/').reverse().join('-')).toISOString().split('T')[0] // Normaliza DD/MM/YYYY para YYYY-MM-DD
+    if (!atendimentosPorData[dataISO]) atendimentosPorData[dataISO] = 0
+    // Verificar se há tempo falado ou duração
+    const tempoFalado = d.tempoFalado || d.duration_minutes || d.tempoTotal || 0
+    if (tempoFalado > 0) atendimentosPorData[dataISO]++
+  })
+
+  const labels = Object.keys(atendimentosPorData).sort()
+  const data = labels.map((label) => atendimentosPorData[label])
+  
+  console.log('🔍 calcEvolucaoAtendimentos - Resultado:', { labels: labels.length, data: data.length })
+
+  return {
+    labels,
+    datasets: [{
+      label: '📈 Evolução dos Atendimentos',
+      data,
+      borderColor: 'var(--color-primary)',
+      backgroundColor: 'rgba(22, 52, 255, 0.08)',
+      borderWidth: 2,
+      pointBackgroundColor: 'var(--color-primary)',
+      pointBorderColor: '#ffffff',
+      pointBorderWidth: 2,
+      pointRadius: 4,
+      pointHoverRadius: 6,
+      pointHoverBackgroundColor: 'var(--color-primary-light)',
+      pointHoverBorderColor: '#ffffff',
+      pointHoverBorderWidth: 3,
+      fill: true,
+      tension: 0.3,
+      shadowOffsetX: 0,
+      shadowOffsetY: 4,
+      shadowBlur: 12,
+      shadowColor: 'rgba(22, 52, 255, 0.15)'
+    }],
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: {
+        intersect: false,
+        mode: 'index'
+      },
+      animation: {
+        duration: 3000,
+        easing: 'easeInOutQuart',
+        delay: (context) => context.dataIndex * 100,
+        onComplete: function() {
+          // Efeito de glitch após animação
+          this.chart.canvas.style.filter = 'hue-rotate(180deg) brightness(1.2)';
+          setTimeout(() => {
+            this.chart.canvas.style.filter = 'none';
+          }, 200);
+        }
+      },
+      plugins: {
+        zoom: { zoom: { mode: 'x' } },
+        legend: {
+          display: true,
+          position: 'top',
+          labels: {
+            usePointStyle: true,
+            padding: 25,
+            font: {
+              size: 18,
+              weight: 'bold',
+              family: "'Courier New', monospace"
+            },
+            color: 'var(--color-primary)',
+            generateLabels: function(chart) {
+              return [{
+                text: '📈 Evolução dos Atendimentos',
+                fillStyle: 'var(--color-primary)',
+                strokeStyle: '#ffffff',
+                lineWidth: 2,
+                pointStyle: 'circle',
+                hidden: false,
+                index: 0
+              }]
+            }
+          }
+        },
+        tooltip: {
+          enabled: true,
+          backgroundColor: 'rgba(0, 0, 0, 0.95)',
+          titleColor: 'var(--color-primary)',
+          bodyColor: '#ffffff',
+          borderColor: 'var(--color-primary)',
+          borderWidth: 2,
+          cornerRadius: 8,
+          displayColors: true,
+          padding: 15,
+          titleFont: {
+            size: 16,
+            weight: 'bold',
+            family: "'Courier New', monospace"
+          },
+          bodyFont: {
+            size: 14,
+            weight: '500',
+            family: "'Courier New', monospace"
+          },
+          callbacks: {
+            title: function(context) {
+              return `📅 ${context[0].label}`
+            },
+            label: function(context) {
+              const value = context.parsed.y
+              const trend = context.dataIndex > 0 ? 
+                (value > context.dataset.data[context.dataIndex - 1] ? '📈' : 
+                 value < context.dataset.data[context.dataIndex - 1] ? '📉' : '➡️') : '🆕'
+              return `${trend} ${value} atendimentos`
+            },
+            afterLabel: function(context) {
+              if (context.dataIndex > 0) {
+                const prevValue = context.dataset.data[context.dataIndex - 1]
+                const currentValue = context.parsed.y
+                const change = currentValue - prevValue
+                const changePercent = ((change / prevValue) * 100).toFixed(1)
+                return change > 0 ? 
+                  `📊 +${change} (+${changePercent}%)` : 
+                  `📊 ${change} (${changePercent}%)`
+              }
+              return ''
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          display: true,
+          grid: {
+            color: 'rgba(22, 52, 255, 0.2)',
+            lineWidth: 1,
+            drawBorder: false
+          },
+          ticks: {
+            color: 'var(--color-primary)',
+            font: {
+              size: 12,
+              weight: 'bold',
+              family: "'Courier New', monospace"
+            },
+            padding: 10
+          },
+          title: {
+            display: true,
+            text: 'Período',
+            color: 'var(--color-primary)',
+            font: {
+              size: 14,
+              weight: 'bold',
+              family: "'Courier New', monospace"
+            }
+          }
+        },
+        y: {
+          display: true,
+          beginAtZero: true,
+          grid: {
+            color: 'rgba(22, 52, 255, 0.2)',
+            lineWidth: 1,
+            drawBorder: false
+          },
+          ticks: {
+            color: 'var(--color-primary)',
+            font: {
+              size: 12,
+              weight: 'bold',
+              family: "'Courier New', monospace"
+            },
+            padding: 10,
+            callback: function(value) {
+              return `${value}`
+            }
+          },
+          title: {
+            display: true,
+            text: 'Total de Atendimentos',
+            color: 'var(--color-primary)',
+            font: {
+              size: 14,
+              weight: 'bold',
+              family: "'Courier New', monospace"
+            }
+          }
+        }
+      },
+      elements: {
+        point: {
+          hoverBackgroundColor: '#ff00ff',
+          hoverBorderColor: '#ffffff',
+          hoverBorderWidth: 3,
+          hoverRadius: 10
+        },
+        line: {
+          borderCapStyle: 'round',
+          borderJoinStyle: 'round'
+        }
+      },
+      onClick: (e) => { /* Drill-down: mostrar detalhes do dia */ }
+    }
+  }
+}
+
+/**
+ * Calcula dados para gráfico "Top Operadores" (barra por total de atendimentos).
+ * @param {Object} opMetrics - Métricas por operador.
+ * @param {number} topN - Número de tops (default 5).
+ * @returns {Object} Dataset Chart.js para barra.
+ */
+export const calcTopOperadores = (opMetrics, topN = 5) => {
+  console.log('🔍 calcTopOperadores - OperatorMetrics recebidos:', Object.keys(opMetrics).length)
+  
+  if (!opMetrics || Object.keys(opMetrics).length === 0) {
+    console.log('❌ Nenhum operador disponível')
+    return {
+      labels: [],
+      datasets: [{
+        label: 'Total Atendimentos',
+        data: [],
+        backgroundColor: 'var(--color-blue-primary)',
+        borderColor: 'var(--color-blue-primary)',
+        borderWidth: 2
+      }],
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        indexAxis: 'y',
+        plugins: { 
+          legend: { display: true },
+          tooltip: { enabled: true }
+        },
+        scales: {
+          x: { display: true, beginAtZero: true },
+          y: { display: true }
+        }
+      }
+    }
+  }
+  
+  const validos = Object.values(opMetrics)
+    .filter((op) => {
+      const operador = op.operador || op.operator || 'Não informado'
+      const totalAtendimentos = op.totalAtendimentos || op.totalCalls || 0
+      return totalAtendimentos > 0 && 
+             !operador.toLowerCase().includes('desligado') && 
+             !operador.toLowerCase().includes('sem operador')
+    })
+    .sort((a, b) => (b.totalAtendimentos || b.totalCalls || 0) - (a.totalAtendimentos || a.totalCalls || 0))
+    .slice(0, topN)
+
+  const labels = validos.map((op) => op.operador || op.operator || 'Não informado')
+  const data = validos.map((op) => op.totalAtendimentos || op.totalCalls || 0)
+  
+  console.log('🔍 calcTopOperadores - Resultado:', { labels: labels.length, data: data.length })
+
+  return {
+    labels,
+    datasets: [{
+      label: '🏆 Top Operadores',
+      data,
+      backgroundColor: [
+        'rgba(22, 52, 255, 0.8)',
+        'rgba(21, 162, 55, 0.8)',
+        'rgba(252, 194, 0, 0.8)',
+        'rgba(245, 158, 11, 0.8)',
+        'rgba(239, 68, 68, 0.8)'
+      ],
+      borderColor: [
+        'var(--color-primary)',
+        'var(--color-secondary)',
+        'var(--color-accent)',
+        'var(--color-warning)',
+        'var(--color-error)'
+      ],
+      borderWidth: 3,
+      borderRadius: 8,
+      borderSkipped: false,
+      shadowOffsetX: 0,
+      shadowOffsetY: 0,
+      shadowBlur: 15,
+      shadowColor: 'rgba(22, 52, 255, 0.5)',
+      hoverBackgroundColor: [
+        'rgba(22, 52, 255, 1)',
+        'rgba(21, 162, 55, 1)',
+        'rgba(252, 194, 0, 1)',
+        'rgba(245, 158, 11, 1)',
+        'rgba(239, 68, 68, 1)'
+      ],
+      hoverBorderColor: '#ffffff',
+      hoverBorderWidth: 4,
+      hoverShadowOffsetX: 0,
+      hoverShadowOffsetY: 0,
+      hoverShadowBlur: 25,
+      hoverShadowColor: 'rgba(255, 255, 255, 0.8)'
+    }],
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      indexAxis: 'y',
+      animation: {
+        duration: 2000,
+        easing: 'easeInOutQuart',
+        delay: (context) => context.dataIndex * 150,
+        onComplete: function() {
+          // Efeito de scan após animação
+          this.chart.canvas.style.filter = 'brightness(1.3) contrast(1.2)';
+          setTimeout(() => {
+            this.chart.canvas.style.filter = 'none';
+          }, 300);
+        }
+      },
+      plugins: { 
+        zoom: { zoom: { mode: 'y' } },
+        legend: {
+          display: true,
+          position: 'top',
+          labels: {
+            usePointStyle: true,
+            padding: 25,
+            font: { 
+              size: 18, 
+              weight: 'bold',
+              family: "'Courier New', monospace"
+            },
+            color: 'var(--color-primary)',
+            generateLabels: function(chart) {
+              return [{
+                text: '🏆 Top Operadores',
+                fillStyle: '#00ffff',
+                strokeStyle: '#ffffff',
+                lineWidth: 2,
+                pointStyle: 'rect',
+                hidden: false,
+                index: 0
+              }]
+            }
+          }
+        },
+        tooltip: {
+          enabled: true,
+          backgroundColor: 'rgba(0, 0, 0, 0.95)',
+          titleColor: 'var(--color-primary)',
+          bodyColor: '#ffffff',
+          borderColor: 'var(--color-primary)',
+          borderWidth: 2,
+          cornerRadius: 8,
+          displayColors: true,
+          padding: 15,
+          titleFont: {
+            size: 16,
+            weight: 'bold',
+            family: "'Courier New', monospace"
+          },
+          bodyFont: {
+            size: 14,
+            weight: '500',
+            family: "'Courier New', monospace"
+          },
+          callbacks: {
+            title: function(context) {
+              const rank = context[0].dataIndex + 1
+              const medals = ['🥇', '🥈', '🥉', '🏅', '🏅']
+              return `${medals[rank - 1] || '🏅'} ${context[0].label}`
+            },
+            label: function(context) {
+              const value = context.parsed.x
+              const percentage = ((value / Math.max(...context.dataset.data)) * 100).toFixed(1)
+              return `📞 ${value} atendimentos (${percentage}% do líder)`
+            },
+            afterLabel: function(context) {
+              const rank = context.dataIndex + 1
+              const total = context.dataset.data.length
+              return `📊 Posição: ${rank}º de ${total} operadores`
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          display: true,
+          beginAtZero: true,
+          grid: {
+            color: 'rgba(22, 52, 255, 0.2)',
+            lineWidth: 1,
+            drawBorder: false
+          },
+          ticks: {
+            color: 'var(--color-primary)',
+            font: { 
+              size: 12, 
+              weight: 'bold',
+              family: "'Courier New', monospace"
+            },
+            padding: 10,
+            callback: function(value) {
+              return `${value}`
+            }
+          },
+          title: {
+            display: true,
+            text: 'Total de Atendimentos',
+            color: 'var(--color-primary)',
+            font: {
+              size: 14,
+              weight: 'bold',
+              family: "'Courier New', monospace"
+            }
+          }
+        },
+        y: {
+          display: true,
+          grid: {
+            color: 'rgba(22, 52, 255, 0.2)',
+            lineWidth: 1,
+            drawBorder: false
+          },
+          ticks: {
+            color: 'var(--color-primary)',
+            font: { 
+              size: 12, 
+              weight: 'bold',
+              family: "'Courier New', monospace"
+            },
+            padding: 10
+          },
+          title: {
+            display: true,
+            text: 'Operadores',
+            color: 'var(--color-primary)',
+            font: {
+              size: 14,
+              weight: 'bold',
+              family: "'Courier New', monospace"
+            }
+          }
+        }
+      },
+      elements: {
+        bar: {
+          borderRadius: 8,
+          borderSkipped: false
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Calcula dados para gráfico "Performance dos Melhores" (multi-barra com TMA/notas para top 5).
+ * @param {Object} opMetrics - Métricas por operador.
+ * @param {number} topN - Número de tops (default 5).
+ * @returns {Object} Dataset Chart.js para barra agrupada.
+ */
+export const calcPerformanceMelhores = (opMetrics, topN = 5) => {
+  console.log('🔍 calcPerformanceMelhores - OperatorMetrics recebidos:', Object.keys(opMetrics).length)
+  
+  const validos = Object.values(opMetrics)
+    .filter((op) => {
+      const operador = op.operador || op.operator || 'Não informado'
+      const totalAtendimentos = op.totalAtendimentos || op.totalCalls || 0
+      return totalAtendimentos > 0 && 
+             !operador.toLowerCase().includes('desligado') && 
+             !operador.toLowerCase().includes('sem operador')
+    })
+    .sort((a, b) => (b.totalAtendimentos || b.totalCalls || 0) - (a.totalAtendimentos || a.totalCalls || 0))
+    .slice(0, topN)
+
+  const labels = validos.map((op) => op.operador || op.operator || 'Não informado')
+  const tmaData = validos.map((op) => op.tempoMedio || op.avgDuration || 0)
+  const notaAtendData = validos.map((op) => op.notaMediaAtendimento || op.avgRatingAttendance || 0)
+  const notaSoluData = validos.map((op) => op.notaMediaSolucao || op.avgRatingSolution || 0)
+  
+  console.log('🔍 calcPerformanceMelhores - Resultado:', { labels: labels.length, tmaData: tmaData.length })
+
+  return {
+    labels,
+    datasets: [
+      {
+        label: '⏱️ TMA (min)',
+        data: tmaData,
+        backgroundColor: 'rgba(22, 52, 255, 0.8)',
+        borderColor: 'var(--color-primary)',
+        borderWidth: 3,
+        borderRadius: 8,
+        borderSkipped: false,
+        shadowOffsetX: 0,
+        shadowOffsetY: 0,
+        shadowBlur: 15,
+        shadowColor: 'rgba(22, 52, 255, 0.5)',
+        hoverBackgroundColor: 'rgba(22, 52, 255, 1)',
+        hoverBorderColor: '#ffffff',
+        hoverBorderWidth: 4,
+        hoverShadowOffsetX: 0,
+        hoverShadowOffsetY: 0,
+        hoverShadowBlur: 25,
+        hoverShadowColor: 'rgba(22, 52, 255, 0.8)'
+      },
+      {
+        label: '⭐ Nota Atendimento',
+        data: notaAtendData,
+        backgroundColor: 'rgba(21, 162, 55, 0.8)',
+        borderColor: 'var(--color-secondary)',
+        borderWidth: 3,
+        borderRadius: 8,
+        borderSkipped: false,
+        shadowOffsetX: 0,
+        shadowOffsetY: 0,
+        shadowBlur: 15,
+        shadowColor: 'rgba(21, 162, 55, 0.5)',
+        hoverBackgroundColor: 'rgba(21, 162, 55, 1)',
+        hoverBorderColor: '#ffffff',
+        hoverBorderWidth: 4,
+        hoverShadowOffsetX: 0,
+        hoverShadowOffsetY: 0,
+        hoverShadowBlur: 25,
+        hoverShadowColor: 'rgba(21, 162, 55, 0.8)'
+      },
+      {
+        label: '🎯 Nota Solução',
+        data: notaSoluData,
+        backgroundColor: 'rgba(252, 194, 0, 0.8)',
+        borderColor: 'var(--color-accent)',
+        borderWidth: 3,
+        borderRadius: 8,
+        borderSkipped: false,
+        shadowOffsetX: 0,
+        shadowOffsetY: 0,
+        shadowBlur: 15,
+        shadowColor: 'rgba(252, 194, 0, 0.5)',
+        hoverBackgroundColor: 'rgba(252, 194, 0, 1)',
+        hoverBorderColor: '#ffffff',
+        hoverBorderWidth: 4,
+        hoverShadowOffsetX: 0,
+        hoverShadowOffsetY: 0,
+        hoverShadowBlur: 25,
+        hoverShadowColor: 'rgba(252, 194, 0, 0.8)'
+      }
+    ],
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: {
+        duration: 2500,
+        easing: 'easeInOutQuart',
+        delay: (context) => context.dataIndex * 100,
+        onComplete: function() {
+          // Efeito de matrix após animação
+          this.chart.canvas.style.filter = 'hue-rotate(90deg) saturate(1.5)';
+          setTimeout(() => {
+            this.chart.canvas.style.filter = 'none';
+          }, 400);
+        }
+      },
+      scales: { 
+        y: { 
+          display: true,
+          beginAtZero: true,
+          grid: {
+            color: 'rgba(22, 52, 255, 0.2)',
+            lineWidth: 1,
+            drawBorder: false
+          },
+          ticks: {
+            color: 'var(--color-primary)',
+            font: { 
+              size: 12, 
+              weight: 'bold',
+              family: "'Courier New', monospace"
+            },
+            padding: 10
+          },
+          title: {
+            display: true,
+            text: 'Valores',
+            color: 'var(--color-primary)',
+            font: {
+              size: 14,
+              weight: 'bold',
+              family: "'Courier New', monospace"
+            }
+          }
+        },
+        x: { 
+          display: true,
+          grid: {
+            color: 'rgba(22, 52, 255, 0.2)',
+            lineWidth: 1,
+            drawBorder: false
+          },
+          ticks: {
+            color: 'var(--color-primary)',
+            font: { 
+              size: 12, 
+              weight: 'bold',
+              family: "'Courier New', monospace"
+            },
+            padding: 10
+          },
+          title: {
+            display: true,
+            text: 'Operadores',
+            color: 'var(--color-primary)',
+            font: {
+              size: 14,
+              weight: 'bold',
+              family: "'Courier New', monospace"
+            }
+          }
+        }
+      },
+      plugins: {
+        zoom: { zoom: { mode: 'xy' } },
+        legend: {
+          display: true,
+          position: 'top',
+          labels: {
+            usePointStyle: true,
+            padding: 25,
+            font: { 
+              size: 18, 
+              weight: 'bold',
+              family: "'Courier New', monospace"
+            },
+            color: '#00ffff'
+          }
+        },
+        tooltip: {
+          enabled: true,
+          backgroundColor: 'rgba(0, 0, 0, 0.95)',
+          titleColor: 'var(--color-primary)',
+          bodyColor: '#ffffff',
+          borderColor: 'var(--color-primary)',
+          borderWidth: 2,
+          cornerRadius: 8,
+          displayColors: true,
+          padding: 15,
+          titleFont: {
+            size: 16,
+            weight: 'bold',
+            family: "'Courier New', monospace"
+          },
+          bodyFont: {
+            size: 14,
+            weight: '500',
+            family: "'Courier New', monospace"
+          },
+          callbacks: {
+            title: function(context) {
+              return `👤 ${context[0].label}`
+            },
+            label: function(context) {
+              const labels = ['⏱️ TMA (min)', '⭐ Nota Atendimento', '🎯 Nota Solução']
+              const value = context.parsed.y
+              const label = labels[context.datasetIndex]
+              
+              if (context.datasetIndex === 0) { // TMA
+                return `${label}: ${value} minutos`
+              } else { // Notas
+                const stars = '⭐'.repeat(Math.round(value))
+                return `${label}: ${value}/5 ${stars}`
+              }
+            },
+            afterLabel: function(context) {
+              const value = context.parsed.y
+              const datasetIndex = context.datasetIndex
+              
+              if (datasetIndex === 0) { // TMA
+                if (value < 5) return '🚀 Excelente tempo!'
+                if (value < 10) return '👍 Bom tempo'
+                return '⚠️ Tempo alto'
+              } else { // Notas
+                if (value >= 4.5) return '🏆 Excelente!'
+                if (value >= 4) return '👍 Muito bom'
+                if (value >= 3) return '⚠️ Regular'
+                return '❌ Precisa melhorar'
+              }
+            }
+          }
+        }
+      },
+      elements: {
+        bar: {
+          borderRadius: 8,
+          borderSkipped: false
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Calcula dados para gráfico "Ranking de Qualidade" (barra ordenada por score).
+ * @param {Object} opMetrics - Métricas por operador.
+ * @returns {Object} Dataset Chart.js para barra.
+ */
+export const calcRankingQualidade = (opMetrics) => {
+  console.log('🔍 calcRankingQualidade - OperatorMetrics recebidos:', Object.keys(opMetrics).length)
+  
+  // Calcula scores usando fórmula oficial
+  const totals = Object.values(opMetrics).map((op) => op.totalAtendimentos || op.totalCalls || 0)
+  const tempos = Object.values(opMetrics).map((op) => op.tempoMedio || op.avgDuration || 0)
+  const notasAtend = Object.values(opMetrics).map((op) => op.notaMediaAtendimento || op.avgRatingAttendance || 0)
+  const notasSolu = Object.values(opMetrics).map((op) => op.notaMediaSolucao || op.avgRatingSolution || 0)
+  const pausas = Object.values(opMetrics).map((op) => op.tempoMedioPausado || op.avgPauseTime || 0) // Se disponível
+
+  const minTotal = Math.min(...totals), maxTotal = Math.max(...totals)
+  const minTempo = Math.min(...tempos), maxTempo = Math.max(...tempos)
+  const minNotaAtend = Math.min(...notasAtend), maxNotaAtend = Math.max(...notasAtend)
+  const minNotaSolu = Math.min(...notasSolu), maxNotaSolu = Math.max(...notasSolu)
+  const minPausa = Math.min(...pausas), maxPausa = Math.max(...pausas)
+
+  const ranking = Object.values(opMetrics)
+    .filter((op) => {
+      const operador = op.operador || op.operator || 'Não informado'
+      const totalAtendimentos = op.totalAtendimentos || op.totalCalls || 0
+      return totalAtendimentos > 0 && 
+             !operador.toLowerCase().includes('desligado') && 
+             !operador.toLowerCase().includes('sem operador')
+    })
+    .map((op) => {
+      const normTotal = normalizar(op.totalAtendimentos || op.totalCalls || 0, minTotal, maxTotal)
+      const normTempo = normalizar(op.tempoMedio || op.avgDuration || 0, minTempo, maxTempo)
+      const normNotaAtend = normalizar(op.notaMediaAtendimento || op.avgRatingAttendance || 0, minNotaAtend, maxNotaAtend)
+      const normNotaSolu = normalizar(op.notaMediaSolucao || op.avgRatingSolution || 0, minNotaSolu, maxNotaSolu)
+      const normPausa = normalizar(op.tempoMedioPausado || op.avgPauseTime || 0, minPausa, maxPausa)
+
+      const score = 0.35 * normTotal +
+                    0.20 * (1 - normTempo) +
+                    0.20 * normNotaAtend +
+                    0.20 * normNotaSolu -
+                    0.05 * normPausa
+      return { operador: op.operador || op.operator || 'Não informado', score: Math.max(0, Math.min(100, score * 100)) }
+    })
+    .sort((a, b) => b.score - a.score)
+
+  const labels = ranking.map((r) => r.operador)
+  const data = ranking.map((r) => r.score)
+  
+  console.log('🔍 calcRankingQualidade - Resultado:', { labels: labels.length, data: data.length })
+
+  return {
+    labels,
+    datasets: [{
+      label: '📊 Score de Qualidade',
+      data,
+      backgroundColor: data.map((score, index) => {
+        if (score >= 80) return 'rgba(22, 52, 255, 0.8)' // Azul para excelente
+        if (score >= 60) return 'rgba(21, 162, 55, 0.8)' // Verde para bom
+        if (score >= 40) return 'rgba(252, 194, 0, 0.8)' // Amarelo para regular
+        return 'rgba(239, 68, 68, 0.8)' // Vermelho para baixo
+      }),
+      borderColor: data.map((score, index) => {
+        if (score >= 80) return 'var(--color-primary)'
+        if (score >= 60) return 'var(--color-secondary)'
+        if (score >= 40) return 'var(--color-accent)'
+        return 'var(--color-error)'
+      }),
+      borderWidth: 3,
+      borderRadius: 8,
+      borderSkipped: false,
+      shadowOffsetX: 0,
+      shadowOffsetY: 0,
+      shadowBlur: 15,
+      shadowColor: 'rgba(22, 52, 255, 0.5)',
+      hoverBackgroundColor: data.map((score, index) => {
+        if (score >= 80) return 'rgba(22, 52, 255, 1)'
+        if (score >= 60) return 'rgba(21, 162, 55, 1)'
+        if (score >= 40) return 'rgba(252, 194, 0, 1)'
+        return 'rgba(239, 68, 68, 1)'
+      }),
+      hoverBorderColor: '#ffffff',
+      hoverBorderWidth: 4,
+      hoverShadowOffsetX: 0,
+      hoverShadowOffsetY: 0,
+      hoverShadowBlur: 25,
+      hoverShadowColor: 'rgba(255, 255, 255, 0.8)'
+    }],
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      indexAxis: 'y',
+      animation: {
+        duration: 3000,
+        easing: 'easeInOutQuart',
+        delay: (context) => context.dataIndex * 50,
+        onComplete: function() {
+          // Efeito de holograma após animação
+          this.chart.canvas.style.filter = 'hue-rotate(360deg) brightness(1.5) contrast(1.3)';
+          setTimeout(() => {
+            this.chart.canvas.style.filter = 'none';
+          }, 500);
+        }
+      },
+      plugins: { 
+        zoom: { zoom: { mode: 'y' } },
+        legend: {
+          display: true,
+          position: 'top',
+          labels: {
+            usePointStyle: true,
+            padding: 25,
+            font: { 
+              size: 18, 
+              weight: 'bold',
+              family: "'Courier New', monospace"
+            },
+            color: 'var(--color-primary)',
+            generateLabels: function(chart) {
+              return [{
+                text: '📊 Score de Qualidade',
+                fillStyle: '#00ffff',
+                strokeStyle: '#ffffff',
+                lineWidth: 2,
+                pointStyle: 'rect',
+                hidden: false,
+                index: 0
+              }]
+            }
+          }
+        },
+        tooltip: {
+          enabled: true,
+          backgroundColor: 'rgba(0, 0, 0, 0.95)',
+          titleColor: 'var(--color-primary)',
+          bodyColor: '#ffffff',
+          borderColor: 'var(--color-primary)',
+          borderWidth: 2,
+          cornerRadius: 8,
+          displayColors: true,
+          padding: 15,
+          titleFont: {
+            size: 16,
+            weight: 'bold',
+            family: "'Courier New', monospace"
+          },
+          bodyFont: {
+            size: 14,
+            weight: '500',
+            family: "'Courier New', monospace"
+          },
+          callbacks: {
+            title: function(context) {
+              const rank = context[0].dataIndex + 1
+              const medals = ['🥇', '🥈', '🥉', '🏅', '🏅']
+              return `${medals[rank - 1] || '🏅'} ${context[0].label}`
+            },
+            label: function(context) {
+              const score = context.parsed.x
+              let level = ''
+              let emoji = ''
+              if (score >= 80) {
+                level = '💎 NEURAL PERFEITO'
+                emoji = '🌟'
+              } else if (score >= 60) {
+                level = '🔮 NEURAL ALTO'
+                emoji = '⚡'
+              } else if (score >= 40) {
+                level = '⚡ NEURAL MÉDIO'
+                emoji = '🔮'
+              } else {
+                level = '❌ NEURAL BAIXO'
+                emoji = '📉'
+              }
+              return `📊 Score: ${score.toFixed(1)}%`
+            },
+            afterLabel: function(context) {
+              const score = context.parsed.x
+              let quality = ''
+              let emoji = ''
+              
+              if (score >= 80) {
+                quality = 'Excelente'
+                emoji = '🏆'
+              } else if (score >= 60) {
+                quality = 'Bom'
+                emoji = '👍'
+              } else if (score >= 40) {
+                quality = 'Regular'
+                emoji = '⚠️'
+              } else {
+                quality = 'Baixo'
+                emoji = '❌'
+              }
+              
+              return `${emoji} Qualidade: ${quality}`
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          display: true,
+          beginAtZero: true,
+          max: 100,
+          grid: {
+            color: 'rgba(22, 52, 255, 0.2)',
+            lineWidth: 1,
+            drawBorder: false
+          },
+          ticks: {
+            color: 'var(--color-primary)',
+            font: { 
+              size: 12, 
+              weight: 'bold',
+              family: "'Courier New', monospace"
+            },
+            padding: 10,
+            callback: function(value) {
+              return `${value}%`
+            }
+          },
+          title: {
+            display: true,
+            text: 'Score (%)',
+            color: 'var(--color-primary)',
+            font: {
+              size: 14,
+              weight: 'bold',
+              family: "'Courier New', monospace"
+            }
+          }
+        },
+        y: {
+          display: true,
+          grid: {
+            color: 'rgba(22, 52, 255, 0.2)',
+            lineWidth: 1,
+            drawBorder: false
+          },
+          ticks: {
+            color: 'var(--color-primary)',
+            font: { 
+              size: 12, 
+              weight: 'bold',
+              family: "'Courier New', monospace"
+            },
+            padding: 10
+          },
+          title: {
+            display: true,
+            text: 'Operadores',
+            color: 'var(--color-primary)',
+            font: {
+              size: 14,
+              weight: 'bold',
+              family: "'Courier New', monospace"
+            }
+          }
+        }
+      },
+      elements: {
+        bar: {
+          borderRadius: 8,
+          borderSkipped: false
+        }
+      }
+    }
+  }
 }

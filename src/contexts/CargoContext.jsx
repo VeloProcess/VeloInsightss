@@ -152,7 +152,14 @@ export const CargoProvider = ({ children }) => {
   // Função para verificar permissão
   const hasPermission = (permission) => {
     if (!selectedCargo) {
-      console.error('❌ hasPermission: selectedCargo não definido')
+      // Se não há cargo selecionado mas há usuário logado, usar cargo padrão do usuário
+      if (userEmail) {
+        const userCargo = getUserCargo(userEmail)
+        if (userCargo) {
+          const cargoConfig = getCargoConfig(userCargo)
+          return cargoConfig.permissions[permission] || false
+        }
+      }
       return false
     }
     
@@ -192,9 +199,24 @@ export const CargoProvider = ({ children }) => {
     return false
   }
 
+  // Função para obter cargo atual (selecionado ou padrão do usuário)
+  const getCurrentCargo = () => {
+    if (selectedCargo) {
+      return selectedCargo
+    }
+    
+    // Se não há cargo selecionado mas há usuário logado, usar cargo padrão do usuário
+    if (userEmail) {
+      return getUserCargo(userEmail)
+    }
+    
+    return null
+  }
+
   // Função para obter cargo config
   const getCurrentCargoConfig = () => {
-    return getCargoConfig(selectedCargo)
+    const currentCargo = getCurrentCargo()
+    return getCargoConfig(currentCargo)
   }
 
   // Função para obter usuários que o usuário atual pode ver
@@ -244,6 +266,7 @@ export const CargoProvider = ({ children }) => {
     logout,
     hasPermission,
     canViewUserData,
+    getCurrentCargo,
     getCurrentCargoConfig,
     getVisibleUsers,
     getAvailableCargos,

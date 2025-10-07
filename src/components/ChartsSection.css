@@ -39,6 +39,17 @@
 }
 
 /* Responsividade */
+@media (max-width: 1200px) {
+  .charts-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+  }
+  
+  .chart-container {
+    height: 350px;
+  }
+}
+
 @media (max-width: 768px) {
   .charts-grid {
     grid-template-columns: 1fr;
@@ -53,21 +64,31 @@
   .charts-grid .card canvas {
     max-height: 250px;
   }
+  
+  .chart-container {
+    height: 280px;
+  }
 }
 
 @media (max-width: 600px) {
   .charts-grid {
     grid-template-columns: 1fr;
-    gap: 10px;
+    gap: 12px;
   }
   
   .chart-container {
     padding: 12px;
     min-height: 220px;
+    height: 250px;
   }
   
   .chart-container canvas {
     max-height: 200px;
+  }
+  
+  .charts-grid .card {
+    padding: 12px;
+    min-height: 250px;
   }
 }
 
@@ -79,9 +100,15 @@
   .chart-container {
     padding: 10px;
     min-height: 200px;
+    height: 220px;
   }
   
   .chart-container canvas {
     max-height: 180px;
+  }
+  
+  .charts-grid .card {
+    padding: 10px;
+    min-height: 220px;
   }
 }
