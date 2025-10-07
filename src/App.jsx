@@ -30,6 +30,7 @@ function AppContent() {
   const [showDarkList, setShowDarkList] = useState(false)
   const [showNewLogin, setShowNewLogin] = useState(false) // Para mostrar a nova tela de login
   const [showPreferences, setShowPreferences] = useState(false)
+  const [expandedOperator, setExpandedOperator] = useState(null) // Para controlar qual operador está expandido
   
   // Hook do sistema de cargos - apenas para cargo selecionado
   const { 
@@ -68,6 +69,13 @@ function AppContent() {
     totalRecordsToProcess,
     loadAllRecordsWithProgress
   } = useGoogleSheetsDirectSimple()
+
+  // Reset allRecordsLoadingStarted quando o filtro muda
+  useEffect(() => {
+    if (filters.period !== 'allRecords') {
+      setAllRecordsLoadingStarted(false)
+    }
+  }, [filters.period])
 
   // Processar dados quando filtros mudam
   useEffect(() => {
@@ -281,6 +289,20 @@ function AppContent() {
           ? (temposEspera.reduce((sum, tempo) => sum + tempo, 0) / temposEspera.length).toFixed(1)
           : '0.0'
         
+        // Calcular chamadas avaliadas (que têm nota de 1-5 em atendimento OU solução)
+        const chamadasAvaliadas = filtered.filter(item => {
+          const temNotaAtendimento = item.notaAtendimento && 
+            !isNaN(parseFloat(item.notaAtendimento)) && 
+            parseFloat(item.notaAtendimento) >= 1 && 
+            parseFloat(item.notaAtendimento) <= 5
+          
+          const temNotaSolucao = item.notaSolucao && 
+            !isNaN(parseFloat(item.notaSolucao)) && 
+            parseFloat(item.notaSolucao) >= 1 && 
+            parseFloat(item.notaSolucao) <= 5
+          
+          return temNotaAtendimento || temNotaSolucao
+        }).length
         
         // Calcular métricas completas
         const metricasFiltradas = {
@@ -293,7 +315,8 @@ function AppContent() {
           notaMediaAtendimento,
           notaMediaSolucao,
           duracaoMediaAtendimento: tempoMedioFalado,
-          tempoMedioEspera: tempoMedioEspera
+          tempoMedioEspera: tempoMedioEspera,
+          chamadasAvaliadas
         }
         
         // Calcular métricas por operador
@@ -309,7 +332,8 @@ function AppContent() {
                 abandonadas: 0,
                 notasAtendimento: [],
                 notasSolucao: [],
-                temposFalado: []
+                temposFalado: [],
+                chamadasAvaliadas: 0
               })
             }
             
@@ -326,8 +350,26 @@ function AppContent() {
             if (item.notaSolucao && !isNaN(parseFloat(item.notaSolucao))) {
               op.notasSolucao.push(parseFloat(item.notaSolucao))
             }
-            if (item.tempoFalado && !isNaN(parseFloat(item.tempoFalado))) {
-              op.temposFalado.push(parseFloat(item.tempoFalado))
+            if (item.tempoFalado && item.tempoFalado !== '00:00:00') {
+              const tempoEmMinutos = tempoParaMinutos(item.tempoFalado)
+              if (tempoEmMinutos > 0) {
+                op.temposFalado.push(tempoEmMinutos)
+              }
+            }
+            
+            // Contar chamadas avaliadas (que têm nota de 1-5 em atendimento OU solução)
+            const temNotaAtendimento = item.notaAtendimento && 
+              !isNaN(parseFloat(item.notaAtendimento)) && 
+              parseFloat(item.notaAtendimento) >= 1 && 
+              parseFloat(item.notaAtendimento) <= 5
+            
+            const temNotaSolucao = item.notaSolucao && 
+              !isNaN(parseFloat(item.notaSolucao)) && 
+              parseFloat(item.notaSolucao) >= 1 && 
+              parseFloat(item.notaSolucao) <= 5
+            
+            if (temNotaAtendimento || temNotaSolucao) {
+              op.chamadasAvaliadas++
             }
           }
         })
@@ -349,7 +391,8 @@ function AppContent() {
               : '0.0',
             tempoMedioFalado: op.temposFalado.length > 0 
               ? (op.temposFalado.reduce((sum, tempo) => sum + tempo, 0) / op.temposFalado.length).toFixed(1)
-              : '0.0'
+              : '0.0',
+            chamadasAvaliadas: op.chamadasAvaliadas
           }
         })
         
@@ -369,7 +412,8 @@ function AppContent() {
             tempoMedioFalado: metrica.tempoMedioFalado,
             notaMediaAtendimento: metrica.notaMediaAtendimento,
             notaMediaSolucao: metrica.notaMediaSolucao,
-            taxaAtendimento: metrica.taxaAtendimento
+            taxaAtendimento: metrica.taxaAtendimento,
+            chamadasAvaliadas: metrica.chamadasAvaliadas
           }))
           .sort((a, b) => b.totalCalls - a.totalCalls)
           .slice(0, 10) // Top 10
@@ -390,7 +434,9 @@ function AppContent() {
           taxaAbandono: '0.0',
           notaMediaAtendimento: '0.0',
           notaMediaSolucao: '0.0',
-          duracaoMediaAtendimento: '0.0'
+          duracaoMediaAtendimento: '0.0',
+          tempoMedioEspera: '0.0',
+          chamadasAvaliadas: 0
         }
         setFilteredMetrics(metricasZeradas)
         setFilteredOperatorMetrics({})
@@ -441,6 +487,15 @@ function AppContent() {
     setSidebarOpen(!sidebarOpen)
   }
 
+  // Função para alternar notas detalhadas do operador
+  const handleToggleNotes = (operatorName) => {
+    if (expandedOperator === operatorName) {
+      setExpandedOperator(null) // Fechar se já estiver aberto
+    } else {
+      setExpandedOperator(operatorName) // Abrir para este operador
+    }
+  }
+
   // Função para mudar visualização
   const handleViewChange = (view) => {
     setCurrentView(view)
@@ -478,6 +533,7 @@ function AppContent() {
           onOperatorSelect={handleOperatorSelect}
           operatorMetrics={operatorMetrics}
           onShowPreferences={() => setShowPreferences(true)}
+          onClose={() => setSidebarOpen(false)}
         />
         
         <main className={`main-content ${sidebarOpen ? 'sidebar-open' : ''}`}>
@@ -534,7 +590,15 @@ function AppContent() {
                   <MetricsDashboard 
                     metrics={filteredMetrics && Object.keys(filteredMetrics).length > 0 ? filteredMetrics : metrics}
                     operatorMetrics={filteredOperatorMetrics && Object.keys(filteredOperatorMetrics).length > 0 ? filteredOperatorMetrics : operatorMetrics}
-                    rankings={filteredRankings && filteredRankings.length > 0 ? filteredRankings : rankings}
+                    rankings={(() => {
+                      // Para o período "allRecords", sempre usar rankings originais
+                      if (filters.period === 'allRecords') {
+                        return rankings
+                      }
+                      
+                      // Para outros períodos, usar filteredRankings se disponível
+                      return filteredRankings && filteredRankings.length > 0 ? filteredRankings : rankings
+                    })()}
                     filteredData={filteredData.length > 0 ? filteredData : data}
                     data={filteredData.length > 0 ? filteredData : data}
                     periodo={(() => {
@@ -595,7 +659,89 @@ function AppContent() {
                         periodLabel: `${startDate} a ${endDate}`
                       }
                     })()}
+                    onToggleNotes={handleToggleNotes}
                   />
+                  
+                  {/* Modal de Notas Detalhadas */}
+                  {expandedOperator && (
+                    <div className="notes-modal-overlay" onClick={() => setExpandedOperator(null)}>
+                      <div className="notes-modal" onClick={(e) => e.stopPropagation()}>
+                        <div className="notes-modal-header">
+                          <h3>📋 Notas Detalhadas - {expandedOperator}</h3>
+                          <button 
+                            className="close-modal-btn"
+                            onClick={() => setExpandedOperator(null)}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                        <div className="notes-modal-content">
+                          {(() => {
+                            // Coletar todas as notas do operador no período atual
+                            const currentData = filteredData.length > 0 ? filteredData : data
+                            
+                            const operatorNotes = currentData.filter(item => {
+                              const isOperator = item.operador === expandedOperator
+                              const hasNotes = (item.notaAtendimento && item.notaAtendimento > 0) || 
+                                             (item.notaSolucao && item.notaSolucao > 0)
+                              return isOperator && hasNotes
+                            })
+                            
+                            if (operatorNotes.length === 0) {
+                              return (
+                                <div>
+                                  <p>Nenhuma nota encontrada para este operador no período selecionado.</p>
+                                </div>
+                              )
+                            }
+                            
+                            return (
+                              <div className="notes-list">
+                                <div className="notes-summary">
+                                  <p><strong>Total de avaliações:</strong> {operatorNotes.length}</p>
+                                  <p><strong>Período:</strong> {filters.period || 'Todos os registros'}</p>
+                                </div>
+                                <div className="notes-grid">
+                                  {operatorNotes.map((note, index) => {
+                                    // Função para determinar o emoji baseado na nota
+                                    const getNoteEmoji = (nota) => {
+                                      if (nota >= 4) return '🟢' // Notas 4 e 5
+                                      if (nota === 3) return '🟡' // Nota 3
+                                      return '🔴' // Notas 1 e 2
+                                    }
+                                    
+                                    return (
+                                      <div key={index} className="note-card">
+                                        <div className="note-date">{note.data}</div>
+                                        <div className="note-scores">
+                                          {note.notaAtendimento && (
+                                            <div className="note-score">
+                                              <span className="score-label">Atendimento:</span>
+                                              <span className="score-value">
+                                                {getNoteEmoji(note.notaAtendimento)} {note.notaAtendimento}/5
+                                              </span>
+                                            </div>
+                                          )}
+                                          {note.notaSolucao && (
+                                            <div className="note-score">
+                                              <span className="score-label">Solução:</span>
+                                              <span className="score-value">
+                                                {getNoteEmoji(note.notaSolucao)} {note.notaSolucao}/5
+                                              </span>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+                              </div>
+                            )
+                          })()}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   
                   <ExportSection 
                     data={filteredData.length > 0 ? filteredData : data}

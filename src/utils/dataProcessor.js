@@ -479,6 +479,25 @@ const calcularMetricas = (dados) => {
     notaMediaSolucao: notaMediaSolucao.toFixed(2)
   })
 
+  // Calcular chamadas avaliadas (que têm nota de 1-5 em atendimento OU solução)
+  const chamadasAvaliadas = dados.filter(item => {
+    const temNotaAtendimento = item.notaAtendimento !== null && 
+      item.notaAtendimento >= 1 && 
+      item.notaAtendimento <= 5
+    
+    const temNotaSolucao = item.notaSolucao !== null && 
+      item.notaSolucao >= 1 && 
+      item.notaSolucao <= 5
+    
+    return temNotaAtendimento || temNotaSolucao
+  }).length
+
+  console.log(`📊 Debug - Chamadas Avaliadas:`, {
+    chamadasAvaliadas,
+    totalChamadas,
+    percentualAvaliadas: totalChamadas > 0 ? ((chamadasAvaliadas / totalChamadas) * 100).toFixed(1) : '0.0'
+  })
+
   // Taxas
   const taxaAtendimento = totalChamadas > 0 ? (atendida / totalChamadas) * 100 : 0
   const taxaAbandono = totalChamadas > 0 ? (abandonada / totalChamadas) * 100 : 0
@@ -511,7 +530,8 @@ const calcularMetricas = (dados) => {
     tempoMedioLogado: parseFloat(tempoMedioLogado.toFixed(1)), // NOVO INDICADOR
     tempoMedioPausado: parseFloat(tempoMedioPausado.toFixed(1)), // NOVO INDICADOR
     taxaAtendimento: parseFloat(taxaAtendimento.toFixed(1)),
-    taxaAbandono: parseFloat(taxaAbandono.toFixed(1))
+    taxaAbandono: parseFloat(taxaAbandono.toFixed(1)),
+    chamadasAvaliadas // NOVA MÉTRICA
   }
 }
 
@@ -565,7 +585,8 @@ const calcularMetricasOperadores = (dados) => {
         totalAtendimentos: 0,
         tempoTotal: 0,
         notasAtendimento: [],
-        notasSolucao: []
+        notasSolucao: [],
+        chamadasAvaliadas: 0
       }
     }
 
@@ -579,6 +600,19 @@ const calcularMetricasOperadores = (dados) => {
     
     if (d.notaSolucao !== null) {
       operadores[d.operador].notasSolucao.push(d.notaSolucao)
+    }
+    
+    // Contar chamadas avaliadas (que têm nota de 1-5 em atendimento OU solução)
+    const temNotaAtendimento = d.notaAtendimento !== null && 
+      d.notaAtendimento >= 1 && 
+      d.notaAtendimento <= 5
+    
+    const temNotaSolucao = d.notaSolucao !== null && 
+      d.notaSolucao >= 1 && 
+      d.notaSolucao <= 5
+    
+    if (temNotaAtendimento || temNotaSolucao) {
+      operadores[d.operador].chamadasAvaliadas++
     }
   })
 
@@ -672,6 +706,7 @@ const calcularRanking = (metricasOperadores) => {
       avgPauseTime: 0,
       totalRecords: totalAtend,
       score: (score * 100).toFixed(1),
+      chamadasAvaliadas: op.chamadasAvaliadas || 0,
       isExcluded: false,
       isDesligado: op.operador.toLowerCase().includes('desl') || 
                   op.operador.toLowerCase().includes('desligado') ||

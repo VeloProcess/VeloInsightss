@@ -1038,7 +1038,7 @@ const ModernChartsDashboard = ({ data, operatorMetrics, rankings, selectedPeriod
             }, 500)
             return 100
           }
-          return prev + Math.random() * 15
+          return Math.min(prev + Math.floor(Math.random() * 15) + 1, 100)
         })
       }, 200)
       
@@ -1071,7 +1071,7 @@ const ModernChartsDashboard = ({ data, operatorMetrics, rankings, selectedPeriod
             marginTop: '1rem',
             color: getDesignSystem().colors.textSecondary 
           }}>
-            {loadingProgress}% carregado
+            {Math.round(loadingProgress)}% carregado
           </div>
         </div>
 
@@ -1152,7 +1152,6 @@ const ModernChartsDashboard = ({ data, operatorMetrics, rankings, selectedPeriod
         <h2>📊 Gráficos Gerais</h2>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '0.5rem' }}>
           <p>Análise completa dos dados de atendimento</p>
-          <StatusIndicator status="success" label="Dados carregados" />
         </div>
       </div>
 

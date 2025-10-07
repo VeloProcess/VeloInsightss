@@ -2,7 +2,7 @@ import React, { memo } from 'react'
 import { useCargo } from '../contexts/CargoContext'
 import './MetricsDashboard.css'
 
-const MetricsDashboard = memo(({ metrics, operatorMetrics, rankings, darkList, addToDarkList, removeFromDarkList, periodo }) => {
+const MetricsDashboard = memo(({ metrics, operatorMetrics, rankings, darkList, addToDarkList, removeFromDarkList, periodo, onToggleNotes }) => {
   const { hasPermission, selectedCargo } = useCargo()
   
   // Debug apenas se houver erro
@@ -111,6 +111,12 @@ const MetricsDashboard = memo(({ metrics, operatorMetrics, rankings, darkList, a
               <div className="metric-label">Taxa de Abandono</div>
             </div>
 
+            {/* Chamadas Avaliadas */}
+            <div className="metric-card">
+              <div className="metric-value">{(metrics.chamadasAvaliadas || 0).toLocaleString()}</div>
+              <div className="metric-label">Chamadas Avaliadas</div>
+            </div>
+
             {/* Estatísticas de Chamadas */}
             {metrics.callStatuses && Object.keys(metrics.callStatuses).length > 0 && (
               <>
@@ -148,6 +154,7 @@ const MetricsDashboard = memo(({ metrics, operatorMetrics, rankings, darkList, a
                     <th>Duração Média</th>
                     <th>Nota Atendimento</th>
                     <th>Nota Solução</th>
+                    <th>Chamadas Avaliadas</th>
                     <th>Ações</th>
                   </tr>
                 </thead>
@@ -174,6 +181,20 @@ const MetricsDashboard = memo(({ metrics, operatorMetrics, rankings, darkList, a
                       <td>{operator.avgDuration || 0} min</td>
                       <td>{operator.avgRatingAttendance || 0}/5</td>
                       <td>{operator.avgRatingSolution || 0}/5</td>
+                      <td className="chamadas-avaliadas-cell">
+                        <div className="chamadas-avaliadas-container">
+                          <span className="chamadas-count">{operator.chamadasAvaliadas || 0}</span>
+                          {operator.chamadasAvaliadas > 0 && periodo && periodo.type !== 'allRecords' && (
+                            <button 
+                              className="expand-notes-btn"
+                              onClick={() => onToggleNotes(operator.operator)}
+                              title="Ver notas detalhadas"
+                            >
+                              📋
+                            </button>
+                          )}
+                        </div>
+                      </td>
                       <td>
                         {operator.isExcluded ? (
                           <button 

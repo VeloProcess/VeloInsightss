@@ -1,7 +1,7 @@
 import React from 'react'
 import './Sidebar.css'
 
-const Sidebar = ({ open, currentView, onViewChange, hasData, onClearData, viewMode, onViewModeChange, selectedOperator, onOperatorSelect, operatorMetrics, onShowPreferences }) => {
+const Sidebar = ({ open, currentView, onViewChange, hasData, onClearData, viewMode, onViewModeChange, selectedOperator, onOperatorSelect, operatorMetrics, onShowPreferences, onClose }) => {
   const menuItems = [
     {
       id: 'dashboard',
@@ -28,7 +28,7 @@ const Sidebar = ({ open, currentView, onViewChange, hasData, onClearData, viewMo
 
   return (
     <>
-      {open && <div className="sidebar-overlay" onClick={() => onViewChange(currentView)} />}
+      {open && <div className="sidebar-overlay" onClick={onClose} />}
       
       <aside className={`sidebar ${open ? 'open' : ''}`}>
         <div className="sidebar-header">
@@ -40,7 +40,12 @@ const Sidebar = ({ open, currentView, onViewChange, hasData, onClearData, viewMo
             <button
               key={item.id}
               className={`nav-item ${currentView === item.id ? 'active' : ''} ${item.disabled ? 'disabled' : ''}`}
-              onClick={() => !item.disabled && onViewChange(item.id)}
+              onClick={() => {
+                if (!item.disabled) {
+                  onViewChange(item.id)
+                  onClose() // Fechar o sidebar após selecionar
+                }
+              }}
               disabled={item.disabled}
             >
               <span className="nav-icon">{item.icon}</span>
@@ -74,7 +79,10 @@ const Sidebar = ({ open, currentView, onViewChange, hasData, onClearData, viewMo
         <div className="sidebar-footer">
           <button 
             className="preferences-button"
-            onClick={onShowPreferences}
+            onClick={() => {
+              onShowPreferences()
+              onClose() // Fechar o sidebar após clicar
+            }}
             title="Gerenciar Preferências"
           >
             ⚙️ Preferências
@@ -83,7 +91,10 @@ const Sidebar = ({ open, currentView, onViewChange, hasData, onClearData, viewMo
           {hasData && (
             <button 
               className="btn btn-danger btn-sm"
-              onClick={onClearData}
+              onClick={() => {
+                onClearData()
+                onClose() // Fechar o sidebar após clicar
+              }}
             >
               🗑️ Limpar Dados
             </button>

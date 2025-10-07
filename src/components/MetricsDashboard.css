@@ -589,3 +589,45 @@
 .action-button.restore:hover {
   background: #059669;
 }
+
+/* Estilos para Chamadas Avaliadas com botão expansível */
+.chamadas-avaliadas-cell {
+  text-align: center;
+}
+
+.chamadas-avaliadas-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.chamadas-count {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.expand-notes-btn {
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+}
+
+.expand-notes-btn:hover {
+  background: var(--color-primary-dark);
+  transform: scale(1.05);
+}
+
+.expand-notes-btn:active {
+  transform: scale(0.95);
+}

@@ -39,7 +39,7 @@ const ProgressBar = ({
           <span className="progress-icon">🔄</span>
           <span className="progress-label">Processando Dados</span>
         </div>
-        <div className="progress-percentage">{percentage.toFixed(1)}%</div>
+        <div className="progress-percentage">{Math.round(percentage)}%</div>
       </div>
       
       {/* Barra de progresso */}
