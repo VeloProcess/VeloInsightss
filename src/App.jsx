@@ -57,7 +57,7 @@ function AppContent() {
   
   // Estados para dados e outras configurações
   // Dark List removida - todos os operadores são contabilizados normalmente
-  const [filters, setFilters] = useState({})
+  const [filters, setFilters] = useState({ hideDesligados: false })
   const [filteredData, setFilteredData] = useState([])
   const [filteredMetrics, setFilteredMetrics] = useState(null)
   const [filteredOperatorMetrics, setFilteredOperatorMetrics] = useState(null)
@@ -137,11 +137,16 @@ function AppContent() {
         if (!item.data) return ultima
         
         let itemDate
+        // Converter data para formato correto
         if (typeof item.data === 'string') {
+          // Formato DD/MM/YYYY
           const [dia, mes, ano] = item.data.split('/')
-          itemDate = new Date(ano, mes - 1, dia)
+          // Usar new Date com horas normalizadas para evitar problemas de timezone
+          itemDate = new Date(ano, mes - 1, dia, 0, 0, 0, 0)
         } else {
           itemDate = new Date(item.data)
+          // Normalizar horas para evitar problemas de timezone
+          itemDate.setHours(0, 0, 0, 0)
         }
         
         return itemDate > ultima ? itemDate : ultima
@@ -155,29 +160,61 @@ function AppContent() {
 
       switch (filters.period) {
         case 'last7Days':
-          startDate = new Date(ultimaDataDisponivel.getTime() - (7 * 24 * 60 * 60 * 1000))
-          endDate = ultimaDataDisponivel
+          startDate = new Date(ultimaDataDisponivel.getTime() - (6 * 24 * 60 * 60 * 1000))
+          startDate.setHours(0, 0, 0, 0)
+          endDate = new Date(ultimaDataDisponivel)
+          endDate.setHours(23, 59, 59, 999)
           break
         case 'last15Days':
-          startDate = new Date(ultimaDataDisponivel.getTime() - (15 * 24 * 60 * 60 * 1000))
-          endDate = ultimaDataDisponivel
+          startDate = new Date(ultimaDataDisponivel.getTime() - (14 * 24 * 60 * 60 * 1000))
+          startDate.setHours(0, 0, 0, 0)
+          endDate = new Date(ultimaDataDisponivel)
+          endDate.setHours(23, 59, 59, 999)
           break
         case 'ultimoMes':
           startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+          startDate.setHours(0, 0, 0, 0)
           endDate = new Date(now.getFullYear(), now.getMonth(), 0)
+          endDate.setHours(23, 59, 59, 999)
           break
         case 'penultimoMes':
           startDate = new Date(now.getFullYear(), now.getMonth() - 2, 1)
+          startDate.setHours(0, 0, 0, 0)
           endDate = new Date(now.getFullYear(), now.getMonth() - 1, 0)
+          endDate.setHours(23, 59, 59, 999)
           break
         case 'currentMonth':
           startDate = new Date(now.getFullYear(), now.getMonth(), 1)
-          endDate = now
+          startDate.setHours(0, 0, 0, 0)
+          endDate = new Date(now)
+          endDate.setHours(23, 59, 59, 999)
           break
         case 'custom':
           if (filters.customStartDate && filters.customEndDate) {
-            startDate = new Date(filters.customStartDate)
-            endDate = new Date(filters.customEndDate)
+            // Converter datas customizadas corretamente
+            if (typeof filters.customStartDate === 'string' && filters.customStartDate.includes('/')) {
+              // Formato DD/MM/YYYY
+              const [diaInicio, mesInicio, anoInicio] = filters.customStartDate.split('/')
+              startDate = new Date(anoInicio, mesInicio - 1, diaInicio, 0, 0, 0, 0)
+            } else if (typeof filters.customStartDate === 'string' && filters.customStartDate.includes('-')) {
+              // Formato YYYY-MM-DD (do input type="date")
+              startDate = new Date(filters.customStartDate + 'T00:00:00')
+            } else {
+              startDate = new Date(filters.customStartDate)
+              startDate.setHours(0, 0, 0, 0)
+            }
+            
+            if (typeof filters.customEndDate === 'string' && filters.customEndDate.includes('/')) {
+              // Formato DD/MM/YYYY
+              const [diaFim, mesFim, anoFim] = filters.customEndDate.split('/')
+              endDate = new Date(anoFim, mesFim - 1, diaFim, 23, 59, 59, 999)
+            } else if (typeof filters.customEndDate === 'string' && filters.customEndDate.includes('-')) {
+              // Formato YYYY-MM-DD (do input type="date")
+              endDate = new Date(filters.customEndDate + 'T23:59:59')
+            } else {
+              endDate = new Date(filters.customEndDate)
+              endDate.setHours(23, 59, 59, 999)
+            }
           } else {
             setFilteredData(data)
             setFilteredMetrics(metrics)
@@ -214,7 +251,7 @@ function AppContent() {
       }
       
       // Filtrar dados por data
-      const filtered = data.filter(item => {
+      let filtered = data.filter(item => {
         if (!item.data) return false
         
         // Converter data para formato correto
@@ -222,9 +259,12 @@ function AppContent() {
         if (typeof item.data === 'string') {
           // Formato DD/MM/YYYY
           const [dia, mes, ano] = item.data.split('/')
-          itemDate = new Date(ano, mes - 1, dia)
+          // Usar new Date com horas normalizadas para evitar problemas de timezone
+          itemDate = new Date(ano, mes - 1, dia, 0, 0, 0, 0)
         } else {
           itemDate = new Date(item.data)
+          // Normalizar horas para evitar problemas de timezone
+          itemDate.setHours(0, 0, 0, 0)
         }
         
         const isValid = itemDate >= startDate && itemDate <= endDate
@@ -236,6 +276,35 @@ function AppContent() {
         
         return isValid
       })
+
+      // Aplicar filtro de funcionários desligados se ativo
+      console.log('🔧 Estado do filtro hideDesligados:', filters.hideDesligados)
+      console.log('🔧 Tipo do filtro:', typeof filters.hideDesligados)
+      
+      if (filters.hideDesligados) {
+        const beforeCount = filtered.length
+        console.log('🔧 Aplicando filtro - registros antes:', beforeCount)
+        
+        filtered = filtered.filter(item => {
+          if (!item.operador) return true
+          
+          const nomeOperador = item.operador.toLowerCase()
+          const isDesligado = nomeOperador.includes('desl') || 
+                             nomeOperador.includes('excluido') ||
+                             nomeOperador.includes('desligado') ||
+                             nomeOperador.includes('inativo')
+          
+          if (isDesligado) {
+            console.log('🔧 REMOVENDO operador desligado:', item.operador)
+          }
+          
+          return !isDesligado
+        })
+        
+        console.log(`👥 Filtro funcionários desligados: ${beforeCount} -> ${filtered.length} registros`)
+      } else {
+        console.log('🔧 Filtro hideDesligados NÃO está ativo')
+      }
 
       console.log(`📊 Dados filtrados: ${filtered.length} de ${data.length} registros`)
 
@@ -591,16 +660,6 @@ function AppContent() {
                     pauseData={data}
                   />
                   
-                  <div className="dark-list-controls">
-                    <button 
-                      className="btn btn-dark-list"
-                      onClick={() => setShowDarkList(true)}
-                      title="Gerenciar Dark List de operadores"
-                    >
-                      Gerenciar Operadores
-                    </button>
-                  </div>
-                  
                   <MetricsDashboard 
                     metrics={filteredMetrics && Object.keys(filteredMetrics).length > 0 ? filteredMetrics : metrics}
                     operatorMetrics={filteredOperatorMetrics && Object.keys(filteredOperatorMetrics).length > 0 ? filteredOperatorMetrics : operatorMetrics}
@@ -659,7 +718,43 @@ function AppContent() {
                         }
                       }
                       
-                      // Ordenar datas para encontrar início e fim
+                      // Para período customizado, usar as datas selecionadas pelo usuário
+                      if (filters.period === 'custom' && filters.customStartDate && filters.customEndDate) {
+                        // Converter datas customizadas para formato DD/MM/YYYY
+                        let startDateFormatted, endDateFormatted
+                        
+                        if (typeof filters.customStartDate === 'string' && filters.customStartDate.includes('/')) {
+                          startDateFormatted = filters.customStartDate
+                        } else if (typeof filters.customStartDate === 'string' && filters.customStartDate.includes('-')) {
+                          // Formato YYYY-MM-DD (do input type="date")
+                          const startDate = new Date(filters.customStartDate + 'T00:00:00')
+                          startDateFormatted = startDate.toLocaleDateString('pt-BR')
+                        } else {
+                          const startDate = new Date(filters.customStartDate)
+                          startDateFormatted = startDate.toLocaleDateString('pt-BR')
+                        }
+                        
+                        if (typeof filters.customEndDate === 'string' && filters.customEndDate.includes('/')) {
+                          endDateFormatted = filters.customEndDate
+                        } else if (typeof filters.customEndDate === 'string' && filters.customEndDate.includes('-')) {
+                          // Formato YYYY-MM-DD (do input type="date")
+                          const endDate = new Date(filters.customEndDate + 'T23:59:59')
+                          endDateFormatted = endDate.toLocaleDateString('pt-BR')
+                        } else {
+                          const endDate = new Date(filters.customEndDate)
+                          endDateFormatted = endDate.toLocaleDateString('pt-BR')
+                        }
+                        
+                        return {
+                          startDate: startDateFormatted,
+                          endDate: endDateFormatted,
+                          totalDays: Math.ceil((new Date(filters.customEndDate) - new Date(filters.customStartDate)) / (1000 * 60 * 60 * 24)) + 1,
+                          totalRecords: currentData.length,
+                          periodLabel: `${startDateFormatted} a ${endDateFormatted}`
+                        }
+                      }
+                      
+                      // Para outros períodos, usar as datas dos dados filtrados
                       const datasUnicas = [...new Set(datas)].sort((a, b) => {
                         // Converter para Date para ordenação correta
                         const dateA = new Date(a.split('/').reverse().join('-'))
@@ -668,7 +763,6 @@ function AppContent() {
                       })
                       const startDate = datasUnicas[0]
                       const endDate = datasUnicas[datasUnicas.length - 1]
-                      
                       
                       return {
                         startDate,
@@ -680,6 +774,8 @@ function AppContent() {
                     })()}
                     onToggleNotes={handleToggleNotes}
                     userData={userData}
+                    filters={filters}
+                    onFiltersChange={setFilters}
                   />
                   
                   {/* Modal de Notas Detalhadas */}

@@ -3,7 +3,7 @@ import { useCargo } from '../contexts/CargoContext'
 import { getOperatorDisplayName, prioritizeCurrentUserInMiddle } from '../utils/operatorUtils'
 import './MetricsDashboard.css'
 
-const MetricsDashboard = memo(({ metrics, operatorMetrics, rankings, darkList, addToDarkList, removeFromDarkList, periodo, onToggleNotes, userData }) => {
+const MetricsDashboard = memo(({ metrics, operatorMetrics, rankings, darkList, addToDarkList, removeFromDarkList, periodo, onToggleNotes, userData, filters = {}, onFiltersChange }) => {
   const { hasPermission, selectedCargo, userInfo } = useCargo()
   
   // Verificar se deve ocultar nomes baseado no cargo PRINCIPAL do usuário, não no cargo selecionado
@@ -168,7 +168,9 @@ const MetricsDashboard = memo(({ metrics, operatorMetrics, rankings, darkList, a
       {prioritizedRankings && prioritizedRankings.length > 0 && periodo && (
         <div className="card">
           <div className="card-header">
-            <h2 className="card-title">🏆 Ranking de Operadores</h2>
+            <div className="card-header-content">
+              <h2 className="card-title">🏆 Ranking de Operadores</h2>
+            </div>
           </div>
           <div className="card-content">
             <div className="table-container">
