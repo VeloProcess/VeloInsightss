@@ -136,8 +136,8 @@ const MetricsDashboard = memo(({ metrics, operatorMetrics, rankings, darkList, a
         </div>
       </div>
 
-      {/* Ranking de Operadores */}
-      {rankings && rankings.length > 0 && (
+      {/* Ranking de Operadores - Só mostra se há período selecionado */}
+      {rankings && rankings.length > 0 && periodo && (
         <div className="card">
           <div className="card-header">
             <h2 className="card-title">🏆 Ranking de Operadores</h2>
@@ -214,6 +214,20 @@ const MetricsDashboard = memo(({ metrics, operatorMetrics, rankings, darkList, a
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mensagem quando não há período selecionado */}
+      {(!periodo || !rankings || rankings.length === 0) && (
+        <div className="card">
+          <div className="card-header">
+            <h2 className="card-title">🏆 Ranking de Operadores</h2>
+          </div>
+          <div className="card-content">
+            <div className="no-data-message">
+              <p>📅 Selecione um período para visualizar o ranking de operadores</p>
             </div>
           </div>
         </div>

@@ -8,6 +8,18 @@
   min-height: 100vh;
 }
 
+.no-data-message {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--color-text-secondary);
+}
+
+.no-data-message p {
+  font-size: 1.1rem;
+  margin: 0;
+  opacity: 0.8;
+}
+
 .rank-badge {
   display: inline-flex;
   align-items: center;
