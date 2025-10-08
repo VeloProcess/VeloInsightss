@@ -170,6 +170,46 @@ const MetricsDashboard = memo(({ metrics, operatorMetrics, rankings, darkList, a
           <div className="card-header">
             <div className="card-header-content">
               <h2 className="card-title">🏆 Ranking de Operadores</h2>
+              <div className="ranking-filter">
+                <label 
+                  className="filter-checkbox-inline"
+                  onClick={(e) => {
+                    console.log('🔧 LABEL CLICADO!')
+                    e.preventDefault()
+                    const checkbox = e.currentTarget.querySelector('input[type="checkbox"]')
+                    if (checkbox) {
+                      checkbox.checked = !checkbox.checked
+                      console.log('🔧 CHECKBOX alterado para:', checkbox.checked)
+                      if (onFiltersChange) {
+                        const newFilters = { ...filters, hideDesligados: checkbox.checked }
+                        console.log('🔧 Enviando novos filters:', newFilters)
+                        onFiltersChange(newFilters)
+                      }
+                    }
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={filters?.hideDesligados || false}
+                    onChange={(e) => {
+                      console.log('🔧 CHECKBOX CLICADO! Valor:', e.target.checked)
+                      console.log('🔧 Filters atual:', filters)
+                      if (onFiltersChange) {
+                        const newFilters = { ...filters, hideDesligados: e.target.checked }
+                        console.log('🔧 Enviando novos filters:', newFilters)
+                        onFiltersChange(newFilters)
+                      } else {
+                        console.log('❌ onFiltersChange não existe!')
+                      }
+                    }}
+                  />
+                  <span className="checkbox-custom-inline"></span>
+                  <span className="filter-label-inline">
+                    <span className="filter-icon">👥</span>
+                    Ocultar desligados
+                  </span>
+                </label>
+              </div>
             </div>
           </div>
           <div className="card-content">
