@@ -6,9 +6,13 @@ const ChartsDetailedTab = ({
   data, 
   operatorMetrics, 
   rankings, 
-  selectedPeriod,
-  isLoading,
-  pauseData
+  selectedPeriod, 
+  isLoading, 
+  pauseData,
+  userData,
+  filters = {},
+  originalData,
+  onFiltersChange
 }) => {
   return (
     <div className="charts-detailed-tab">
@@ -24,6 +28,10 @@ const ChartsDetailedTab = ({
           rankings={rankings}
           selectedPeriod={selectedPeriod}
           pauseData={pauseData}
+          userData={userData}
+          filters={filters}
+          originalData={originalData}
+          onFiltersChange={onFiltersChange}
         />
       ) : (
         <div className="no-data-container">

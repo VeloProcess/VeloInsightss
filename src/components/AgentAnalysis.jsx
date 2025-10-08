@@ -46,7 +46,9 @@ const AgentAnalysis = ({ data, operatorMetrics, rankings }) => {
   } = useAccessControl()
   
   const currentUser = getCurrentUserInfo()
-  const shouldHideNames = currentUser?.level === 1 // Operador
+  // Verificar se deve ocultar nomes baseado no cargo PRINCIPAL do usuário, não no cargo selecionado
+  // SUPERADMIN/GESTOR/ANALISTA sempre veem métricas gerais, mesmo quando assumem cargo de OPERADOR
+  const shouldHideNames = currentUser?.cargoConfig?.level === 1 // Operador
   
   const [selectedAgent, setSelectedAgent] = useState(null)
   const [agentData, setAgentData] = useState(null)

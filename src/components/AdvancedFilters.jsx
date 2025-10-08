@@ -8,13 +8,60 @@ const AdvancedFilters = memo(({
 }) => {
   const [localFilters, setLocalFilters] = useState(filters)
 
+  // Função para scroll suave até os gráficos
+  const scrollToCharts = () => {
+    console.log('🔄 Tentando fazer scroll para os gráficos...')
+    
+    // Aguardar um pouco mais para garantir que o DOM foi atualizado
+    setTimeout(() => {
+      // Procurar pela seção de gráficos no dashboard
+      const chartsSection = document.querySelector('.main-content-grid') || 
+                           document.querySelector('.charts-grid') ||
+                           document.querySelector('.charts-section') ||
+                           document.querySelector('.metrics-dashboard') ||
+                           document.querySelector('.dashboard-content') ||
+                           document.querySelector('.stats-grid') ||
+                           document.querySelector('.chart-card')
+      
+      console.log('🎯 Seção encontrada:', chartsSection)
+      
+      if (chartsSection) {
+        console.log('✅ Fazendo scroll para:', chartsSection.className)
+        chartsSection.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start' 
+        })
+      } else {
+        console.log('⚠️ Nenhuma seção encontrada, fazendo scroll para o topo')
+        window.scrollTo({
+          top: 0,
+          behavior: 'smooth'
+        })
+      }
+    }, 100)
+  }
+
+  // Função para aplicar período e ir direto aos gráficos
+  const handlePeriodChangeWithScroll = async (period) => {
+    console.log('🚀 Aplicando período:', period)
+    
+    // Aplicar o filtro
+    handlePeriodChange(period)
+    
+    // Pequeno delay para permitir que os dados sejam processados
+    setTimeout(() => {
+      console.log('⏰ Executando scroll após delay...')
+      scrollToCharts()
+    }, 500) // Aumentei o delay para 500ms
+  }
+
   useEffect(() => {
-    // Inicializar com período padrão se não definido
-    if (!localFilters.period) {
-      const newFilters = { ...localFilters, period: 'currentMonth' }
-      setLocalFilters(newFilters)
-      onFiltersChange(newFilters)
-    }
+    // Não definir período padrão - deixar vazio até o usuário selecionar
+    // if (!localFilters.period) {
+    //   const newFilters = { ...localFilters, period: 'currentMonth' }
+    //   setLocalFilters(newFilters)
+    //   onFiltersChange(newFilters)
+    // }
   }, [])
 
   // Filtrar dados pelas datas automaticamente quando carregado
@@ -124,6 +171,23 @@ const AdvancedFilters = memo(({
     <div className="advanced-filters card">
       <div className="filters-header">
         <h3>📅 Selecionar Período</h3>
+        <div 
+          className="period-selector clickable" 
+          title="Clique para carregar dados e ir direto aos gráficos"
+          onClick={() => handlePeriodChangeWithScroll(localFilters.period)}
+        >
+          <span className="period-text">
+            {localFilters.period === 'allRecords' ? 'TODOS OS REGISTROS' :
+             localFilters.period === 'last7Days' ? 'Últimos 7 dias' :
+             localFilters.period === 'last15Days' ? 'Últimos 15 dias' :
+             localFilters.period === 'ultimoMes' ? 'Último mês' :
+             localFilters.period === 'penultimoMes' ? 'Penúltimo mês' :
+             localFilters.period === 'currentMonth' ? 'Mês atual' :
+             localFilters.period === 'custom' ? 'Período personalizado' :
+             'Selecione um período'}
+          </span>
+          <i className='bx bx-down-arrow-alt scroll-indicator'></i>
+        </div>
       </div>
       
       {/* Seletor de Período */}
@@ -132,7 +196,7 @@ const AdvancedFilters = memo(({
           
           <button 
             className={`period-option ${localFilters.period === 'last7Days' ? 'active' : ''}`}
-            onClick={() => handlePeriodChange('last7Days')}
+            onClick={() => handlePeriodChangeWithScroll('last7Days')}
           >
             <span className="period-icon">🗓️</span>
             <div>
@@ -147,7 +211,7 @@ const AdvancedFilters = memo(({
 
           <button 
             className={`period-option ${localFilters.period === 'last15Days' ? 'active' : ''}`}
-            onClick={() => handlePeriodChange('last15Days')}
+            onClick={() => handlePeriodChangeWithScroll('last15Days')}
           >
             <span className="period-icon">📊</span>
             <div>
@@ -162,7 +226,7 @@ const AdvancedFilters = memo(({
 
           <button 
             className={`period-option ${localFilters.period === 'penultimoMes' ? 'active' : ''}`}
-            onClick={() => handlePeriodChange('penultimoMes')}
+            onClick={() => handlePeriodChangeWithScroll('penultimoMes')}
           >
             <span className="period-icon">📅</span>
             <div>
@@ -177,7 +241,7 @@ const AdvancedFilters = memo(({
 
           <button 
             className={`period-option ${localFilters.period === 'ultimoMes' ? 'active' : ''}`}
-            onClick={() => handlePeriodChange('ultimoMes')}
+            onClick={() => handlePeriodChangeWithScroll('ultimoMes')}
           >
             <span className="period-icon">📆</span>
             <div>
@@ -192,7 +256,7 @@ const AdvancedFilters = memo(({
 
           <button 
             className={`period-option ${localFilters.period === 'currentMonth' ? 'active' : ''}`}
-            onClick={() => handlePeriodChange('currentMonth')}
+            onClick={() => handlePeriodChangeWithScroll('currentMonth')}
           >
             <span className="period-icon">🗓️</span>
             <div>
@@ -207,7 +271,7 @@ const AdvancedFilters = memo(({
 
           <button 
             className={`period-option ${localFilters.period === 'allRecords' ? 'active' : ''}`}
-            onClick={() => handlePeriodChange('allRecords')}
+            onClick={() => handlePeriodChangeWithScroll('allRecords')}
           >
             <span className="period-icon">📈</span>
             <div>

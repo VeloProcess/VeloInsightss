@@ -1,19 +1,71 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState, useMemo } from 'react'
 import Chart from 'chart.js/auto'
 import { useTheme } from '../hooks/useTheme'
-import PersonalCharts from './PersonalCharts'
+import { useCargo } from '../contexts/CargoContext'
+import { getOperatorDisplayName, prioritizeCurrentUserInMiddle } from '../utils/operatorUtils'
 import ModernChartsDashboard from './ModernChartsDashboard'
+import AdvancedFilters from './AdvancedFilters'
 import { 
   calcEvolucaoAtendimentos, 
   calcTopOperadores, 
   calcPerformanceMelhores, 
-  calcRankingQualidade 
+  calcRankingQualidade,
+  calcularMetricasOperadores,
+  calcularRanking
 } from '../utils/dataProcessor'
 import './ChartsDetailedPage.css'
 
-const ChartsDetailedPage = ({ data, operatorMetrics, rankings, selectedPeriod, pauseData }) => {
+const ChartsDetailedPage = ({ data, operatorMetrics, rankings, selectedPeriod, pauseData, userData, filters = {}, originalData, onFiltersChange }) => {
   const { theme } = useTheme()
+  const { userInfo } = useCargo()
   const [activeTab, setActiveTab] = useState('modern')
+  const [localFilters, setLocalFilters] = useState({})
+  
+  // Atualizar filtros locais quando os filtros externos mudarem (com debounce)
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setLocalFilters(filters)
+    }, 100) // Debounce de 100ms
+    
+    return () => clearTimeout(timeoutId)
+  }, [filters])
+
+  // Recalcular métricas baseadas nos dados filtrados (com memoização otimizada)
+  const filteredOperatorMetrics = useMemo(() => {
+    if (!data || data.length === 0) return operatorMetrics
+    
+    // Se os dados são os mesmos que os originais, usar as métricas originais
+    if (data === originalData) return operatorMetrics
+    
+    // Evitar recálculo se os dados não mudaram significativamente
+    if (data.length < 1000) {
+      console.log('🔄 Recalculando métricas para dados filtrados:', data.length, 'registros')
+      
+      // Converter estrutura de dados para o formato esperado pelo dataProcessor
+      const convertedData = data.map(item => ({
+        operador: item.operador,
+        tempoFalado: item.tempoFalado,
+        notaAtendimento: item.notaAtendimento ? parseFloat(item.notaAtendimento) : null,
+        notaSolucao: item.notaSolucao ? parseFloat(item.notaSolucao) : null,
+        chamada: item.chamada,
+        status: item.status
+      }))
+      
+      return calcularMetricasOperadores(convertedData)
+    }
+    
+    // Para datasets grandes, usar métricas originais para evitar lag
+    console.log('⚠️ Dataset muito grande, usando métricas originais para performance')
+    return operatorMetrics
+  }, [data, originalData, operatorMetrics])
+
+  // Recalcular rankings baseados nas métricas filtradas
+  const filteredRankings = useMemo(() => {
+    if (!filteredOperatorMetrics) return rankings
+    
+    console.log('🔄 Recalculando rankings para métricas filtradas')
+    return calcularRanking(filteredOperatorMetrics)
+  }, [filteredOperatorMetrics, rankings])
   
   const chartRefs = {
     callsChart: useRef(null),
@@ -30,6 +82,9 @@ const ChartsDetailedPage = ({ data, operatorMetrics, rankings, selectedPeriod, p
   }
 
   const chartInstances = useRef({})
+  
+  // Verificar se deve ocultar nomes
+  const shouldHideNames = document.body.getAttribute('data-hide-names') === 'true'
 
   // Cores dinâmicas baseadas no tema
   const getChartColors = () => {
@@ -146,20 +201,23 @@ const ChartsDetailedPage = ({ data, operatorMetrics, rankings, selectedPeriod, p
 
   // Gráfico de Notas por Operador
   const createRatingsChart = () => {
-    if (!chartRefs.ratingsChart.current || !operatorMetrics) return
+    if (!chartRefs.ratingsChart.current || !filteredOperatorMetrics) return
 
     const colors = getChartColors()
-    const operatorMetricsArray = Object.values(operatorMetrics)
-    const topOperators = operatorMetricsArray
-      .filter(op => op.operator && !op.operator.toLowerCase().includes('sem operador'))
-      .sort((a, b) => (b.avgRatingAttendance || 0) - (a.avgRatingAttendance || 0))
-      .slice(0, 10)
-
-    const labels = topOperators.map(op => 
-      op.operator.length > 12 ? op.operator.substring(0, 12) + '...' : op.operator
+    const operatorMetricsArray = Object.values(filteredOperatorMetrics)
+    const filteredOperators = operatorMetricsArray
+      .filter(op => op.operador && !op.operador.toLowerCase().includes('sem operador'))
+    
+    // Priorizar usuário logado no meio se necessário
+    const topOperators = shouldHideNames && userData?.email
+      ? prioritizeCurrentUserInMiddle(filteredOperators, userData, 'notaMediaAtendimento').slice(0, 10)
+      : filteredOperators.sort((a, b) => (b.notaMediaAtendimento || 0) - (a.notaMediaAtendimento || 0)).slice(0, 10)
+    
+    const labels = topOperators.map((op, index) => 
+      getOperatorDisplayName(op.operador, index, userData, shouldHideNames)
     )
-    const attendanceRatings = topOperators.map(op => op.avgRatingAttendance || 0)
-    const solutionRatings = topOperators.map(op => op.avgRatingSolution || 0)
+    const attendanceRatings = topOperators.map(op => op.notaMediaAtendimento || 0)
+    const solutionRatings = topOperators.map(op => op.notaMediaSolucao || 0)
 
     chartInstances.current.ratingsChart = new Chart(chartRefs.ratingsChart.current, {
       type: 'bar',
@@ -214,19 +272,22 @@ const ChartsDetailedPage = ({ data, operatorMetrics, rankings, selectedPeriod, p
 
   // Gráfico de Duração Média
   const createDurationChart = () => {
-    if (!chartRefs.durationChart.current || !operatorMetrics) return
+    if (!chartRefs.durationChart.current || !filteredOperatorMetrics) return
 
     const colors = getChartColors()
-    const operatorMetricsArray = Object.values(operatorMetrics)
-    const topOperators = operatorMetricsArray
-      .filter(op => op.operator && !op.operator.toLowerCase().includes('sem operador'))
-      .sort((a, b) => (a.avgDuration || 0) - (b.avgDuration || 0))
-      .slice(0, 10)
-
-    const labels = topOperators.map(op => 
-      op.operator.length > 12 ? op.operator.substring(0, 12) + '...' : op.operator
+    const operatorMetricsArray = Object.values(filteredOperatorMetrics)
+    const filteredOperators = operatorMetricsArray
+      .filter(op => op.operador && !op.operador.toLowerCase().includes('sem operador'))
+    
+    // Priorizar usuário logado no meio se necessário
+    const topOperators = shouldHideNames && userData?.email
+      ? prioritizeCurrentUserInMiddle(filteredOperators, userData, 'tempoMedio').slice(0, 10)
+      : filteredOperators.sort((a, b) => (a.tempoMedio || 0) - (b.tempoMedio || 0)).slice(0, 10)
+    
+    const labels = topOperators.map((op, index) => 
+      getOperatorDisplayName(op.operador, index, userData, shouldHideNames)
     )
-    const durations = topOperators.map(op => op.avgDuration || 0)
+    const durations = topOperators.map(op => op.tempoMedio || 0)
 
     chartInstances.current.durationChart = new Chart(chartRefs.durationChart.current, {
       type: 'bar',
@@ -332,15 +393,15 @@ const ChartsDetailedPage = ({ data, operatorMetrics, rankings, selectedPeriod, p
 
   // Gráfico de Ranking
   const createRankingChart = () => {
-    if (!chartRefs.rankingChart.current || !rankings) return
+    if (!chartRefs.rankingChart.current || !filteredRankings) return
 
     const colors = getChartColors()
-    const topRankings = rankings
-      .filter(r => r.operator && !r.operator.toLowerCase().includes('sem operador'))
+    const topRankings = filteredRankings
+      .filter(r => r.operador && !r.operador.toLowerCase().includes('sem operador'))
       .slice(0, 10)
 
     const labels = topRankings.map(r => 
-      r.operator.length > 12 ? r.operator.substring(0, 12) + '...' : r.operator
+      r.operador.length > 12 ? r.operador.substring(0, 12) + '...' : r.operador
     )
     const scores = topRankings.map(r => r.score || 0)
 
@@ -540,34 +601,37 @@ const ChartsDetailedPage = ({ data, operatorMetrics, rankings, selectedPeriod, p
     })
   }
 
-  // Criar todos os gráficos
+  // Criar todos os gráficos (otimizado com debounce)
   useEffect(() => {
-    if (data && operatorMetrics && rankings) {
-      // Destruir gráficos existentes
-      Object.values(chartInstances.current).forEach(chart => {
-        if (chart) chart.destroy()
-      })
+    const timeoutId = setTimeout(() => {
+      if (data && filteredOperatorMetrics && filteredRankings) {
+        // Destruir gráficos existentes
+        Object.values(chartInstances.current).forEach(chart => {
+          if (chart) chart.destroy()
+        })
 
-      // Criar novos gráficos
-      createCallsChart()
-      createRatingsChart()
-      createDurationChart()
-      createHourlyChart()
-      createRankingChart()
-      createTrendChart()
-    }
+        // Criar novos gráficos
+        createCallsChart()
+        createRatingsChart()
+        createDurationChart()
+        createHourlyChart()
+        createRankingChart()
+        createTrendChart()
+      }
+    }, 150) // Debounce de 150ms para evitar recriações excessivas
 
     return () => {
+      clearTimeout(timeoutId)
       Object.values(chartInstances.current).forEach(chart => {
         if (chart) chart.destroy()
       })
     }
-  }, [data, operatorMetrics, rankings, selectedPeriod, theme])
+  }, [data, filteredOperatorMetrics, filteredRankings, selectedPeriod, theme])
 
   // Listener para mudanças de tema
   useEffect(() => {
     const observer = new MutationObserver(() => {
-      if (data && operatorMetrics && rankings) {
+      if (data && filteredOperatorMetrics && filteredRankings) {
         // Destruir gráficos existentes
         Object.values(chartInstances.current).forEach(chart => {
           if (chart) chart.destroy()
@@ -591,43 +655,45 @@ const ChartsDetailedPage = ({ data, operatorMetrics, rankings, selectedPeriod, p
     return () => {
       observer.disconnect()
     }
-  }, [data, operatorMetrics, rankings])
+  }, [data, filteredOperatorMetrics, filteredRankings])
 
-  // useEffect para gráficos avançados
+  // useEffect para gráficos avançados (otimizado)
   useEffect(() => {
-    if (activeTab === 'advanced' && data && operatorMetrics) {
-      // Destruir gráficos avançados existentes
-      const advancedChartRefs = [
-        chartRefs.evolucaoAtendimentos,
-        chartRefs.topOperadores,
-        chartRefs.performanceMelhores,
-        chartRefs.rankingQualidade
-      ]
-      advancedChartRefs.forEach(ref => {
-        if (ref.current) {
-          const chart = Chart.getChart(ref.current)
-          if (chart) chart.destroy()
-        }
-      })
+    if (activeTab === 'advanced' && data && filteredOperatorMetrics) {
+      const timeoutId = setTimeout(() => {
+        // Destruir gráficos avançados existentes
+        const advancedChartRefs = [
+          chartRefs.evolucaoAtendimentos,
+          chartRefs.topOperadores,
+          chartRefs.performanceMelhores,
+          chartRefs.rankingQualidade
+        ]
+        advancedChartRefs.forEach(ref => {
+          if (ref.current) {
+            const chart = Chart.getChart(ref.current)
+            if (chart) chart.destroy()
+          }
+        })
 
-      // Criar gráficos avançados
-      setTimeout(() => {
+        // Criar gráficos avançados
         createAdvancedCharts()
-      }, 100)
+      }, 200) // Debounce maior para gráficos avançados
+      
+      return () => clearTimeout(timeoutId)
     }
-  }, [activeTab, data, operatorMetrics, theme])
+  }, [activeTab, data, filteredOperatorMetrics, theme])
 
   const createAdvancedCharts = () => {
-    if (!data || !operatorMetrics) {
-      console.log('❌ Dados não disponíveis para gráficos avançados:', { data: !!data, operatorMetrics: !!operatorMetrics })
+    if (!data || !filteredOperatorMetrics) {
+      console.log('❌ Dados não disponíveis para gráficos avançados:', { data: !!data, operatorMetrics: !!filteredOperatorMetrics })
       return
     }
 
     console.log('🎨 Criando gráficos avançados...', { 
       dataLength: data.length, 
-      operatorMetricsCount: Object.keys(operatorMetrics).length,
+      operatorMetricsCount: Object.keys(filteredOperatorMetrics).length,
       firstDataItem: data[0],
-      operatorMetricsKeys: Object.keys(operatorMetrics).slice(0, 3)
+      operatorMetricsKeys: Object.keys(filteredOperatorMetrics).slice(0, 3)
     })
 
     // Cores baseadas no tema
@@ -692,7 +758,7 @@ const ChartsDetailedPage = ({ data, operatorMetrics, rankings, selectedPeriod, p
 
     // 2. Gráfico de Top Operadores
     console.log('🏆 Criando gráfico de top operadores...')
-    const topData = calcTopOperadores(operatorMetrics, 5)
+    const topData = calcTopOperadores(filteredOperatorMetrics, 5)
     console.log('🏆 Dados de top operadores:', topData)
     if (chartRefs.topOperadores.current) {
       console.log('🏆 Canvas encontrado, criando gráfico...')
@@ -735,7 +801,7 @@ const ChartsDetailedPage = ({ data, operatorMetrics, rankings, selectedPeriod, p
     }
 
     // 3. Gráfico de Performance dos Melhores
-    const perfData = calcPerformanceMelhores(operatorMetrics, 5)
+    const perfData = calcPerformanceMelhores(filteredOperatorMetrics, 5)
     if (chartRefs.performanceMelhores.current) {
       new Chart(chartRefs.performanceMelhores.current, {
         type: 'bar',
@@ -787,7 +853,7 @@ const ChartsDetailedPage = ({ data, operatorMetrics, rankings, selectedPeriod, p
     }
 
     // 4. Gráfico de Ranking de Qualidade
-    const rankingData = calcRankingQualidade(operatorMetrics)
+    const rankingData = calcRankingQualidade(filteredOperatorMetrics)
     if (chartRefs.rankingQualidade.current) {
       new Chart(chartRefs.rankingQualidade.current, {
         type: 'bar',
@@ -862,6 +928,25 @@ const ChartsDetailedPage = ({ data, operatorMetrics, rankings, selectedPeriod, p
         )}
       </div>
 
+      {/* Seletor de Período */}
+      <div className="period-selector-section">
+        <div className="period-selector-header">
+          <h3>📅 Selecionar Período</h3>
+          <p>Escolha o período para visualizar os dados nos gráficos</p>
+        </div>
+        <AdvancedFilters 
+          filters={localFilters}
+          onFiltersChange={(newFilters) => {
+            setLocalFilters(newFilters)
+            // Também aplicar no sistema principal se disponível
+            if (onFiltersChange) {
+              onFiltersChange(newFilters)
+            }
+          }}
+          data={data}
+        />
+      </div>
+
       {/* Abas de Navegação */}
       <div className="charts-tabs">
         <button 
@@ -877,12 +962,6 @@ const ChartsDetailedPage = ({ data, operatorMetrics, rankings, selectedPeriod, p
           📊 Gráficos Gerais
         </button>
         <button 
-          className={`tab-button ${activeTab === 'personal' ? 'active' : ''}`}
-          onClick={() => setActiveTab('personal')}
-        >
-          🎯 Análise Personalizada
-        </button>
-        <button 
           className={`tab-button ${activeTab === 'advanced' ? 'active' : ''}`}
           onClick={() => setActiveTab('advanced')}
         >
@@ -894,9 +973,13 @@ const ChartsDetailedPage = ({ data, operatorMetrics, rankings, selectedPeriod, p
       {activeTab === 'modern' && (
         <ModernChartsDashboard 
           data={data}
-          operatorMetrics={operatorMetrics}
-          rankings={rankings}
+          operatorMetrics={filteredOperatorMetrics}
+          rankings={filteredRankings}
           selectedPeriod={selectedPeriod}
+          userData={userData}
+          filters={localFilters}
+          onFiltersChange={onFiltersChange}
+          userInfo={userInfo}
         />
       )}
       
@@ -970,10 +1053,6 @@ const ChartsDetailedPage = ({ data, operatorMetrics, rankings, selectedPeriod, p
         </div>
           </div>
         </div>
-      )}
-
-      {activeTab === 'personal' && (
-        <PersonalCharts data={data} pauseData={pauseData} />
       )}
 
       {activeTab === 'advanced' && (

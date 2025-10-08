@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { processarDados } from '../utils/dataProcessor'
 
 // Função para processamento assíncrono otimizado
-const processarDadosAssincrono = async (dados) => {
+const processarDadosAssincrono = async (dados, processAllRecords = false) => {
   return new Promise((resolve) => {
     // Mostrar progresso no console
     console.log(`⚡ Iniciando processamento de ${dados.length} registros...`)
@@ -10,7 +10,7 @@ const processarDadosAssincrono = async (dados) => {
     // Usar setTimeout para não bloquear a UI
     setTimeout(() => {
       const startTime = performance.now()
-      const resultado = processarDados(dados)
+      const resultado = processarDados(dados, processAllRecords)
       const endTime = performance.now()
       
       console.log(`✅ Processamento concluído em ${(endTime - startTime).toFixed(2)}ms`)
@@ -235,7 +235,13 @@ export const useGoogleSheetsDirectSimple = () => {
           // Carregar dados automaticamente para usuário já logado
           console.log('📊 Carregando dados para usuário já logado...')
           setIsLoading(true)
-          fetchSheetData(userInfo.accessToken)
+          
+          // Para operadores, carregar TODOS os registros históricos
+          const loadDataFunction = userInfo.email?.includes('@velotax.com.br') 
+            ? fetchFullDataset(userInfo.accessToken)
+            : fetchSheetData(userInfo.accessToken)
+          
+          loadDataFunction
             .then(() => {
               console.log('✅ Dados carregados com sucesso para usuário já logado!')
             })
@@ -329,12 +335,11 @@ export const useGoogleSheetsDirectSimple = () => {
         // Armazenar dataset completo
         setFullDataset(result.values)
         
-        // Processar dados iniciais (últimos 2000 registros - OTIMIZADO)
-        const dadosIniciais = result.values.slice(-2000)
-        console.log(`⚡ Processando ${dadosIniciais.length} registros de forma otimizada...`)
+        // Processar TODOS os dados históricos (não apenas os últimos 2000)
+        console.log(`⚡ Processando TODOS os ${result.values.length} registros históricos...`)
         
         // Processamento assíncrono com progresso
-        const dadosProcessados = await processarDadosAssincrono(dadosIniciais)
+        const dadosProcessados = await processarDadosAssincrono(result.values, true) // processAllRecords = true
         
         // Atualizar estados com dados processados
         setData(dadosProcessados.dadosFiltrados)
@@ -418,7 +423,7 @@ export const useGoogleSheetsDirectSimple = () => {
         setOperators(dadosProcessados.operadores)
         
         console.log(`🎉 TODOS OS REGISTROS carregados com sucesso!`)
-        console.log(`📊 Debug - Dados processados (TODOS): {dadosFiltrados: ${dadosProcessados.dadosFiltrados.length}, metricas: {...}, metricasOperadores: ${Object.keys(dadosProcessados.metricasOperadores).length}, rankings: ${dadosProcessados.rankings.length}, operadores: ${dadosProcessados.operadores.length}}`)
+        // console.log(`📊 Debug - Dados processados (TODOS): {dadosFiltrados: ${dadosProcessados.dadosFiltrados.length}, metricas: {...}, metricasOperadores: ${Object.keys(dadosProcessados.metricasOperadores).length}, rankings: ${dadosProcessados.rankings.length}, operadores: ${dadosProcessados.operadores.length}}`)
         
         return dadosProcessados
       } else {
@@ -491,7 +496,7 @@ export const useGoogleSheetsDirectSimple = () => {
       }
     })
 
-    console.log(`📊 Debug da filtragem:`)
+    // console.log(`📊 Debug da filtragem:`)
     console.log(`  ✅ Registros válidos no período: ${contadorValidos}`)
     console.log(`  ❌ Registros inválidos: ${contadorInvalidos}`)
     console.log(`  📅 Registros fora do período: ${contadorForaPeriodo}`)
@@ -656,13 +661,13 @@ export const useGoogleSheetsDirectSimple = () => {
         console.log(`⚡ Processando ${result.values.length} registros de forma otimizada...`)
         const dadosProcessados = await processarDadosAssincrono(result.values)
         
-        console.log('📊 Debug - Dados processados (últimos 60 dias):', {
-          dadosFiltrados: dadosProcessados.dadosFiltrados.length,
-          metricas: dadosProcessados.metricas,
-          metricasOperadores: Object.keys(dadosProcessados.metricasOperadores).length,
-          rankings: dadosProcessados.rankings.length,
-          operadores: dadosProcessados.operadores.length
-        })
+        // console.log('📊 Debug - Dados processados (últimos 60 dias):', {
+        //   dadosFiltrados: dadosProcessados.dadosFiltrados.length,
+        //   metricas: dadosProcessados.metricas,
+        //   metricasOperadores: Object.keys(dadosProcessados.metricasOperadores).length,
+        //   rankings: dadosProcessados.rankings.length,
+        //   operadores: dadosProcessados.operadores.length
+        // })
         
         // Converter metricasOperadores para o formato esperado pelo AgentAnalysis
         const operatorMetricsObj = {}
@@ -724,9 +729,15 @@ export const useGoogleSheetsDirectSimple = () => {
     }
   }
 
-  // Função para buscar dados (simplificada) - agora busca últimos 60 dias por padrão
+  // Função para buscar dados (simplificada) - agora busca todos os dados por padrão para operadores
   const fetchSheetData = async (accessToken, mode = 'recent') => {
-    // Por padrão, buscar dados dos últimos 60 dias
+    // Para operadores (@velotax.com.br), buscar todos os dados históricos
+    if (userData?.email?.includes('@velotax.com.br')) {
+      console.log('🚀 Operador detectado - carregando TODOS os registros históricos...')
+      return await fetchFullDataset(accessToken)
+    }
+    
+    // Para outros usuários, buscar dados dos últimos 60 dias
     return await fetchLast60Days(accessToken)
   }
 

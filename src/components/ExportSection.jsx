@@ -3,157 +3,15 @@ import './ExportSection.css'
 
 const ExportSection = ({ data, metrics, operatorMetrics }) => {
   const handleExportExcel = async () => {
-    try {
-      // Importar XLSX dinamicamente
-      const XLSX = await import('xlsx')
-      
-      // Criar workbook
-      const workbook = XLSX.utils.book_new()
-      
-      // Planilha com dados brutos
-      const rawData = data.map(record => ({
-        'Data': record.date ? new Date(record.date).toLocaleDateString('pt-BR') : '',
-        'Operador': record.operator,
-        'Tempo Atendimento (min)': record.duration_minutes,
-        'Nota Atendimento': record.rating_attendance,
-        'Nota Solução': record.rating_solution,
-        'Chamadas': record.call_count,
-        'Tempo Pausa (min)': record.pause_minutes,
-        'Motivo Pausa': record.pause_reason
-      }))
-      
-      const rawSheet = XLSX.utils.json_to_sheet(rawData)
-      XLSX.utils.book_append_sheet(workbook, rawSheet, 'Dados Brutos')
-      
-      // Planilha com resumo
-      const summaryData = [
-        ['Métrica', 'Valor'],
-        ['Total de Chamadas', metrics.totalCalls],
-        ['Tempo Médio de Atendimento (min)', metrics.avgDuration],
-        ['Nota Média de Atendimento', metrics.avgRatingAttendance],
-        ['Nota Média de Solução', metrics.avgRatingSolution],
-        ['Tempo Médio Logado (min)', metrics.avgLoggedTime],
-        ['Tempo Médio Pausado (min)', metrics.avgPauseTime],
-        ['Total de Operadores', metrics.totalOperators],
-        ['Período Início', metrics.dataPeriod.start],
-        ['Período Fim', metrics.dataPeriod.end]
-      ]
-      
-      const summarySheet = XLSX.utils.aoa_to_sheet(summaryData)
-      XLSX.utils.book_append_sheet(workbook, summarySheet, 'Resumo')
-      
-      // Planilha com métricas por operador
-      const operatorData = operatorMetrics.map(op => ({
-        'Operador': op.operator,
-        'Total Chamadas': op.totalCalls,
-        'Tempo Médio (min)': op.avgDuration,
-        'Nota Atendimento': op.avgRatingAttendance,
-        'Nota Solução': op.avgRatingSolution,
-        'Tempo Pausa (min)': op.avgPauseTime,
-        'Total Registros': op.totalRecords
-      }))
-      
-      const operatorSheet = XLSX.utils.json_to_sheet(operatorData)
-      XLSX.utils.book_append_sheet(workbook, operatorSheet, 'Por Operador')
-      
-      // Salvar arquivo
-      const fileName = `veloinsights_${new Date().toISOString().split('T')[0]}.xlsx`
-      XLSX.writeFile(workbook, fileName)
-      
-    } catch (error) {
-      console.error('Erro ao exportar Excel:', error)
-      alert('Erro ao exportar arquivo Excel')
-    }
+    alert('🚧 Funcionalidade em desenvolvimento - Em breve!')
   }
 
   const handleExportPDF = async () => {
-    try {
-      // Importar jsPDF e html2canvas dinamicamente
-      const [{ default: jsPDF }, html2canvas] = await Promise.all([
-        import('jspdf'),
-        import('html2canvas')
-      ])
-      
-      // Capturar o conteúdo do dashboard
-      const element = document.querySelector('.metrics-dashboard')
-      if (!element) {
-        alert('Nenhum conteúdo encontrado para exportar')
-        return
-      }
-      
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: '#F3F7FC'
-      })
-      
-      const imgData = canvas.toDataURL('image/png')
-      const pdf = new jsPDF('p', 'mm', 'a4')
-      
-      const imgWidth = 210
-      const pageHeight = 295
-      const imgHeight = (canvas.height * imgWidth) / canvas.width
-      let heightLeft = imgHeight
-      
-      let position = 0
-      
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
-      heightLeft -= pageHeight
-      
-      while (heightLeft >= 0) {
-        position = heightLeft - imgHeight
-        pdf.addPage()
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
-        heightLeft -= pageHeight
-      }
-      
-      const fileName = `veloinsights_${new Date().toISOString().split('T')[0]}.pdf`
-      pdf.save(fileName)
-      
-    } catch (error) {
-      console.error('Erro ao exportar PDF:', error)
-      alert('Erro ao exportar arquivo PDF')
-    }
+    alert('🚧 Funcionalidade em desenvolvimento - Em breve!')
   }
 
   const handleExportCSV = () => {
-    try {
-      // Converter dados para CSV
-      const csvData = data.map(record => ({
-        'Data': record.date ? new Date(record.date).toLocaleDateString('pt-BR') : '',
-        'Operador': record.operator,
-        'Tempo Atendimento (min)': record.duration_minutes,
-        'Nota Atendimento': record.rating_attendance,
-        'Nota Solução': record.rating_solution,
-        'Chamadas': record.call_count,
-        'Tempo Pausa (min)': record.pause_minutes,
-        'Motivo Pausa': record.pause_reason
-      }))
-      
-      // Converter para string CSV
-      const headers = Object.keys(csvData[0])
-      const csvContent = [
-        headers.join(','),
-        ...csvData.map(row => 
-          headers.map(header => `"${row[header] || ''}"`).join(',')
-        )
-      ].join('\n')
-      
-      // Criar e baixar arquivo
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-      const link = document.createElement('a')
-      const url = URL.createObjectURL(blob)
-      link.setAttribute('href', url)
-      link.setAttribute('download', `veloinsights_${new Date().toISOString().split('T')[0]}.csv`)
-      link.style.visibility = 'hidden'
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      
-    } catch (error) {
-      console.error('Erro ao exportar CSV:', error)
-      alert('Erro ao exportar arquivo CSV')
-    }
+    alert('🚧 Funcionalidade em desenvolvimento - Em breve!')
   }
 
   if (!data || data.length === 0) {
@@ -185,8 +43,9 @@ const ExportSection = ({ data, metrics, operatorMetrics }) => {
             <button 
               className="btn btn-primary"
               onClick={handleExportExcel}
+              data-status="coming-soon"
             >
-              📊 Exportar Excel
+              🚧 Em breve
             </button>
           </div>
           
@@ -197,8 +56,9 @@ const ExportSection = ({ data, metrics, operatorMetrics }) => {
             <button 
               className="btn btn-secondary"
               onClick={handleExportPDF}
+              data-status="coming-soon"
             >
-              📄 Exportar PDF
+              🚧 Em breve
             </button>
           </div>
           
@@ -209,8 +69,9 @@ const ExportSection = ({ data, metrics, operatorMetrics }) => {
             <button 
               className="btn btn-success"
               onClick={handleExportCSV}
+              data-status="coming-soon"
             >
-              📋 Exportar CSV
+              🚧 Em breve
             </button>
           </div>
         </div>
@@ -218,10 +79,10 @@ const ExportSection = ({ data, metrics, operatorMetrics }) => {
         <div className="export-info">
           <h4>ℹ️ Informações sobre Exportação:</h4>
           <ul>
-            <li><strong>Excel:</strong> Contém 3 planilhas: dados brutos, resumo geral e métricas por operador</li>
-            <li><strong>PDF:</strong> Captura visual do dashboard atual com todos os gráficos</li>
-            <li><strong>CSV:</strong> Dados tabulares processados, compatível com Excel e outras ferramentas</li>
-            <li>Todos os arquivos são nomeados automaticamente com a data atual</li>
+            <li><strong>Excel:</strong> 🚧 Em desenvolvimento - Múltiplas planilhas com dados brutos, resumo e métricas por operador</li>
+            <li><strong>PDF:</strong> 🚧 Em desenvolvimento - Relatório visual do dashboard com gráficos e métricas</li>
+            <li><strong>CSV:</strong> 🚧 Em desenvolvimento - Dados tabulares processados, compatível com Excel e outras ferramentas</li>
+            <li>📅 <strong>Previsão:</strong> Funcionalidades serão implementadas nas próximas versões</li>
           </ul>
         </div>
       </div>

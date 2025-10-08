@@ -1,7 +1,7 @@
 import React from 'react'
 import './Sidebar.css'
 
-const Sidebar = ({ open, currentView, onViewChange, hasData, onClearData, viewMode, onViewModeChange, selectedOperator, onOperatorSelect, operatorMetrics, onShowPreferences, onClose }) => {
+const Sidebar = ({ open, currentView, onViewChange, hasData, onClearData, viewMode, onViewModeChange, selectedOperator, onOperatorSelect, operatorMetrics, onShowPreferences, onClose, selectedCargo }) => {
   const menuItems = [
     {
       id: 'dashboard',
@@ -17,13 +17,14 @@ const Sidebar = ({ open, currentView, onViewChange, hasData, onClearData, viewMo
       description: 'Análise visual completa',
       disabled: !hasData
     },
-    {
+    // Só mostrar "Visualizar por Agente" se não for OPERADOR
+    ...(selectedCargo !== 'OPERADOR' ? [{
       id: 'agents',
       label: 'Visualizar por Agente',
       icon: '👤',
       description: 'Métricas de tempo por operador',
       disabled: !hasData
-    }
+    }] : [])
   ]
 
   return (
@@ -67,9 +68,12 @@ const Sidebar = ({ open, currentView, onViewChange, hasData, onClearData, viewMo
               className="operator-select"
             >
               <option value="">Todos os Operadores</option>
-              {operatorMetrics.map(op => (
+              {operatorMetrics.map((op, index) => (
                 <option key={op.operator} value={op.operator}>
-                  {op.operator} ({op.totalCalls} chamadas)
+                  {document.body.getAttribute('data-hide-names') === 'true' 
+                    ? `Operador ${index + 1} (${op.totalCalls} chamadas)`
+                    : `${op.operator} (${op.totalCalls} chamadas)`
+                  }
                 </option>
               ))}
             </select>

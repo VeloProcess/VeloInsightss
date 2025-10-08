@@ -36,11 +36,24 @@ function AppContent() {
   const { 
     selectedCargo, 
     selectCargo,
-    showCargoSelection
+    showCargoSelection,
+    userInfo
   } = useCargo()
   
   // Hook para tema
   const { theme, toggleTheme } = useTheme()
+  
+  // Controle de ocultar nomes para operadores
+  useEffect(() => {
+    // Verificar se deve ocultar nomes baseado no cargo PRINCIPAL do usuário, não no cargo selecionado
+    // SUPERADMIN/GESTOR/ANALISTA sempre veem métricas gerais, mesmo quando assumem cargo de OPERADOR
+    const shouldHideNames = userInfo?.cargo === 'OPERADOR'
+    document.body.setAttribute('data-hide-names', shouldHideNames.toString())
+    
+    return () => {
+      document.body.removeAttribute('data-hide-names')
+    }
+  }, [userInfo?.cargo])
   
   // Estados para dados e outras configurações
   // Dark List removida - todos os operadores são contabilizados normalmente
@@ -534,6 +547,7 @@ function AppContent() {
           operatorMetrics={operatorMetrics}
           onShowPreferences={() => setShowPreferences(true)}
           onClose={() => setSidebarOpen(false)}
+          selectedCargo={selectedCargo}
         />
         
         <main className={`main-content ${sidebarOpen ? 'sidebar-open' : ''}`}>
@@ -602,8 +616,13 @@ function AppContent() {
                     filteredData={filteredData.length > 0 ? filteredData : data}
                     data={filteredData.length > 0 ? filteredData : data}
                     periodo={(() => {
+                      // Se não há filtro selecionado, retornar null para ocultar o ranking
+                      if (!filters.period) {
+                        return null
+                      }
+                      
                       // Se há filtros ativos, sempre usar filteredData (mesmo que vazio)
-                      const currentData = filters.period ? filteredData : data
+                      const currentData = filteredData
                       
                       
                       if (!currentData || currentData.length === 0) {
@@ -660,6 +679,7 @@ function AppContent() {
                       }
                     })()}
                     onToggleNotes={handleToggleNotes}
+                    userData={userData}
                   />
                   
                   {/* Modal de Notas Detalhadas */}
@@ -790,6 +810,10 @@ function AppContent() {
               selectedPeriod={null}
               isLoading={isLoading}
               pauseData={filteredData.length > 0 ? filteredData : data}
+              userData={userData}
+              filters={filters}
+              originalData={data}
+              onFiltersChange={setFilters}
             />
           )}
           

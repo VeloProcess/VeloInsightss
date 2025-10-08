@@ -65,9 +65,12 @@ const DataFilters = ({
             className="filter-select"
           >
             <option value="">Todos os operadores</option>
-            {operatorMetrics.map(op => (
+            {operatorMetrics.map((op, index) => (
               <option key={op.operator} value={op.operator}>
-                {op.operator} ({op.totalCalls} chamadas)
+                {document.body.getAttribute('data-hide-names') === 'true' 
+                  ? `Operador ${index + 1} (${op.totalCalls} chamadas)`
+                  : `${op.operator} (${op.totalCalls} chamadas)`
+                }
               </option>
             ))}
           </select>

@@ -32,6 +32,34 @@
   font-weight: 400;
 }
 
+/* Seletor de Período */
+.period-selector-section {
+  margin-bottom: 30px;
+  padding: 20px;
+  background: var(--color-card-bg);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px var(--color-shadow);
+  border: 1px solid var(--color-card-border);
+}
+
+.period-selector-header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.period-selector-header h3 {
+  color: var(--color-text-primary);
+  font-size: 1.5rem;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.period-selector-header p {
+  color: var(--color-text-secondary);
+  font-size: 1rem;
+  margin: 0;
+}
+
 /* Abas de Navegação */
 .charts-tabs {
   display: flex;

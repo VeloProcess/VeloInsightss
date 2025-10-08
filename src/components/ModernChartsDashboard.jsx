@@ -1,1094 +1,492 @@
-import React, { useRef, useEffect, useState } from 'react'
-import Chart from 'chart.js/auto'
+import React, { useState, useEffect } from 'react'
 import { useTheme } from '../hooks/useTheme'
-import PeriodSelectorV2 from './PeriodSelectorV2'
-import TemporalComparison from './TemporalComparison'
 import './ModernChartsDashboard.css'
 
-const ModernChartsDashboard = ({ data, operatorMetrics, rankings, selectedPeriod }) => {
+const ModernChartsDashboard = ({ data, operatorMetrics, rankings, selectedPeriod, userData, filters = {}, onFiltersChange, userInfo }) => {
   const { theme } = useTheme()
-  const [chartInstances, setChartInstances] = useState({})
   const [isLoading, setIsLoading] = useState(true)
   const [hasError, setHasError] = useState(false)
-  const [loadingProgress, setLoadingProgress] = useState(0)
-  
-  // Estados para período temporal
   const [currentPeriod, setCurrentPeriod] = useState(null)
-  const [showPeriodSelector, setShowPeriodSelector] = useState(false)
-  const [periodComparison, setPeriodComparison] = useState(null)
-  
-  // Referências para os canvas dos gráficos
-  const chartRefs = {
-    salesChart: useRef(null),
-    usersChart: useRef(null),
-    satisfactionChart: useRef(null),
-    referralChart: useRef(null),
-    performanceChart: useRef(null),
-    activityChart: useRef(null)
-  }
 
-  // 🎭 Componentes de UI
-  const LoadingSpinner = ({ size = 'md', color = 'primary' }) => {
-    const design = getDesignSystem()
-    const sizeMap = {
-      sm: '1rem',
-      md: '2rem',
-      lg: '3rem',
-      xl: '4rem'
-    }
-    
-    return (
-      <div 
-        className="loading-spinner"
-        style={{
-          width: sizeMap[size],
-          height: sizeMap[size],
-          borderColor: design.colors.border,
-          borderTopColor: design.colors[color],
-          animation: 'spin 1s linear infinite'
-        }}
-      />
-    )
-  }
+  // Determinar se deve mostrar dados pessoais baseado no cargo PRINCIPAL do usuário
+  // SUPERADMIN/GESTOR/ANALISTA sempre veem métricas gerais, mesmo quando assumem cargo de OPERADOR
+  const shouldShowPersonalData = userInfo?.cargo === 'OPERADOR'
 
-  const ProgressBar = ({ progress, color = 'primary', height = '4px' }) => {
-    const design = getDesignSystem()
+  // Função para scroll suave até os gráficos
+  const scrollToCharts = () => {
+    console.log('🔄 [ModernChartsDashboard] Tentando fazer scroll para os gráficos...')
     
-    return (
-      <div 
-        className="progress-bar"
-        style={{
-          height,
-          backgroundColor: design.colors.border,
-          borderRadius: design.borderRadius.full
-        }}
-      >
-        <div 
-          className="progress-fill"
-          style={{
-            width: `${Math.min(100, Math.max(0, progress))}%`,
-            backgroundColor: design.colors[color],
-            height: '100%',
-            borderRadius: design.borderRadius.full,
-            transition: design.transitions.normal
-          }}
-        />
-      </div>
-    )
-  }
-
-  const EmptyState = ({ icon = '📊', title, description, action }) => {
-    const design = getDesignSystem()
+    // Procurar pela seção de gráficos - diferentes seletores para diferentes contextos
+    const chartsSection = document.querySelector('.main-content-grid') || 
+                         document.querySelector('.charts-grid') ||
+                         document.querySelector('.charts-section') ||
+                         document.querySelector('.metrics-dashboard') ||
+                         document.querySelector('.dashboard-content')
     
-    return (
-      <div 
-        className="empty-state"
-        style={{
-          textAlign: 'center',
-          padding: design.spacing['2xl'],
-          color: design.colors.textMuted
-        }}
-      >
-        <div style={{ fontSize: '3rem', marginBottom: design.spacing.md }}>
-          {icon}
-        </div>
-        <h3 style={{ 
-          fontSize: design.typography.fontSize.lg,
-          fontWeight: design.typography.fontWeight.semibold,
-          color: design.colors.text,
-          marginBottom: design.spacing.sm
-        }}>
-          {title}
-        </h3>
-        <p style={{ 
-          fontSize: design.typography.fontSize.sm,
-          lineHeight: design.typography.lineHeight.relaxed,
-          marginBottom: action ? design.spacing.lg : 0
-        }}>
-          {description}
-        </p>
-        {action && (
-          <button 
-            onClick={action.onClick}
-            style={{
-              backgroundColor: design.colors.primary,
-              color: design.colors.white,
-              border: 'none',
-              borderRadius: design.borderRadius.md,
-              padding: `${design.spacing.sm} ${design.spacing.lg}`,
-              fontSize: design.typography.fontSize.sm,
-              fontWeight: design.typography.fontWeight.medium,
-              cursor: 'pointer',
-              transition: design.transitions.normal
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.backgroundColor = design.colors.primaryDark
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.backgroundColor = design.colors.primary
-            }}
-          >
-            {action.label}
-          </button>
-        )}
-      </div>
-    )
-  }
-
-  const StatusIndicator = ({ status, label }) => {
-    const design = getDesignSystem()
-    const statusConfig = {
-      success: { color: design.colors.success, icon: '✅' },
-      warning: { color: design.colors.warning, icon: '⚠️' },
-      error: { color: design.colors.error, icon: '❌' },
-      info: { color: design.colors.info, icon: 'ℹ️' },
-      loading: { color: design.colors.primary, icon: '⏳' }
-    }
+    console.log('🎯 [ModernChartsDashboard] Seção encontrada:', chartsSection)
     
-    const config = statusConfig[status] || statusConfig.info
-    
-    return (
-      <div 
-        className="status-indicator"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: design.spacing.sm,
-          padding: `${design.spacing.xs} ${design.spacing.sm}`,
-          backgroundColor: `${config.color}15`,
-          borderRadius: design.borderRadius.md,
-          border: `1px solid ${config.color}30`
-        }}
-      >
-        <span style={{ fontSize: design.typography.fontSize.sm }}>
-          {config.icon}
-        </span>
-        <span style={{ 
-          fontSize: design.typography.fontSize.sm,
-          fontWeight: design.typography.fontWeight.medium,
-          color: config.color
-        }}>
-          {label}
-        </span>
-      </div>
-    )
-  }
-
-  // Sistema de Design Completo
-  const getDesignSystem = () => {
-    const isDark = theme === 'dark' || document.body.classList.contains('theme-dark')
-    
-    return {
-      // 🎨 Paleta de Cores
-      colors: {
-        // Cores primárias
-        primary: '#1634FF',
-        primaryLight: '#1694FF',
-        primaryDark: '#000058',
-        
-        // Cores secundárias
-        secondary: '#15A237',
-        secondaryLight: '#10B981',
-        secondaryDark: '#059669',
-        
-        // Cores de estado
-        success: '#15A237',
-        warning: '#FCC200',
-        error: '#EF4444',
-        info: '#06B6D4',
-        
-        // Cores neutras
-        white: '#FFFFFF',
-        black: '#000000',
-        gray50: '#F9FAFB',
-        gray100: '#F3F4F6',
-        gray200: '#E5E7EB',
-        gray300: '#D1D5DB',
-        gray400: '#9CA3AF',
-        gray500: '#6B7280',
-        gray600: '#4B5563',
-        gray700: '#374151',
-        gray800: '#1F2937',
-        gray900: '#111827',
-        
-        // Cores de fundo e texto
-        background: isDark ? '#1F2937' : '#FFFFFF',
-        surface: isDark ? '#374151' : '#F9FAFB',
-        text: isDark ? '#FFFFFF' : '#1F2937',
-        textSecondary: isDark ? '#9CA3AF' : '#6B7280',
-        textMuted: isDark ? '#6B7280' : '#9CA3AF',
-        border: isDark ? '#374151' : '#E5E7EB',
-        grid: isDark ? 'rgba(55, 65, 81, 0.3)' : 'rgba(229, 231, 235, 0.5)',
-      },
-      
-      // 🌈 Gradientes
-      gradients: {
-        primary: 'linear-gradient(135deg, #1634FF 0%, #1694FF 50%, #15A237 100%)',
-        secondary: 'linear-gradient(135deg, #FCC200 0%, #F59E0B 50%, #EF4444 100%)',
-        success: 'linear-gradient(135deg, #15A237 0%, #10B981 50%, #06B6D4 100%)',
-        surface: isDark ? 
-          'linear-gradient(135deg, #374151 0%, #4B5563 100%)' :
-          'linear-gradient(135deg, #FFFFFF 0%, #F9FAFB 100%)'
-      },
-      
-      // 📝 Tipografia
-      typography: {
-        fontFamily: {
-          sans: ['Inter', 'system-ui', 'sans-serif'],
-          mono: ['JetBrains Mono', 'monospace']
-        },
-        fontSize: {
-          xs: '0.75rem',    // 12px
-          sm: '0.875rem',   // 14px
-          base: '1rem',     // 16px
-          lg: '1.125rem',   // 18px
-          xl: '1.25rem',    // 20px
-          '2xl': '1.5rem',  // 24px
-          '3xl': '1.875rem', // 30px
-          '4xl': '2.25rem'  // 36px
-        },
-        fontWeight: {
-          light: '300',
-          normal: '400',
-          medium: '500',
-          semibold: '600',
-          bold: '700',
-          extrabold: '800'
-        },
-        lineHeight: {
-          tight: '1.25',
-          normal: '1.5',
-          relaxed: '1.75'
-        },
-        letterSpacing: {
-          tight: '-0.025em',
-          normal: '0',
-          wide: '0.025em',
-          wider: '0.05em'
-        }
-      },
-      
-      // 📏 Espaçamento
-      spacing: {
-        xs: '0.25rem',   // 4px
-        sm: '0.5rem',    // 8px
-        md: '1rem',      // 16px
-        lg: '1.5rem',    // 24px
-        xl: '2rem',      // 32px
-        '2xl': '3rem',   // 48px
-        '3xl': '4rem'    // 64px
-      },
-      
-      // 🔄 Transições
-      transitions: {
-        fast: '150ms ease-in-out',
-        normal: '250ms ease-in-out',
-        slow: '350ms ease-in-out',
-        bounce: '500ms cubic-bezier(0.68, -0.55, 0.265, 1.55)'
-      },
-      
-      // 📱 Breakpoints
-      breakpoints: {
-        sm: '640px',
-        md: '768px',
-        lg: '1024px',
-        xl: '1280px',
-        '2xl': '1536px'
-      },
-      
-      // 🎭 Sombras
-      shadows: {
-        sm: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
-        md: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-        lg: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-        xl: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-        glow: isDark ? 
-          '0 0 20px rgba(22, 52, 255, 0.3)' :
-          '0 0 20px rgba(22, 52, 255, 0.1)'
-      },
-      
-      // 🎨 Bordas
-      borderRadius: {
-        none: '0',
-        sm: '0.25rem',   // 4px
-        md: '0.5rem',    // 8px
-        lg: '0.75rem',   // 12px
-        xl: '1rem',      // 16px
-        '2xl': '1.5rem', // 24px
-        full: '9999px'
-      }
-    }
-  }
-
-  // Função para obter cores (compatibilidade)
-  const getChartColors = () => {
-    const design = getDesignSystem()
-    return {
-      primary: design.colors.primary,
-      secondary: design.colors.primaryLight,
-      accent: design.colors.secondary,
-      warning: design.colors.warning,
-      text: design.colors.text,
-      textSecondary: design.colors.textSecondary,
-      grid: design.colors.grid,
-      background: design.colors.surface,
-      dataColors: [
-        design.colors.primary, design.colors.primaryLight, design.colors.secondary,
-        design.colors.warning, design.colors.error, '#8B5CF6', '#06B6D4',
-        '#F59E0B', design.colors.secondaryLight, '#EC4899'
-      ]
-    }
-  }
-
-  // Destruir gráficos existentes
-  const destroyCharts = () => {
-    // Destruir instâncias conhecidas
-    Object.values(chartInstances).forEach(chart => {
-      if (chart && typeof chart.destroy === 'function') {
-        try {
-          chart.destroy()
-        } catch (error) {
-          console.warn('Erro ao destruir gráfico:', error)
-        }
-      }
-    })
-    
-    // Destruir gráficos que podem existir no Chart.js registry
-    if (Chart && Chart.instances) {
-      // Chart.instances é um objeto, não array
-      Object.values(Chart.instances).forEach((chart) => {
-        try {
-          chart.destroy()
-        } catch (error) {
-          console.warn('Erro ao destruir gráfico do registry:', error)
-        }
+    if (chartsSection) {
+      console.log('✅ [ModernChartsDashboard] Fazendo scroll para:', chartsSection.className)
+      chartsSection.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'start' 
+      })
+    } else {
+      console.log('⚠️ [ModernChartsDashboard] Nenhuma seção encontrada, fazendo scroll para o topo')
+      // Fallback: scroll para o topo da página
+      window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
       })
     }
-    
-    setChartInstances({})
-    
-    // Limpar todos os canvas
-    Object.values(chartRefs).forEach(ref => {
-      if (ref.current) {
-        const canvas = ref.current
-        try {
-          const ctx = canvas.getContext('2d')
-          if (ctx) {
-            ctx.clearRect(0, 0, canvas.width, canvas.height)
-          }
-          // Remover qualquer ID do canvas
-          canvas.removeAttribute('id')
-        } catch (error) {
-          console.warn('Erro ao limpar canvas:', error)
-        }
-      }
-    })
   }
 
-  // Criar gráfico de vendas (linha)
-  const createSalesChart = () => {
-    if (!chartRefs.salesChart.current) return
-
-    const colors = getChartColors()
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  // Função para aplicar período e ir direto aos gráficos
+  const handlePeriodChange = async (period) => {
+    console.log('🚀 [ModernChartsDashboard] Aplicando período:', period)
     
-    // Simular dados de vendas baseados nos dados reais
-    const salesData = months.map((_, index) => {
-      const baseValue = 40000 + (index * 2000)
-      const variation = Math.random() * 10000 - 5000
-      return Math.max(0, baseValue + variation)
-    })
-
-    const chart = new Chart(chartRefs.salesChart.current, {
-      type: 'line',
-      data: {
-        labels: months,
-        datasets: [{
-          label: 'Vendas',
-          data: salesData,
-          borderColor: colors.primary,
-          backgroundColor: `${colors.primary}20`,
-          borderWidth: 3,
-          fill: true,
-          tension: 0.4,
-          pointBackgroundColor: colors.primary,
-          pointBorderColor: colors.background,
-          pointBorderWidth: 2,
-          pointRadius: 6
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            display: false
-          }
-        },
-        scales: {
-          x: {
-            grid: {
-              color: colors.grid,
-              drawBorder: false
-            },
-            ticks: {
-              color: colors.textSecondary,
-              font: {
-                size: 12,
-                weight: '500'
-              }
-            }
-          },
-          y: {
-            grid: {
-              color: colors.grid,
-              drawBorder: false
-            },
-            ticks: {
-              color: colors.text,
-              font: {
-                size: 12
-              },
-              callback: function(value) {
-                return '$' + (value / 1000) + 'k'
-              }
-            }
-          }
-        }
-      }
-    })
-
-    setChartInstances(prev => ({ ...prev, salesChart: chart }))
-  }
-
-  // Criar gráfico de usuários ativos (barras)
-  const createUsersChart = () => {
-    if (!chartRefs.usersChart.current) return
-
-    const colors = getChartColors()
-    const operatorMetricsArray = Object.values(operatorMetrics || {})
-    const topOperators = operatorMetricsArray
-      .filter(op => op.operator && !op.operator.toLowerCase().includes('sem operador'))
-      .sort((a, b) => (b.totalCalls || 0) - (a.totalCalls || 0))
-      .slice(0, 8)
-
-    // Verificar se deve esconder nomes - usar uso do useAccessControl
-    const shouldHideNames = document.body.getAttribute('data-hide-names') === 'true'
-    
-    const labels = shouldHideNames 
-      ? topOperators.map((_, index) => `Operador ${index + 1}`)
-      : topOperators.map(op => 
-          op.operator.length > 10 ? op.operator.substring(0, 10) + '...' : op.operator
-        )
-    const calls = topOperators.map(op => op.totalCalls || 0)
-
-    const chart = new Chart(chartRefs.usersChart.current, {
-      type: 'bar',
-      data: {
-        labels: labels,
-        datasets: [{
-          label: 'Atendimentos',
-          data: calls,
-          backgroundColor: [
-            colors.primary,
-            colors.secondary,
-            colors.success,
-            colors.warning,
-            `${colors.primary}80`,
-            `${colors.secondary}80`,
-            `${colors.success}80`,
-            `${colors.warning}80`
-          ],
-          borderRadius: 8,
-          borderSkipped: false
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            display: false
-          }
-        },
-        scales: {
-          x: {
-            grid: {
-              display: false
-            },
-            ticks: {
-              color: colors.textSecondary,
-              font: {
-                size: 11,
-                weight: '500'
-              }
-            }
-          },
-          y: {
-            grid: {
-              color: colors.grid,
-              drawBorder: false
-            },
-            ticks: {
-              color: colors.textSecondary,
-              font: {
-                size: 12,
-                weight: '500'
-              }
-            }
-          }
-        }
-      }
-    })
-
-    setChartInstances(prev => ({ ...prev, usersChart: chart }))
-  }
-
-  // Criar gráfico de satisfação elegante
-  const createSatisfactionChart = () => {
-    if (!chartRefs.satisfactionChart.current) return
-
-    const colors = getChartColors()
-    const ctx = chartRefs.satisfactionChart.current.getContext('2d')
-    
-    // Criar gradiente radial elegante
-    const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, 150)
-    gradient.addColorStop(0, '#1634FF')
-    gradient.addColorStop(0.5, '#1694FF')
-    gradient.addColorStop(1, '#15A237')
-
-    const satisfactionRate = 95 // Baseado nos dados reais
-
-    const chart = new Chart(chartRefs.satisfactionChart.current, {
-      type: 'doughnut',
-      data: {
-        datasets: [{
-          data: [satisfactionRate, 100 - satisfactionRate],
-          backgroundColor: [gradient, 'rgba(55, 65, 81, 0.1)'],
-          borderWidth: 0,
-          cutout: '75%',
-          hoverOffset: 20,
-          hoverBorderWidth: 3,
-          hoverBorderColor: '#FFFFFF'
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        animation: {
-          animateRotate: true,
-          animateScale: true,
-          duration: 2000,
-          easing: 'easeInOutQuart'
-        },
-        plugins: {
-          legend: {
-            display: false
-          },
-          tooltip: {
-            backgroundColor: colors.background,
-            titleColor: colors.text,
-            bodyColor: colors.textSecondary,
-            borderColor: colors.primary,
-            borderWidth: 1,
-            cornerRadius: 12,
-            displayColors: false,
-            callbacks: {
-              label: function(context) {
-                return `Satisfação: ${context.parsed}%`
-              }
-            }
-          }
-        },
-        elements: {
-          arc: {
-            borderWidth: 0
-          }
-        }
-      }
-    })
-
-    setChartInstances(prev => ({ ...prev, satisfactionChart: chart }))
-  }
-
-  // Criar gráfico de qualidade elegante
-  const createReferralChart = () => {
-    if (!chartRefs.referralChart.current) return
-
-    const colors = getChartColors()
-    const ctx = chartRefs.referralChart.current.getContext('2d')
-    
-    // Criar gradiente dourado elegante
-    const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, 150)
-    gradient.addColorStop(0, '#FCC200')
-    gradient.addColorStop(0.5, '#F59E0B')
-    gradient.addColorStop(1, '#EF4444')
-
-    const referralScore = 93 // Baseado nos dados reais
-
-    const chart = new Chart(chartRefs.referralChart.current, {
-      type: 'doughnut',
-      data: {
-        datasets: [{
-          data: [referralScore, 100 - referralScore],
-          backgroundColor: [gradient, 'rgba(55, 65, 81, 0.1)'],
-          borderWidth: 0,
-          cutout: '75%',
-          hoverOffset: 20,
-          hoverBorderWidth: 3,
-          hoverBorderColor: '#FFFFFF'
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        animation: {
-          animateRotate: true,
-          animateScale: true,
-          duration: 2000,
-          easing: 'easeInOutQuart',
-          delay: 500 // Delay para criar efeito sequencial
-        },
-        plugins: {
-          legend: {
-            display: false
-          },
-          tooltip: {
-            backgroundColor: colors.background,
-            titleColor: colors.text,
-            bodyColor: colors.textSecondary,
-            borderColor: colors.warning,
-            borderWidth: 1,
-            cornerRadius: 12,
-            displayColors: false,
-            callbacks: {
-              label: function(context) {
-                return `Qualidade: ${context.parsed}%`
-              }
-            }
-          }
-        },
-        elements: {
-          arc: {
-            borderWidth: 0
-          }
-        }
-      }
-    })
-
-    setChartInstances(prev => ({ ...prev, referralChart: chart }))
-  }
-
-  // Criar gráfico de performance (linha)
-  const createPerformanceChart = () => {
-    if (!chartRefs.performanceChart.current) return
-
-    const colors = getChartColors()
-    const operatorMetricsArray = Object.values(operatorMetrics || {})
-    const topOperators = operatorMetricsArray
-      .filter(op => op.operator && !op.operator.toLowerCase().includes('sem operador'))
-      .sort((a, b) => (b.score || 0) - (a.score || 0))
-      .slice(0, 5)
-
-    const labels = topOperators.map(op => 
-      op.operator.length > 8 ? op.operator.substring(0, 8) + '...' : op.operator
-    )
-    const scores = topOperators.map(op => op.score || 0)
-
-    const chart = new Chart(chartRefs.performanceChart.current, {
-      type: 'line',
-      data: {
-        labels: labels,
-        datasets: [{
-          label: 'Score',
-          data: scores,
-          borderColor: colors.primary,
-          backgroundColor: 'rgba(22, 52, 255, 0.1)',
-          borderWidth: 4,
-          fill: true,
-          tension: 0.4,
-          pointBackgroundColor: '#FFFFFF',
-          pointBorderColor: colors.primary,
-          pointBorderWidth: 3,
-          pointRadius: 6,
-          pointHoverRadius: 8,
-          pointHoverBackgroundColor: '#FFFFFF',
-          pointHoverBorderColor: colors.primary,
-          pointHoverBorderWidth: 4
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            display: false
-          }
-        },
-        scales: {
-          x: {
-            grid: {
-              color: colors.grid,
-              drawBorder: false
-            },
-            ticks: {
-              color: colors.textSecondary,
-              font: {
-                size: 11,
-                weight: '500'
-              }
-            }
-          },
-          y: {
-            grid: {
-              color: colors.grid,
-              drawBorder: false
-            },
-            ticks: {
-              color: colors.textSecondary,
-              font: {
-                size: 12,
-                weight: '500'
-              }
-            }
-          }
-        }
-      }
-    })
-
-    setChartInstances(prev => ({ ...prev, performanceChart: chart }))
-  }
-
-  // Criar gráfico de atividade (barras horizontais)
-  const createActivityChart = () => {
-    if (!chartRefs.activityChart.current) return
-
-    const colors = getChartColors()
-    const operatorMetricsArray = Object.values(operatorMetrics || {})
-    const topOperators = operatorMetricsArray
-      .filter(op => op.operator && !op.operator.toLowerCase().includes('sem operador'))
-      .sort((a, b) => (b.avgRatingAttendance || 0) - (a.avgRatingAttendance || 0))
-      .slice(0, 6)
-
-    // Verificar se deve esconder nomes
-    const shouldHideNames = document.body.getAttribute('data-hide-names') === 'true'
-    
-    const labels = shouldHideNames 
-      ? topOperators.map((_, index) => `Operador ${index + 1}`)
-      : topOperators.map(op => 
-          op.operator.length > 12 ? op.operator.substring(0, 12) + '...' : op.operator
-        )
-    const ratings = topOperators.map(op => op.avgRatingAttendance || 0)
-
-    const chart = new Chart(chartRefs.activityChart.current, {
-      type: 'bar',
-      data: {
-        labels: labels,
-        datasets: [{
-          label: 'Nota Média',
-          data: ratings,
-          backgroundColor: colors.accent,
-          borderRadius: 12,
-          borderSkipped: false,
-          hoverBackgroundColor: colors.accent,
-          hoverBorderColor: '#FFFFFF',
-          hoverBorderWidth: 3
-        }]
-      },
-      options: {
-        indexAxis: 'y',
-        responsive: true,
-        maintainAspectRatio: false,
-        animation: {
-          duration: 2000,
-          easing: 'easeInOutQuart',
-          delay: 2000
-        },
-        plugins: {
-          legend: {
-            display: false
-          },
-          tooltip: {
-            backgroundColor: colors.background,
-            titleColor: colors.text,
-            bodyColor: colors.textSecondary,
-            borderColor: colors.accent,
-            borderWidth: 1,
-            cornerRadius: 12,
-            displayColors: false,
-            callbacks: {
-              label: function(context) {
-                return `Nota: ${context.parsed.x.toFixed(1)}`
-              }
-            }
-          }
-        },
-        scales: {
-          x: {
-            grid: {
-              color: colors.grid,
-              drawBorder: false
-            },
-            ticks: {
-              color: colors.textSecondary,
-              font: {
-                size: 12,
-                weight: '500'
-              }
-            }
-          },
-          y: {
-            grid: {
-              display: false
-            },
-            ticks: {
-              color: colors.textSecondary,
-              font: {
-                size: 11,
-                weight: '500'
-              }
-            }
-          }
-        }
-      }
-    })
-
-    setChartInstances(prev => ({ ...prev, activityChart: chart }))
-  }
-
-  // Função para calcular métricas de um período específico
-  const calculatePeriodMetrics = (startDate, endDate) => {
-    const filteredData = data.filter(record => {
-      if (!record.data) return false
-      const recordDate = new Date(record.data.split('/').reverse().join('-'))
-      const start = new Date(startDate)
-      const end = new Date(endDate)
-      return recordDate >= start && recordDate <= end
-    })
-
-    const totalCalls = filteredData.length
-    const atendidas = filteredData.filter(r => r.status === 'Atendida').length
-    const abandonadas = filteredData.filter(r => r.status === 'Abandonada').length
-    const retidasURA = filteredData.filter(r => r.status === 'Retida na URA').length
-
-    const ratings = filteredData
-      .map(r => ({ attendance: r.notaAtendimento, solution: r.notaSolucao }))
-      .filter(r => r.attendance || r.solution)
-    
-    const avgRatingAttendance = ratings.length > 0 
-      ? ratings.reduce((sum, r) => sum + (r.attendance || 0), 0) / ratings.length 
-      : 0
-    const avgRatingSolution = ratings.length > 0 
-      ? ratings.reduce((sum, r) => sum + (r.solution || 0), 0) / ratings.length 
-      : 0
-
-    const operatorMetricsArray = Object.values(operatorMetrics || {})
-    const filteredOperators = operatorMetricsArray.filter(op => 
-      op.operator && !op.operator.toLowerCase().includes('sem operador')
-    )
-
-    return {
-      totalCalls,
-      atendidas,
-      abandonadas,
-      retidasURA,
-      avgRatingAttendance: parseFloat(avgRatingAttendance.toFixed(2)),
-      avgRatingSolution: parseFloat(avgRatingSolution.toFixed(2)),
-      satisfactionRate: totalCalls > 0 ? Math.round((atendidas / totalCalls) * 100) : 0,
-      totalOperators: filteredOperators.length,
-      avgRating: avgRatingAttendance
-    }
-  }
-
-  // Função para lidar com seleção de período
-  const handlePeriodSelect = (periodData) => {
-    console.log('📅 Período selecionado nas métricas gerais:', periodData)
-    
-    // Calcular métricas do período atual
-    const currentMetrics = calculatePeriodMetrics(periodData.startDate, periodData.endDate)
-    
-    // Calcular período anterior para comparação
-    let previousMetrics = null
-    if (periodData.type === 'currentMonth' || periodData.type === 'lastMonth' || periodData.type === 'twoMonthsAgo') {
-      // Para períodos mensais, calcular o mês anterior
-      const currentMonth = new Date(periodData.startDate)
-      const previousMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1)
-      const previousMonthEnd = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 0)
-      
-      previousMetrics = calculatePeriodMetrics(
-        previousMonth.toISOString().split('T')[0],
-        previousMonthEnd.toISOString().split('T')[0]
-      )
-    } else if (periodData.type === 'last7Days' || periodData.type === 'last15Days') {
-      // Para períodos de dias, calcular o período anterior equivalente
-      const days = periodData.type === 'last7Days' ? 7 : 15
-      const endDate = new Date(periodData.startDate)
-      const startDate = new Date(endDate.getTime() - (days * 24 * 60 * 60 * 1000))
-      
-      previousMetrics = calculatePeriodMetrics(
-        startDate.toISOString().split('T')[0],
-        endDate.toISOString().split('T')[0]
-      )
+    if (!onFiltersChange) {
+      console.warn('⚠️ [ModernChartsDashboard] onFiltersChange não foi fornecido')
+      return
     }
 
-    setCurrentPeriod({
-      ...periodData,
-      metrics: currentMetrics
-    })
-
-    setPeriodComparison({
-      current: currentMetrics,
-      previous: previousMetrics,
-      periodName: periodData.label
-    })
-
-    setShowPeriodSelector(false)
+    // Simular carregamento dos dados
+    setIsLoading(true)
+    
+    // Aplicar o novo filtro
+    onFiltersChange({ ...filters, period })
+    
+    // Delay menor para gráficos detalhados (dados já estão carregados)
+    await new Promise(resolve => setTimeout(resolve, 400))
+    
+    // Após carregar, fazer scroll para os gráficos
+    console.log('⏰ [ModernChartsDashboard] Executando scroll após delay...')
+    scrollToCharts()
+    
+    // Finalizar carregamento
+    setIsLoading(false)
   }
 
-  // Inicializar com período padrão (mês atual)
-  useEffect(() => {
-    if (!data || data.length === 0) return
+  // Debug logs removidos para melhor performance
 
-    const now = new Date()
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+  // Função para filtrar dados por período
+  const getFilteredData = React.useMemo(() => {
+    // Se não há dados, retornar array vazio
+    if (!data || !Array.isArray(data)) {
+      return []
+    }
     
-    handlePeriodSelect({
-      type: 'currentMonth',
-      label: `Mês atual (${now.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })})`,
-      startDate: startOfMonth.toISOString().split('T')[0],
-      endDate: endOfMonth.toISOString().split('T')[0]
-    })
-  }, [data])
+    // Se não há período selecionado, retornar todos os dados
+    if (!filters.period) {
+      return data
+    }
 
-  // Criar todos os gráficos
-  const createAllCharts = () => {
-    console.log('🔄 Criando gráficos...')
-    
-    // Destruir gráficos existentes primeiro
-    destroyCharts()
-    
-    // Aguardar um pouco mais para garantir que os canvas foram limpos
-    setTimeout(() => {
-      try {
-        console.log('📊 Criando gráficos após limpeza...')
-        createSalesChart()
-        createUsersChart()
-        createSatisfactionChart()
-        createReferralChart()
-        createPerformanceChart()
-        createActivityChart()
-        console.log('✅ Todos os gráficos criados com sucesso')
-      } catch (error) {
-        console.warn('Erro ao criar gráficos:', error)
-        // Tentar novamente após um delay maior
-        setTimeout(() => {
-          try {
-            console.log('🔄 Tentando recriar gráficos...')
-            destroyCharts() // Destruir novamente antes de tentar
-            setTimeout(() => {
-              createSalesChart()
-              createUsersChart()
-              createSatisfactionChart()
-              createReferralChart()
-              createPerformanceChart()
-              createActivityChart()
-              console.log('✅ Gráficos recriados com sucesso')
-            }, 100)
-          } catch (retryError) {
-            console.error('Erro ao recriar gráficos:', retryError)
-          }
-        }, 500)
+    // Encontrar a última data disponível nos dados
+    const ultimaDataDisponivel = data.reduce((ultima, item) => {
+      if (!item.data) return ultima
+      
+      let itemDate
+      if (typeof item.data === 'string') {
+        const [dia, mes, ano] = item.data.split('/')
+        itemDate = new Date(ano, mes - 1, dia)
+      } else {
+        itemDate = new Date(item.data)
       }
-    }, 300) // Aumentei o delay para 300ms
-  }
+      
+      return itemDate > ultima ? itemDate : ultima
+    }, new Date(0))
 
-  // Calcular métricas gerais
-  const calculateMetrics = () => {
-    const operatorMetricsArray = Object.values(operatorMetrics || {})
-    const totalCalls = operatorMetricsArray.reduce((sum, op) => sum + (op.totalCalls || 0), 0)
-    const avgRating = operatorMetricsArray.reduce((sum, op) => sum + (op.avgRatingAttendance || 0), 0) / operatorMetricsArray.length
-    const totalOperators = operatorMetricsArray.filter(op => op.operator && !op.operator.toLowerCase().includes('sem operador')).length
+    let startDate, endDate
+
+    switch (filters.period) {
+      case 'last7Days':
+        startDate = new Date(ultimaDataDisponivel.getTime() - (7 * 24 * 60 * 60 * 1000))
+        endDate = ultimaDataDisponivel
+        break
+      
+      case 'last15Days':
+        startDate = new Date(ultimaDataDisponivel.getTime() - (15 * 24 * 60 * 60 * 1000))
+        endDate = ultimaDataDisponivel
+        break
+      
+      case 'ultimoMes':
+        startDate = new Date(ultimaDataDisponivel.getFullYear(), ultimaDataDisponivel.getMonth() - 1, ultimaDataDisponivel.getDate())
+        endDate = ultimaDataDisponivel
+        break
+      
+        case 'allRecords':
+          return data
+      
+      case 'custom':
+        if (filters.customStartDate && filters.customEndDate) {
+          startDate = new Date(filters.customStartDate)
+          endDate = new Date(filters.customEndDate)
+        } else {
+          return data
+        }
+        break
+      
+      default:
+        return data
+    }
+
+    const filteredData = data.filter(item => {
+      if (!item.data) return false
+      
+      let itemDate
+      if (typeof item.data === 'string') {
+        const [dia, mes, ano] = item.data.split('/')
+        itemDate = new Date(ano, mes - 1, dia)
+      } else {
+        itemDate = new Date(item.data)
+      }
+      
+      return itemDate >= startDate && itemDate <= endDate
+    })
     
-    return {
+    return filteredData
+  }, [data, filters])
+
+  // Memoizar dados do operador para evitar recálculos desnecessários
+  const operatorData = React.useMemo(() => {
+    if (!shouldShowPersonalData || !userData?.email || !getFilteredData) {
+      return []
+    }
+    
+    const emailName = userData.email.split('@')[0].toLowerCase()
+    
+    // Tentar diferentes variações do nome
+    const nameVariations = [
+      emailName,
+      emailName.replace(/\./g, ' '), // gabriel.araujo -> gabriel araujo
+      emailName.replace(/\./g, ''),  // gabriel.araujo -> gabrielaraujo
+      emailName.split('.')[0],       // gabriel.araujo -> gabriel
+      emailName.split('.')[1] || '', // gabriel.araujo -> araujo
+    ].filter(Boolean)
+    
+    let data = []
+    for (const variation of nameVariations) {
+      data = getFilteredData.filter(item => 
+        item.operador && item.operador.toLowerCase().includes(variation)
+      )
+      if (data.length > 0) {
+        break
+      }
+    }
+    
+    return data
+  }, [shouldShowPersonalData, userData?.email, getFilteredData])
+
+  // Calcular métricas básicas (usando dados filtrados)
+  const metrics = React.useMemo(() => {
+    if (!getFilteredData || !Array.isArray(getFilteredData)) {
+      return {
+        totalCalls: 0,
+        avgRating: 0,
+        satisfactionRate: 0,
+        referralScore: 0,
+        totalOperators: 0,
+        attendedCalls: 0,
+        retainedCalls: 0,
+        abandonedCalls: 0,
+        uncategorizedCalls: 0,
+        categorizedCalls: 0,
+        totalEvaluations: 0
+      }
+    }
+
+    // Calcular total de chamadas por operador logado (usando dados filtrados)
+    let totalCalls = 0
+    if (shouldShowPersonalData && userData?.email) {
+      totalCalls = operatorData.length
+    } else {
+      totalCalls = getFilteredData.length
+    }
+    
+    // Calcular chamadas por status de forma mais precisa (usando dados filtrados)
+    // IMPORTANTE: Se há usuário logado, calcular apenas para esse operador
+    let attendedCalls, retainedCalls, abandonedCalls
+    
+    if (shouldShowPersonalData && userData?.email) {
+      // Para operador específico - usar dados do operador memoizados
+      attendedCalls = operatorData.filter(item => 
+        item.status === 'Atendida' || 
+        item.chamada === 'Atendida'
+      ).length
+      
+      retainedCalls = operatorData.filter(item => 
+        item.status === 'Retida na URA' || 
+        item.chamada === 'Retida na URA' ||
+        (item.status && item.status.includes('URA'))
+      ).length
+      
+      abandonedCalls = operatorData.filter(item => 
+        item.status === 'Abandonada' || 
+        item.chamada === 'Abandonada' ||
+        (item.status && item.status.includes('Abandonada'))
+      ).length
+    } else {
+      // Para dados gerais - usar todos os dados filtrados
+      attendedCalls = getFilteredData.filter(item => 
+        item.status === 'Atendida' || 
+        item.chamada === 'Atendida'
+      ).length
+      
+      retainedCalls = getFilteredData.filter(item => 
+        item.status === 'Retida na URA' || 
+        item.chamada === 'Retida na URA' ||
+        (item.status && item.status.includes('URA'))
+      ).length
+      
+      abandonedCalls = getFilteredData.filter(item => 
+        item.status === 'Abandonada' || 
+        item.chamada === 'Abandonada' ||
+        (item.status && item.status.includes('Abandonada'))
+      ).length
+    }
+    
+    // Calcular chamadas não categorizadas
+    const uncategorizedCalls = totalCalls - (attendedCalls + retainedCalls + abandonedCalls)
+    
+    // Calcular chamadas categorizadas
+    const categorizedCalls = attendedCalls + retainedCalls + abandonedCalls
+    
+    // Calcular nota média - apenas para o operador logado usando coluna AB
+    let avgRating = 0
+    if (shouldShowPersonalData && userData?.email) {
+      const operatorRatings = operatorData.filter(item => 
+        item.notaAtendimento && item.notaAtendimento > 0
+      )
+      avgRating = operatorRatings.length > 0 
+        ? operatorRatings.reduce((sum, item) => sum + item.notaAtendimento, 0) / operatorRatings.length 
+        : 0
+    } else {
+      const attendedWithRatings = getFilteredData.filter(item => 
+        (item.status === 'Atendida' || item.chamada === 'Atendida' || (item.operador && item.operador !== 'Sem Operador' && item.operador !== '')) &&
+        item.notaAtendimento && item.notaAtendimento > 0
+      )
+      avgRating = attendedWithRatings.length > 0 
+        ? attendedWithRatings.reduce((sum, item) => sum + item.notaAtendimento, 0) / attendedWithRatings.length 
+        : 0
+    }
+
+    // Calcular taxa de satisfação (notas 4 e 5) - apenas para o operador logado
+    let satisfactionRate = 0
+    if (shouldShowPersonalData && userData?.email) {
+      const operatorRatings = operatorData.filter(item => 
+        item.notaAtendimento && item.notaAtendimento > 0
+      )
+      const satisfiedCalls = operatorRatings.filter(item => item.notaAtendimento >= 4).length
+      satisfactionRate = operatorRatings.length > 0 ? Math.round((satisfiedCalls / operatorRatings.length) * 100) : 0
+    } else {
+      const attendedWithRatings = getFilteredData.filter(item => 
+        (item.status === 'Atendida' || item.chamada === 'Atendida' || (item.operador && item.operador !== 'Sem Operador' && item.operador !== '')) &&
+        item.notaAtendimento && item.notaAtendimento > 0
+      )
+      const satisfiedCalls = attendedWithRatings.filter(item => item.notaAtendimento >= 4).length
+      satisfactionRate = attendedWithRatings.length > 0 ? Math.round((satisfiedCalls / attendedWithRatings.length) * 100) : 0
+    }
+
+    // Score de qualidade (média das notas de solução) - apenas para o operador logado usando coluna AC
+    let referralScore = 0
+    if (shouldShowPersonalData && userData?.email) {
+      const operatorSolutionRatings = operatorData.filter(item => 
+        item.notaSolucao && item.notaSolucao > 0
+      )
+      referralScore = operatorSolutionRatings.length > 0 
+        ? operatorSolutionRatings.reduce((sum, item) => sum + item.notaSolucao, 0) / operatorSolutionRatings.length 
+        : 0
+    } else {
+      const attendedWithSolutionRatings = getFilteredData.filter(item => 
+        (item.status === 'Atendida' || item.chamada === 'Atendida' || (item.operador && item.operador !== 'Sem Operador' && item.operador !== '')) &&
+        item.notaSolucao && item.notaSolucao > 0
+      )
+      referralScore = attendedWithSolutionRatings.length > 0 
+        ? attendedWithSolutionRatings.reduce((sum, item) => sum + item.notaSolucao, 0) / attendedWithSolutionRatings.length 
+        : 0
+    }
+
+    // Contar operadores únicos (usando dados filtrados)
+    const uniqueOperators = new Set(getFilteredData.map(item => item.operador).filter(op => op && op !== 'Sem Operador'))
+    const totalOperators = uniqueOperators.size
+    
+    const finalMetrics = {
       totalCalls,
-      avgRating: avgRating || 0,
+      avgRating: parseFloat(avgRating.toFixed(1)),
+      satisfactionRate,
+      referralScore: parseFloat(referralScore.toFixed(1)),
       totalOperators,
-      satisfactionRate: 95,
-      referralScore: 93
+      attendedCalls,
+      retainedCalls,
+      abandonedCalls,
+      uncategorizedCalls,
+      categorizedCalls,
+      totalEvaluations: shouldShowPersonalData && userData?.email ? 
+        operatorData.filter(item => 
+          item.notaAtendimento && item.notaAtendimento > 0
+        ).length :
+        getFilteredData.filter(item => 
+          (item.status === 'Atendida' || item.chamada === 'Atendida' || (item.operador && item.operador !== 'Sem Operador' && item.operador !== '')) &&
+          item.notaAtendimento && item.notaAtendimento > 0
+        ).length
     }
-  }
+    
+    return finalMetrics
+  }, [getFilteredData, userData, operatorData])
 
-  const metrics = calculateMetrics()
+  // Calcular dados semanais reais (usando dados filtrados)
+  const weeklyData = React.useMemo(() => {
+    if (!getFilteredData || !Array.isArray(getFilteredData)) {
+      return [
+        { day: 'Seg', value: 0, position: '20%' },
+        { day: 'Ter', value: 0, position: '35%' },
+        { day: 'Qua', value: 0, position: '50%' },
+        { day: 'Qui', value: 0, position: '65%' },
+        { day: 'Sex', value: 0, position: '80%' }
+      ]
+    }
 
-  // 🎯 Simular Loading Progress
-  useEffect(() => {
-    if (data && operatorMetrics) {
-      setIsLoading(true)
-      setLoadingProgress(0)
+    // Usar dados do operador se há usuário logado, senão usar dados gerais
+    const dataToProcess = shouldShowPersonalData && userData?.email ? operatorData : getFilteredData
+
+    // Agrupar dados por dia da semana
+    const weeklyStats = {
+      'Seg': 0, 'Ter': 0, 'Qua': 0, 'Qui': 0, 'Sex': 0
+    }
+
+    dataToProcess.forEach(item => {
+      // Tentar diferentes campos de data
+      const dateFields = ['data', 'Data', 'DATA', 'date', 'Date', 'DATE']
+      let dateValue = null
       
-      // Simular progresso de carregamento
-      const progressInterval = setInterval(() => {
-        setLoadingProgress(prev => {
-          if (prev >= 100) {
-            clearInterval(progressInterval)
-            setTimeout(() => {
-              setIsLoading(false)
-              createAllCharts()
-            }, 500)
-            return 100
+      for (const field of dateFields) {
+        if (item[field]) {
+          dateValue = item[field]
+          break
+        }
+      }
+
+      if (dateValue) {
+        try {
+          let date
+          // Tentar diferentes formatos de data
+          if (typeof dateValue === 'string') {
+            // Formato DD/MM/YYYY
+            if (dateValue.includes('/')) {
+              const parts = dateValue.split('/')
+              if (parts.length === 3) {
+                date = new Date(parts[2], parts[1] - 1, parts[0])
+              }
+            } else {
+              date = new Date(dateValue)
+            }
+          } else {
+            date = new Date(dateValue)
           }
-          return Math.min(prev + Math.floor(Math.random() * 15) + 1, 100)
-        })
-      }, 200)
-      
-      return () => clearInterval(progressInterval)
-    } else if (!data || !operatorMetrics) {
+          
+          if (!isNaN(date.getTime())) {
+            const dayOfWeek = date.getDay() // 0 = Domingo, 1 = Segunda, etc.
+            const dayNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab']
+            const dayName = dayNames[dayOfWeek]
+            
+            if (weeklyStats.hasOwnProperty(dayName)) {
+              weeklyStats[dayName]++
+            }
+          }
+        } catch (e) {
+          // Ignorar datas inválidas
+        }
+      }
+    })
+
+    // Converter para array com posições (posições são apenas para layout visual)
+    return [
+      { day: 'Seg', value: weeklyStats['Seg'], position: '20%' },
+      { day: 'Ter', value: weeklyStats['Ter'], position: '35%' },
+      { day: 'Qua', value: weeklyStats['Qua'], position: '50%' },
+      { day: 'Qui', value: weeklyStats['Qui'], position: '65%' },
+      { day: 'Sex', value: weeklyStats['Sex'], position: '80%' }
+    ]
+  }, [getFilteredData, userData, operatorData])
+
+  // Dados pessoais do operador logado (usando dados filtrados)
+  const personalData = React.useMemo(() => {
+    if (!shouldShowPersonalData || !userData?.email || !getFilteredData) return null
+
+    const personalCalls = operatorData
+
+    // Se não encontrar dados pessoais, retornar dados básicos para evitar erro
+    if (personalCalls.length === 0) {
+      console.log('⚠️ Nenhum dado pessoal encontrado para:', userData.email)
+      return {
+        totalCalls: 0,
+        avgDuration: 0,
+        avgRatingAttendance: 0,
+        avgRatingSolution: 0,
+        hasData: false
+      }
+    }
+
+    console.log('✅ Dados pessoais encontrados:', personalCalls.length, 'registros para', userData.email)
+
+    // Calcular tempo médio em minutos usando tempoFalado
+    const totalDuration = personalCalls.reduce((sum, item) => {
+      if (item.tempoFalado) {
+        // Se já está em minutos
+        if (typeof item.tempoFalado === 'number') {
+          return sum + item.tempoFalado
+        }
+        // Se está em formato HH:MM:SS, converter para minutos
+        if (typeof item.tempoFalado === 'string' && item.tempoFalado.includes(':')) {
+          const parts = item.tempoFalado.split(':')
+          const hours = parseInt(parts[0]) || 0
+          const minutes = parseInt(parts[1]) || 0
+          const seconds = parseInt(parts[2]) || 0
+          return sum + (hours * 60) + minutes + (seconds / 60)
+        }
+      }
+      return sum
+    }, 0)
+
+    // Calcular notas médias
+    const attendanceRatings = personalCalls.filter(item => item.notaAtendimento && item.notaAtendimento > 0)
+    const solutionRatings = personalCalls.filter(item => item.notaSolucao && item.notaSolucao > 0)
+
+    const personalMetrics = {
+      totalCalls: personalCalls.length,
+      avgDuration: personalCalls.length > 0 ? totalDuration / personalCalls.length : 0,
+      avgRatingAttendance: attendanceRatings.length > 0 
+        ? attendanceRatings.reduce((sum, item) => sum + item.notaAtendimento, 0) / attendanceRatings.length 
+        : 0,
+      avgRatingSolution: solutionRatings.length > 0 
+        ? solutionRatings.reduce((sum, item) => sum + item.notaSolucao, 0) / solutionRatings.length 
+        : 0,
+      hasData: true
+    }
+
+    console.log('📊 Métricas pessoais calculadas:', personalMetrics)
+    return personalMetrics
+  }, [shouldShowPersonalData, getFilteredData, userData, operatorData])
+
+  useEffect(() => {
+    if (getFilteredData) {
       setIsLoading(false)
       setHasError(false)
     }
-  }, [data, operatorMetrics, theme])
+  }, [getFilteredData])
 
   useEffect(() => {
-    return () => {
-      destroyCharts()
+    if (selectedPeriod) {
+      setCurrentPeriod(selectedPeriod)
     }
-  }, [])
+  }, [selectedPeriod])
 
-  // 🎯 Estados de Loading e Feedback
   if (isLoading) {
     return (
-      <div className="modern-charts-dashboard">
-        <div className="charts-header">
-          <h2>📊 Gráficos Gerais</h2>
+      <div className="modern-dashboard">
+        <div className="loading-container">
+          <div className="loading-spinner"></div>
           <p>Carregando dados...</p>
-        </div>
-        
-        <div style={{ marginBottom: '2rem' }}>
-          <ProgressBar progress={loadingProgress} color="primary" height="6px" />
-          <div style={{ 
-            textAlign: 'center', 
-            marginTop: '1rem',
-            color: getDesignSystem().colors.textSecondary 
-          }}>
-            {Math.round(loadingProgress)}% carregado
-          </div>
-        </div>
-
-        <div className="metrics-grid">
-          {[1, 2, 3, 4].map(i => (
-            <div key={i} className="metric-card">
-              <div className="skeleton" style={{ height: '60px', borderRadius: '16px' }} />
-            </div>
-          ))}
-        </div>
-
-        <div className="charts-section-top">
-          {[1, 2, 3].map(i => (
-            <div key={i} className="chart-card">
-              <div className="skeleton" style={{ height: '200px', borderRadius: '20px' }} />
-            </div>
-          ))}
         </div>
       </div>
     )
@@ -1096,276 +494,516 @@ const ModernChartsDashboard = ({ data, operatorMetrics, rankings, selectedPeriod
 
   if (hasError) {
     return (
-      <div className="modern-charts-dashboard">
-        <div className="charts-header">
-          <h2>📊 Gráficos Gerais</h2>
-          <StatusIndicator status="error" label="Erro ao carregar dados" />
+      <div className="modern-dashboard">
+        <div className="error-container">
+          <h3>Erro ao carregar dados</h3>
+          <p>Tente recarregar a página</p>
         </div>
-        
-        <EmptyState
-          icon="⚠️"
-          title="Erro ao Carregar Dados"
-          description="Não foi possível carregar os dados dos gráficos. Verifique sua conexão e tente novamente."
-          action={{
-            label: "Tentar Novamente",
-            onClick: () => {
-              setHasError(false)
-              setIsLoading(true)
-              setLoadingProgress(0)
-              // Simular recarregamento
-              setTimeout(() => {
-                setIsLoading(false)
-                setLoadingProgress(100)
-              }, 2000)
-            }
-          }}
-        />
       </div>
     )
   }
 
-  if (!data || !operatorMetrics || Object.keys(operatorMetrics).length === 0) {
     return (
-      <div className="modern-charts-dashboard">
-        <div className="charts-header">
-          <h2>📊 Gráficos Gerais</h2>
-          <StatusIndicator status="info" label="Nenhum dado disponível" />
+    <div className="modern-dashboard">
+      {/* Header */}
+      <div className="dashboard-header">
+        <div className="header-content">
+          <h1>Dashboard</h1>
+          <p>Análise completa dos dados de atendimento com precisão</p>
         </div>
-        
-        <EmptyState
-          icon="📊"
-          title="Nenhum Dado Disponível"
-          description="Não há dados suficientes para exibir os gráficos. Faça upload de um arquivo ou verifique se os dados estão sendo carregados corretamente."
-          action={{
-            label: "Atualizar Página",
-            onClick: () => window.location.reload()
-          }}
-        />
-      </div>
-    )
-  }
-
-  return (
-    <div className="modern-charts-dashboard">
-      {/* Header com Status */}
-      <div className="charts-header">
-        <h2>📊 Gráficos Gerais</h2>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '0.5rem' }}>
-          <p>Análise completa dos dados de atendimento</p>
-        </div>
-      </div>
-
-      {/* Período Atual e Botão de Seleção */}
-      <div className="period-info-section">
-        <div className="period-display">
-          <h3>📅 Período Selecionado</h3>
-          <span className="current-period">{currentPeriod?.label || 'Carregando...'}</span>
-        </div>
-        <button 
-          className="btn-modern-secondary"
-          onClick={() => setShowPeriodSelector(true)}
-        >
-          📅 Alterar Período
-        </button>
-      </div>
-
-      {/* Comparações Temporais */}
-      {periodComparison && (
-        <TemporalComparison 
-          comparison={periodComparison}
-          metricKeys={['totalCalls', 'avgRatingAttendance', 'totalOperators', 'satisfactionRate']}
-        />
-      )}
-
-      {/* Métricas Principais */}
-      <div className="metrics-grid">
-        <div className="metric-card">
-          <div className="metric-icon">📞</div>
-          <div className="metric-content">
-            <h3>Total de Atendimentos</h3>
-            <div className="metric-value">
-              {(currentPeriod?.metrics?.totalCalls || metrics.totalCalls).toLocaleString()}
-            </div>
-            {periodComparison && (
-              <div className={`metric-change ${periodComparison.current.totalCalls > periodComparison.previous?.totalCalls ? 'positive' : periodComparison.current.totalCalls < periodComparison.previous?.totalCalls ? 'negative' : 'neutral'}`}>
-                {periodComparison.previous ? 
-                  `${periodComparison.current.totalCalls > periodComparison.previous.totalCalls ? '+' : ''}${(((periodComparison.current.totalCalls - periodComparison.previous.totalCalls) / periodComparison.previous.totalCalls) * 100).toFixed(1)}%` 
-                  : 'Sem comparação' 
-                }
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="metric-card">
-          <div className="metric-icon">⭐</div>
-          <div className="metric-content">
-            <h3>Nota Média de Atendimento</h3>
-            <div className="metric-value">
-              {currentPeriod?.metrics?.avgRatingAttendance || metrics.avgRating.toFixed(1)}
-            </div>
-            {periodComparison && (
-              <div className={`metric-change ${periodComparison.current.avgRatingAttendance > periodComparison.previous?.avgRatingAttendance ? 'positive' : periodComparison.current.avgRatingAttendance < periodComparison.previous?.avgRatingAttendance ? 'negative' : 'neutral'}`}>
-                {periodComparison.previous ? 
-                  `${periodComparison.current.avgRatingAttendance > periodComparison.previous.avgRatingAttendance ? '+' : ''}${(periodComparison.current.avgRatingAttendance - periodComparison.previous.avgRatingAttendance).toFixed(1)} pontos` 
-                  : 'Sem comparação' 
-                }
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="metric-card">
-          <div className="metric-icon">👥</div>
-          <div className="metric-content">
-            <h3>Operadores Ativos</h3>
-            <div className="metric-value">
-              {currentPeriod?.metrics?.totalOperators || metrics.totalOperators}
-            </div>
-            {periodComparison && (
-              <div className={`metric-change ${periodComparison.current.totalOperators > periodComparison.previous?.totalOperators ? 'positive' : periodComparison.current.totalOperators < periodComparison.previous?.totalOperators ? 'negative' : 'neutral'}`}>
-                {periodComparison.previous ? 
-                  `${periodComparison.current.totalOperators > periodComparison.previous.totalOperators ? '+' : ''}${periodComparison.current.totalOperators - periodComparison.previous.totalOperators} operador${Math.abs(periodComparison.current.totalOperators - periodComparison.previous.totalOperators) !== 1 ? 'es' : ''}` 
-                  : 'Sem comparação' 
-                }
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="metric-card">
-          <div className="metric-icon">📈</div>
-          <div className="metric-content">
-            <h3>Taxa de Satisfação</h3>
-            <div className="metric-value">
-              {currentPeriod?.metrics?.satisfactionRate || metrics.satisfactionRate}%
-            </div>
-            {periodComparison && (
-              <div className={`metric-change ${periodComparison.current.satisfactionRate > periodComparison.previous?.satisfactionRate ? 'positive' : periodComparison.current.satisfactionRate < periodComparison.previous?.satisfactionRate ? 'negative' : 'neutral'}`}>
-                {periodComparison.previous ? 
-                  `${periodComparison.current.satisfactionRate > periodComparison.previous.satisfactionRate ? '+' : ''}${periodComparison.current.satisfactionRate - periodComparison.previous.satisfactionRate}%` 
-                  : 'Sem comparação' 
-                }
-              </div>
+        <div className="header-actions">
+          <div 
+            className={`period-selector clickable ${isLoading ? 'loading' : ''}`}
+            onClick={() => handlePeriodChange(filters.period)}
+            title="Clique para carregar dados e ir direto aos gráficos"
+          >
+            <span className="period-text">
+              {filters.period === 'allRecords' ? 'TODOS OS REGISTROS' :
+               filters.period === 'last7Days' ? 'Últimos 7 dias' :
+               filters.period === 'last15Days' ? 'Últimos 15 dias' :
+               filters.period === 'ultimoMes' ? 'Último mês' :
+               filters.period === 'penultimoMes' ? 'Penúltimo mês' :
+               filters.period === 'currentMonth' ? 'Mês atual' :
+               filters.period === 'custom' ? 'Período personalizado' :
+               selectedPeriod || 'Período não selecionado'}
+            </span>
+            {isLoading ? (
+              <i className='bx bx-loader-alt scroll-indicator loading-spinner'></i>
+            ) : (
+              <i className='bx bx-down-arrow-alt scroll-indicator'></i>
             )}
           </div>
         </div>
       </div>
 
-      {/* Seletor de Período */}
-      {showPeriodSelector && (
-        <div className="period-selector-overlay">
-          <div className="period-selector-container">
-            <PeriodSelectorV2 
-              onPeriodSelect={handlePeriodSelect}
-              isLoading={false}
-            />
+      {/* Main Stats Cards */}
+      <div className="stats-grid">
+        <div className="stat-card primary">
+          <div className="stat-icon">
+            <i className='bx bx-phone-call'></i>
           </div>
-        </div>
-      )}
-
-      {/* Seção Superior */}
-      <div className="charts-section-top">
-        <div className="chart-card welcome-card card-modern">
-          <div className="welcome-content">
-            <h3 className="title-h3 text-gradient font-display">VeloInsights Dashboard</h3>
-            <p className="subtitle font-body-medium">Análise de dados de atendimento</p>
-            <div className="welcome-stats">
-              <div className="stat">
-                <span className="stat-value">{metrics.totalCalls.toLocaleString()}</span>
-                <span className="stat-label">Atendimentos</span>
-              </div>
-              <div className="stat">
-                <span className="stat-value">{metrics.avgRating.toFixed(1)}</span>
-                <span className="stat-label font-body-medium">Nota Média</span>
-              </div>
+          <div className="stat-content">
+            <div className="stat-value">{metrics.totalCalls.toLocaleString()}</div>
+            <div className="stat-label">Total de Chamadas</div>
+            <div className="stat-change positive">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M7 14L12 9L17 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              Baseado em dados reais
             </div>
           </div>
         </div>
 
-        <div className="chart-card satisfaction-card">
-          <div className="card-header">
-            <h3 className="title-h4 font-body-semibold">Taxa de Satisfação</h3>
-            <div className="satisfaction-rate">{metrics.satisfactionRate}%</div>
+        <div className="stat-card warning">
+          <div className="stat-icon">
+            <i className='bx bx-star'></i>
           </div>
-          <div className="chart-container-small">
-            <canvas ref={chartRefs.satisfactionChart}></canvas>
-          </div>
-          <div className="card-footer">
-            <span>Baseado em {metrics.totalCalls.toLocaleString()} avaliações</span>
-          </div>
-        </div>
-
-        <div className="chart-card referral-card">
-          <div className="card-header">
-            <h3 className="title-h4 font-body-semibold">Score de Qualidade</h3>
-            <div className="referral-score">{metrics.referralScore}</div>
-          </div>
-          <div className="chart-container-small">
-            <canvas ref={chartRefs.referralChart}></canvas>
-          </div>
-          <div className="card-footer">
-            <span>Qualidade Total do Serviço</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Seção de Gráficos */}
-      <div className="charts-section-main">
-        <div className="chart-card sales-card">
-          <div className="card-header">
-            <h3>Evolução dos Atendimentos</h3>
-            <span className="card-subtitle">(+12%) mais que o mês anterior</span>
-          </div>
-          <div className="chart-container">
-            <canvas ref={chartRefs.salesChart}></canvas>
-          </div>
-        </div>
-
-        <div className="chart-card users-card">
-          <div className="card-header">
-            <h3>Top Operadores</h3>
-            <span className="card-subtitle">(+8) mais que a semana passada</span>
-          </div>
-          <div className="chart-container">
-            <canvas ref={chartRefs.usersChart}></canvas>
-          </div>
-          <div className="chart-stats">
-            <div className="stat-item">
-              <span className="stat-label">Atendimentos:</span>
-              <span className="stat-value">{metrics.totalCalls.toLocaleString()}</span>
+          <div className="stat-content">
+            <div className="stat-value">{metrics.avgRating}</div>
+            <div className="stat-label">Nota Média</div>
+            <div className="stat-change positive">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M7 14L12 9L17 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              Baseado em dados reais
             </div>
-            <div className="stat-item">
-              <span className="stat-label">Nota Média:</span>
-              <span className="stat-value">{metrics.avgRating.toFixed(1)}</span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-label">Operadores:</span>
-              <span className="stat-value">{metrics.totalOperators}</span>
+          </div>
+        </div>
+
+        <div className="stat-card info">
+          <div className="stat-icon">
+            <i className='bx bx-target-lock'></i>
+          </div>
+          <div className="stat-content">
+            <div className="stat-value">{metrics.referralScore}</div>
+            <div className="stat-label">Score de Qualidade</div>
+            <div className="stat-change positive">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M7 14L12 9L17 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              Baseado em dados reais
             </div>
           </div>
         </div>
       </div>
 
-      {/* Seção Inferior */}
-      <div className="charts-section-bottom">
-        <div className="chart-card performance-card">
-          <div className="card-header">
-            <h3>Performance dos Melhores</h3>
-            <span className="card-subtitle">30 concluídos este mês</span>
+      {/* Main Content Grid - 4 cards em 2x2 */}
+      <div className="main-content-grid">
+        {/* Status das Chamadas */}
+        <div className="chart-card">
+          <div className="chart-header">
+            <h3><i className='bx bx-bar-chart-alt-2'></i> Status das Chamadas</h3>
+            <p>Distribuição completa das chamadas</p>
           </div>
-          <div className="chart-container">
-            <canvas ref={chartRefs.performanceChart}></canvas>
+          <div className="bar-chart">
+            <div className="bar-item">
+              <div className="bar-label">Atendidas</div>
+              <div className="bar-container">
+                <div 
+                  className="bar-fill success" 
+                  style={{ width: `${metrics.totalCalls > 0 ? (metrics.attendedCalls / metrics.totalCalls) * 100 : 0}%` }}
+                ></div>
+                <span className="bar-value">{metrics.attendedCalls}</span>
+              </div>
+            </div>
+            <div className="bar-item">
+              <div className="bar-label">Retidas na URA</div>
+              <div className="bar-container">
+                <div 
+                  className="bar-fill warning" 
+                  style={{ width: `${metrics.totalCalls > 0 ? (metrics.retainedCalls / metrics.totalCalls) * 100 : 0}%` }}
+                ></div>
+                <span className="bar-value">{metrics.retainedCalls}</span>
+              </div>
+            </div>
+            <div className="bar-item">
+              <div className="bar-label">Abandonadas</div>
+              <div className="bar-container">
+                <div 
+                  className="bar-fill danger" 
+                  style={{ width: `${metrics.totalCalls > 0 ? (metrics.abandonedCalls / metrics.totalCalls) * 100 : 0}%` }}
+                ></div>
+                <span className="bar-value">{metrics.abandonedCalls}</span>
+              </div>
+            </div>
+          </div>
+          
+          <div className="performance-evaluation">
+            {(() => {
+              const totalCalls = metrics.totalCalls
+              const attendanceRate = totalCalls > 0 ? (metrics.attendedCalls / totalCalls) * 100 : 0
+              let evaluation = ''
+              let evaluationClass = ''
+              
+              if (attendanceRate >= 90) {
+                evaluation = 'Excelente'
+                evaluationClass = 'excellent'
+              } else if (attendanceRate >= 80) {
+                evaluation = 'Bom'
+                evaluationClass = 'good'
+              } else if (attendanceRate >= 70) {
+                evaluation = 'Regular'
+                evaluationClass = 'regular'
+              } else {
+                evaluation = 'Ruim'
+                evaluationClass = 'poor'
+              }
+              
+              return (
+                <div className={`evaluation-badge ${evaluationClass}`}>
+                  <i className='bx bx-trending-up'></i>
+                  <span>{evaluation} - {attendanceRate.toFixed(1)}% de atendimento</span>
+                </div>
+              )
+            })()}
           </div>
         </div>
 
-        <div className="chart-card activity-card">
-          <div className="card-header">
-            <h3>Ranking de Qualidade</h3>
-            <span className="card-subtitle">+30% este mês</span>
+        {/* Avaliações de Qualidade */}
+        <div className="chart-card">
+          <div className="chart-header">
+            <h3><i className='bx bx-pie-chart-alt-2'></i> Avaliações de Qualidade</h3>
+            <p>{shouldShowPersonalData ? 'Suas avaliações (AB e AC)' : 'Médias gerais da operação (AB e AC)'}</p>
           </div>
-          <div className="chart-container">
-            <canvas ref={chartRefs.activityChart}></canvas>
+          <div className="pie-chart">
+            {(() => {
+              let operatorRatings = []
+              if (shouldShowPersonalData && userData?.email) {
+                // Para OPERADOR: usar apenas dados pessoais
+                operatorRatings = operatorData.filter(item => 
+                  ((item.notaAtendimento && item.notaAtendimento > 0) || (item.notaSolucao && item.notaSolucao > 0))
+                )
+              } else {
+                // Para SUPERADMIN/GESTOR/ANALISTA: usar dados gerais de toda a operação
+                operatorRatings = getFilteredData.filter(item => 
+                  ((item.notaAtendimento && item.notaAtendimento > 0) || (item.notaSolucao && item.notaSolucao > 0))
+                )
+              }
+              
+              if (operatorRatings.length === 0) {
+                return (
+                  <div className="no-data-message">
+                    <p>Nenhuma avaliação encontrada</p>
+                  </div>
+                )
+              }
+              
+              const attendanceRatings = operatorRatings.filter(item => item.notaAtendimento && item.notaAtendimento > 0)
+              const solutionRatings = operatorRatings.filter(item => item.notaSolucao && item.notaSolucao > 0)
+              
+              // Calcular quantas avaliações são excelentes (4-5) vs outras
+              const excellentAttendance = attendanceRatings.filter(item => item.notaAtendimento >= 4).length
+              const excellentSolution = solutionRatings.filter(item => item.notaSolucao >= 4).length
+              const totalExcellent = excellentAttendance + excellentSolution
+              const totalRatings = attendanceRatings.length + solutionRatings.length
+              
+              const excellentRate = totalRatings > 0 ? Math.round((totalExcellent / totalRatings) * 100) : 0
+              const otherRate = 100 - excellentRate
+              
+              // Calcular médias para exibição
+              const avgAttendance = attendanceRatings.length > 0 
+                ? attendanceRatings.reduce((sum, item) => sum + item.notaAtendimento, 0) / attendanceRatings.length 
+                : 0
+              
+              const avgSolution = solutionRatings.length > 0 
+                ? solutionRatings.reduce((sum, item) => sum + item.notaSolucao, 0) / solutionRatings.length 
+                : 0
+              
+              return (
+                <>
+                  <div className="pie-container">
+                    <div className="pie-slice excellent" style={{ '--percentage': `${excellentRate}%` }}>
+                      <div className="slice-content">
+                        <span className="slice-label">Excelente</span>
+                        <span className="slice-value">{excellentRate}%</span>
+                      </div>
+                    </div>
+                    <div className="pie-slice good" style={{ '--percentage': `${otherRate}%` }}>
+                      <div className="slice-content">
+                        <span className="slice-label">Outros</span>
+                        <span className="slice-value">{otherRate}%</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="pie-legend">
+                    <div className="legend-item">
+                      <div className="legend-color excellent"></div>
+                      <span>Excelente (4-5)</span>
+                    </div>
+                    <div className="legend-item">
+                      <div className="legend-color good"></div>
+                      <span>Outros</span>
+                    </div>
+                  </div>
+                  <div className="rating-details">
+                    <div className="rating-item">
+                      <span className="rating-label">Avaliação Atendimento (AB):</span>
+                      <span className="rating-value">{avgAttendance.toFixed(1)}</span>
+                    </div>
+                    <div className="rating-item">
+                      <span className="rating-label">Avaliação Solução (AC):</span>
+                      <span className="rating-value">{avgSolution.toFixed(1)}</span>
+                    </div>
+                    <div className="rating-item">
+                      <span className="rating-label">Média Geral:</span>
+                      <span className="rating-value">{((avgAttendance + avgSolution) / 2).toFixed(1)}</span>
+                    </div>
+                  </div>
+                </>
+              )
+            })()}
+          </div>
+        </div>
+
+        {/* Sua Performance */}
+        <div className="chart-card">
+          <div className="chart-header">
+            <h3><i className='bx bx-doughnut-chart'></i> Sua Performance</h3>
+            <p>Métricas pessoais</p>
+          </div>
+          <div className="donut-chart">
+            {personalData && personalData.hasData ? (
+              <>
+                <div className="personal-metrics">
+                  <div className="metric-item">
+                    <div className="metric-icon">📞</div>
+                    <div className="metric-content">
+                      <span className="metric-value">{personalData.totalCalls}</span>
+                      <span className="metric-label">Chamadas Realizadas</span>
+                    </div>
+                  </div>
+                  
+                  <div className="metric-item">
+                    <div className="metric-icon">⏱️</div>
+                    <div className="metric-content">
+                      <span className="metric-value">{personalData.avgDuration.toFixed(1)}min</span>
+                      <span className="metric-label">Tempo Médio por Chamada</span>
+                    </div>
+                  </div>
+                  
+                  <div className="metric-item">
+                    <div className="metric-icon">⭐</div>
+                    <div className="metric-content">
+                      <span className="metric-value">{personalData.avgRatingAttendance.toFixed(1)}</span>
+                      <span className="metric-label">Nota Média Atendimento</span>
+                    </div>
+                  </div>
+                  
+                  <div className="metric-item">
+                    <div className="metric-icon">🎯</div>
+                    <div className="metric-content">
+                      <span className="metric-value">{personalData.avgRatingSolution.toFixed(1)}</span>
+                      <span className="metric-label">Nota Média Solução</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="performance-analysis">
+                  <h4>📊 Análise da Sua Performance</h4>
+                  <div className="analysis-items">
+                    <div className="analysis-item">
+                      <span className="analysis-label">Eficiência:</span>
+                      <span className={`analysis-value ${personalData.avgDuration < 5 ? 'excellent' : personalData.avgDuration < 8 ? 'good' : 'needs-improvement'}`}>
+                        {personalData.avgDuration < 5 ? 'Excelente' : personalData.avgDuration < 8 ? 'Boa' : 'Pode Melhorar'}
+                      </span>
+                    </div>
+                    
+                    <div className="analysis-item">
+                      <span className="analysis-label">Qualidade:</span>
+                      <span className={`analysis-value ${personalData.avgRatingAttendance >= 4.5 ? 'excellent' : personalData.avgRatingAttendance >= 4 ? 'good' : 'needs-improvement'}`}>
+                        {personalData.avgRatingAttendance >= 4.5 ? 'Excelente' : personalData.avgRatingAttendance >= 4 ? 'Boa' : 'Pode Melhorar'}
+                      </span>
+                    </div>
+                    
+                    <div className="analysis-item">
+                      <span className="analysis-label">Volume:</span>
+                      <span className={`analysis-value ${personalData.totalCalls >= 50 ? 'excellent' : personalData.totalCalls >= 20 ? 'good' : 'needs-improvement'}`}>
+                        {personalData.totalCalls >= 50 ? 'Alto' : personalData.totalCalls >= 20 ? 'Médio' : 'Baixo'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="trend-analysis">
+                  {(() => {
+                    if (!shouldShowPersonalData || !userData?.email) return null
+                    
+                    const operatorName = userData.email.split('@')[0].toLowerCase()
+                    const sortedData = data.filter(item => 
+                      item.operador && item.operador.toLowerCase().includes(operatorName)
+                    ).sort((a, b) => {
+                      const dateA = a.data || a.Data || a.DATA || a.date || a.Date || a.DATE
+                      const dateB = b.data || b.Data || b.DATA || b.date || b.Date || b.DATE
+                      
+                      if (dateA && dateB) {
+                        try {
+                          const dateObjA = new Date(dateA.split('/').reverse().join('-'))
+                          const dateObjB = new Date(dateB.split('/').reverse().join('-'))
+                          return dateObjA - dateObjB
+                        } catch (e) {
+                          return 0
+                        }
+                      }
+                      return 0
+                    })
+                    
+                    if (sortedData.length < 4) {
+                      return null
+                    }
+                    
+                    const midPoint = Math.floor(sortedData.length / 2)
+                    const firstHalf = sortedData.slice(0, midPoint)
+                    const secondHalf = sortedData.slice(midPoint)
+                    
+                    const firstHalfRatings = firstHalf.filter(item => item.notaAtendimento && item.notaAtendimento > 0)
+                    const secondHalfRatings = secondHalf.filter(item => item.notaAtendimento && item.notaAtendimento > 0)
+                    
+                    const firstHalfAvg = firstHalfRatings.length > 0 
+                      ? firstHalfRatings.reduce((sum, item) => sum + item.notaAtendimento, 0) / firstHalfRatings.length 
+                      : 0
+                    
+                    const secondHalfAvg = secondHalfRatings.length > 0 
+                      ? secondHalfRatings.reduce((sum, item) => sum + item.notaAtendimento, 0) / secondHalfRatings.length 
+                      : 0
+                    
+                    const difference = secondHalfAvg - firstHalfAvg
+                    let trend = ''
+                    let trendClass = ''
+                    let trendIcon = ''
+                    
+                    if (Math.abs(difference) < 0.1) {
+                      trend = 'Mantendo'
+                      trendClass = 'stable'
+                      trendIcon = 'bx-minus'
+                    } else if (difference > 0) {
+                      trend = 'Melhorando'
+                      trendClass = 'improving'
+                      trendIcon = 'bx-trending-up'
+                    } else {
+                      trend = 'Piorando'
+                      trendClass = 'declining'
+                      trendIcon = 'bx-trending-down'
+                    }
+                    
+                    return (
+                      <div className={`trend-item ${trendClass}`}>
+                        <i className={`bx ${trendIcon}`}></i>
+                        <span>{trend}</span>
+                        <span className="trend-detail">
+                          ({firstHalfAvg.toFixed(1)} → {secondHalfAvg.toFixed(1)})
+                        </span>
+                      </div>
+                    )
+                  })()}
+                </div>
+              </>
+            ) : (
+              <div className="no-personal-data">
+                <div className="no-data-icon">📊</div>
+                <h4>Dados Pessoais Não Encontrados</h4>
+                <p>Não foram encontrados registros para o operador logado.</p>
+                <div className="suggestions">
+                  <h5>💡 Possíveis causas:</h5>
+                  <ul>
+                    <li>Nome do operador não corresponde ao email</li>
+                    <li>Dados ainda não foram carregados</li>
+                    <li>Filtros aplicados não incluem seus dados</li>
+                  </ul>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Tendência Semanal */}
+        <div className="chart-card">
+          <div className="chart-header">
+            <h3><i className='bx bx-trending-up'></i> Tendência Semanal</h3>
+            <p>Em breve</p>
+          </div>
+          <div className="line-chart">
+            <div className="line-container">
+              <div className="coming-soon-overlay">
+                <div className="coming-soon-text">Em breve</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom Section - Card centralizado */}
+      <div className="bottom-section">
+        <div className="summary-card">
+          <div className="summary-header">
+            <h3>Resumo de Satisfação</h3>
+          </div>
+          <div className="summary-content">
+            {(() => {
+              if (!shouldShowPersonalData || !userData?.email) {
+                return (
+                  <>
+                    <div className="summary-item">
+                      <span className="summary-label">Taxa de Satisfação:</span>
+                      <span className="summary-value">{metrics.satisfactionRate}%</span>
+                    </div>
+                    <div className="summary-item">
+                      <span className="summary-label">Baseado em:</span>
+                      <span className="summary-value">{metrics.totalEvaluations.toLocaleString()} avaliações</span>
+                    </div>
+                  </>
+                )
+              }
+              
+              const operatorRatings = operatorData.filter(item => 
+                ((item.notaAtendimento && item.notaAtendimento > 0) || (item.notaSolucao && item.notaSolucao > 0))
+              )
+              
+              if (operatorRatings.length === 0) {
+                return (
+                  <div className="summary-item">
+                    <span className="summary-label">Nenhuma avaliação encontrada</span>
+                  </div>
+                )
+              }
+              
+              const attendanceRatings = operatorRatings.filter(item => item.notaAtendimento && item.notaAtendimento > 0)
+              const solutionRatings = operatorRatings.filter(item => item.notaSolucao && item.notaSolucao > 0)
+              
+              const avgAttendance = attendanceRatings.length > 0 
+                ? attendanceRatings.reduce((sum, item) => sum + item.notaAtendimento, 0) / attendanceRatings.length 
+                : 0
+              
+              const avgSolution = solutionRatings.length > 0 
+                ? solutionRatings.reduce((sum, item) => sum + item.notaSolucao, 0) / solutionRatings.length 
+                : 0
+              
+              const totalEvaluations = attendanceRatings.length + solutionRatings.length
+              
+              return (
+                <>
+                  <div className="summary-item">
+                    <span className="summary-label">Avaliação de Atendimento (AB):</span>
+                    <span className="summary-value">{avgAttendance.toFixed(1)}</span>
+                  </div>
+                  <div className="summary-item">
+                    <span className="summary-label">Avaliação de Resolução (AC):</span>
+                    <span className="summary-value">{avgSolution.toFixed(1)}</span>
+                  </div>
+                  <div className="summary-item">
+                    <span className="summary-label">Média Geral:</span>
+                    <span className="summary-value">{((avgAttendance + avgSolution) / 2).toFixed(1)}</span>
+                  </div>
+                  <div className="summary-item">
+                    <span className="summary-label">Quantidade de Avaliações:</span>
+                    <span className="summary-value">{totalEvaluations.toLocaleString()}</span>
+                  </div>
+                  <div className="summary-item">
+                    <span className="summary-label">Operador:</span>
+                    <span className="summary-value">{userData.email.split('@')[0]}</span>
+                  </div>
+                </>
+              )
+            })()}
           </div>
         </div>
       </div>

@@ -1,9 +1,24 @@
 import React, { memo } from 'react'
 import { useCargo } from '../contexts/CargoContext'
+import { getOperatorDisplayName, prioritizeCurrentUserInMiddle } from '../utils/operatorUtils'
 import './MetricsDashboard.css'
 
-const MetricsDashboard = memo(({ metrics, operatorMetrics, rankings, darkList, addToDarkList, removeFromDarkList, periodo, onToggleNotes }) => {
-  const { hasPermission, selectedCargo } = useCargo()
+const MetricsDashboard = memo(({ metrics, operatorMetrics, rankings, darkList, addToDarkList, removeFromDarkList, periodo, onToggleNotes, userData }) => {
+  const { hasPermission, selectedCargo, userInfo } = useCargo()
+  
+  // Verificar se deve ocultar nomes baseado no cargo PRINCIPAL do usuário, não no cargo selecionado
+  // SUPERADMIN/GESTOR/ANALISTA sempre veem métricas gerais, mesmo quando assumem cargo de OPERADOR
+  const shouldHideNames = userInfo?.cargo === 'OPERADOR'
+  
+  // Função para obter nome do operador (ocultar ou mostrar)
+  const getOperatorName = (operator, index) => {
+    return getOperatorDisplayName(operator.operator, index, userData, shouldHideNames)
+  }
+  
+  // Ordenar rankings dando prioridade ao usuário logado no meio
+  const prioritizedRankings = shouldHideNames && userData?.email 
+    ? prioritizeCurrentUserInMiddle(rankings || [], userData, 'totalCalls')
+    : rankings || []
   
   // Debug apenas se houver erro
   if (!metrics && operatorMetrics?.length > 0) {
@@ -45,10 +60,11 @@ const MetricsDashboard = memo(({ metrics, operatorMetrics, rankings, darkList, a
 
   return (
     <div className="metrics-dashboard">
-      <div className="card">
-        <div className="card-header">
-          <h2 className="card-title">📊 Métricas Gerais</h2>
-          {periodo && (
+      {/* Métricas Gerais - Só mostra se há período selecionado */}
+      {periodo ? (
+        <div className="card">
+          <div className="card-header">
+            <h2 className="card-title">📊 Métricas Gerais</h2>
             <div className="period-info">
               <div className="period-label">📅 Período:</div>
               <div className="period-value">{periodo.periodLabel}</div>
@@ -56,88 +72,100 @@ const MetricsDashboard = memo(({ metrics, operatorMetrics, rankings, darkList, a
                 {periodo.totalDays} dias • {periodo.totalRecords.toLocaleString()} registros
               </div>
             </div>
-          )}
-        </div>
-        
-        <div className="card-content">
-          <div className="metrics-grid">
-            {/* Total de Chamadas */}
-            <div className="metric-card">
-              <div className="metric-value">{(metrics.totalChamadas || metrics.totalCalls || 0).toLocaleString()}</div>
-              <div className="metric-label">Total de Chamadas</div>
-            </div>
-            
-            {/* Status das Chamadas */}
-            <div className="metric-card">
-              <div className="metric-value">{(metrics.retidaURA || 0).toLocaleString()}</div>
-              <div className="metric-label">Retida na URA</div>
-            </div>
-            
-            <div className="metric-card">
-              <div className="metric-value">{(metrics.atendida || 0).toLocaleString()}</div>
-              <div className="metric-label">Atendida</div>
-            </div>
-            
-            <div className="metric-card">
-              <div className="metric-value">{(metrics.abandonada || 0).toLocaleString()}</div>
-              <div className="metric-label">Abandonada</div>
-            </div>
-            
-            {/* Notas */}
-            <div className="metric-card">
-              <div className="metric-value">{metrics.avgRatingAttendance || metrics.notaMediaAtendimento || '0.0'}/5</div>
-              <div className="metric-label">Nota Média de Atendimento</div>
-            </div>
-            
-            <div className="metric-card">
-              <div className="metric-value">{metrics.avgRatingSolution || metrics.notaMediaSolucao || '0.0'}/5</div>
-              <div className="metric-label">Nota Média de Solução</div>
-            </div>
-            
-            {/* Tempos */}
-            <div className="metric-card">
-              <div className="metric-value">{metrics.duracaoMediaAtendimento || '0.0'} min</div>
-              <div className="metric-label">Duração Média de Atendimento</div>
-            </div>
-            
-            <div className="metric-card">
-              <div className="metric-value">{metrics.tempoMedioEspera || '0.0'} min</div>
-              <div className="metric-label">Tempo Médio de Espera</div>
-            </div>
-            
-            {/* Taxas */}
-            <div className="metric-card">
-              <div className="metric-value">{metrics.taxaAbandono || '0.0'}%</div>
-              <div className="metric-label">Taxa de Abandono</div>
-            </div>
+          </div>
+          
+          <div className="card-content">
+            <div className="metrics-grid">
+              {/* Total de Chamadas */}
+              <div className="metric-card">
+                <div className="metric-value">{(metrics.totalChamadas || metrics.totalCalls || 0).toLocaleString()}</div>
+                <div className="metric-label">Total de Chamadas</div>
+              </div>
+              
+              {/* Status das Chamadas */}
+              <div className="metric-card">
+                <div className="metric-value">{(metrics.retidaURA || 0).toLocaleString()}</div>
+                <div className="metric-label">Retida na URA</div>
+              </div>
+              
+              <div className="metric-card">
+                <div className="metric-value">{(metrics.atendida || 0).toLocaleString()}</div>
+                <div className="metric-label">Atendida</div>
+              </div>
+              
+              <div className="metric-card">
+                <div className="metric-value">{(metrics.abandonada || 0).toLocaleString()}</div>
+                <div className="metric-label">Abandonada</div>
+              </div>
+              
+              {/* Notas */}
+              <div className="metric-card">
+                <div className="metric-value">{metrics.avgRatingAttendance || metrics.notaMediaAtendimento || '0.0'}/5</div>
+                <div className="metric-label">Nota Média de Atendimento</div>
+              </div>
+              
+              <div className="metric-card">
+                <div className="metric-value">{metrics.avgRatingSolution || metrics.notaMediaSolucao || '0.0'}/5</div>
+                <div className="metric-label">Nota Média de Solução</div>
+              </div>
+              
+              {/* Tempos */}
+              <div className="metric-card">
+                <div className="metric-value">{metrics.duracaoMediaAtendimento || '0.0'} min</div>
+                <div className="metric-label">Duração Média de Atendimento</div>
+              </div>
+              
+              <div className="metric-card">
+                <div className="metric-value">{metrics.tempoMedioEspera || '0.0'} min</div>
+                <div className="metric-label">Tempo Médio de Espera</div>
+              </div>
+              
+              {/* Taxas */}
+              <div className="metric-card">
+                <div className="metric-value">{metrics.taxaAbandono || '0.0'}%</div>
+                <div className="metric-label">Taxa de Abandono</div>
+              </div>
 
-            {/* Chamadas Avaliadas */}
-            <div className="metric-card">
-              <div className="metric-value">{(metrics.chamadasAvaliadas || 0).toLocaleString()}</div>
-              <div className="metric-label">Chamadas Avaliadas</div>
-            </div>
+              {/* Chamadas Avaliadas */}
+              <div className="metric-card">
+                <div className="metric-value">{(metrics.chamadasAvaliadas || 0).toLocaleString()}</div>
+                <div className="metric-label">Chamadas Avaliadas</div>
+              </div>
 
-            {/* Estatísticas de Chamadas */}
-            {metrics.callStatuses && Object.keys(metrics.callStatuses).length > 0 && (
-              <>
-                {Object.entries(metrics.callStatuses).map(([status, count], index) => (
-                  <div key={status} className="metric-card advanced">
-                    <div className="metric-value">{count}</div>
-                    <div className="metric-label">
-                      {status.toLowerCase().includes('atendida') ? 'Chamadas Atendidas' : 
-                        status.toLowerCase().includes('retida') ? 'Retidas na URA' : 
-                        status}
+              {/* Estatísticas de Chamadas */}
+              {metrics.callStatuses && Object.keys(metrics.callStatuses).length > 0 && (
+                <>
+                  {Object.entries(metrics.callStatuses).map(([status, count], index) => (
+                    <div key={status} className="metric-card advanced">
+                      <div className="metric-value">{count}</div>
+                      <div className="metric-label">
+                        {status.toLowerCase().includes('atendida') ? 'Chamadas Atendidas' : 
+                          status.toLowerCase().includes('retida') ? 'Retidas na URA' : 
+                          status}
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </>
-            )}
+                  ))}
+                </>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      ) : (
+        /* Mensagem quando não há período selecionado para métricas gerais */
+        <div className="card">
+          <div className="card-header">
+            <h2 className="card-title">📊 Métricas Gerais</h2>
+          </div>
+          <div className="card-content">
+            <div className="no-data-message">
+              <p>📅 Selecione um período para visualizar as métricas gerais</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Ranking de Operadores - Só mostra se há período selecionado */}
-      {rankings && rankings.length > 0 && periodo && (
+      {prioritizedRankings && prioritizedRankings.length > 0 && periodo && (
         <div className="card">
           <div className="card-header">
             <h2 className="card-title">🏆 Ranking de Operadores</h2>
@@ -159,7 +187,7 @@ const MetricsDashboard = memo(({ metrics, operatorMetrics, rankings, darkList, a
                   </tr>
                 </thead>
                 <tbody>
-                  {rankings.slice(0, 10).map((operator, index) => (
+                  {prioritizedRankings.slice(0, 10).map((operator, index) => (
                     <tr key={`${operator.operator}-${index}`} className={`${index < 3 ? 'top-3' : ''} ${operator.isExcluded ? 'excluded-row' : ''} ${operator.isDesligado ? 'desligado-row' : ''}`}>
                       <td className="position">
                         {operator.isExcluded ? '🚫' : operator.isDesligado ? '👤' : (
@@ -172,7 +200,7 @@ const MetricsDashboard = memo(({ metrics, operatorMetrics, rankings, darkList, a
                         )}
                       </td>
                       <td className="operator-name">
-                        {operator.operator}
+                        {getOperatorName(operator, index)}
                         {operator.isExcluded && <span className="excluded-badge"> (Excluído)</span>}
                         {operator.isDesligado && <span className="desligado-badge"> (Desligado)</span>}
                       </td>
@@ -219,8 +247,8 @@ const MetricsDashboard = memo(({ metrics, operatorMetrics, rankings, darkList, a
         </div>
       )}
 
-      {/* Mensagem quando não há período selecionado */}
-      {(!periodo || !rankings || rankings.length === 0) && (
+      {/* Mensagem quando não há período selecionado para ranking */}
+      {!periodo && (
         <div className="card">
           <div className="card-header">
             <h2 className="card-title">🏆 Ranking de Operadores</h2>

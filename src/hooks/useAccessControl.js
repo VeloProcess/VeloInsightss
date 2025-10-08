@@ -79,12 +79,6 @@ export const useAccessControl = () => {
     // Operador só vê seus próprios dados
     if (cargoConfig.level === 1) {
       const operatorName = getOperatorNameFromEmail(userEmail)
-      console.log('🔍 Debug getVisibleOperators:', {
-        userEmail,
-        operatorName,
-        operatorsCount: operators.length,
-        operatorsSample: operators.slice(0, 3).map(op => op.operator)
-      })
       
       return operators.filter(op => {
         // Comparar por nome do operador (não por email)

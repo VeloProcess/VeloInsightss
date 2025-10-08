@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, memo } from 'react'
 import './ChartsSection.css'
 import LazyWrapper, { LazyChart } from './LazyWrapper'
+import { getOperatorDisplayName, prioritizeCurrentUserInMiddle } from '../utils/operatorUtils'
 
-const ChartsSection = memo(({ data, operatorMetrics, rankings }) => {
+const ChartsSection = memo(({ data, operatorMetrics, rankings, userData }) => {
   const chartRefs = {
     callsChart: useRef(null),
     ratingsChart: useRef(null),
@@ -17,6 +18,9 @@ const ChartsSection = memo(({ data, operatorMetrics, rankings }) => {
 
   // Instâncias dos gráficos para controle
   const chartInstances = useRef({})
+  
+  // Verificar se deve ocultar nomes
+  const shouldHideNames = document.body.getAttribute('data-hide-names') === 'true'
 
   useEffect(() => {
     if (!data || data.length === 0) return
@@ -53,7 +57,6 @@ const ChartsSection = memo(({ data, operatorMetrics, rankings }) => {
     createOperatorsChart(Chart)
     createTrendChart(Chart)
     createHourlyChart(Chart)
-    createPerformanceChart(Chart)
     createAbandonmentChart(Chart)
     createRankingChart(Chart)
   }
@@ -279,15 +282,22 @@ const ChartsSection = memo(({ data, operatorMetrics, rankings }) => {
     if (!chartRefs.operatorsChart.current || !operatorMetrics) return
 
     // Pegar top 10 operadores usando dados do Velotax (excluindo "Sem Operador")
-    const topOperators = operatorMetrics
+    const filteredOperators = operatorMetrics
       .filter(op => op.operator && !op.operator.toLowerCase().includes('sem operador'))
-      .sort((a, b) => b.totalCalls - a.totalCalls)
-      .slice(0, 10)
+    
+    // Priorizar usuário logado no meio se necessário
+    const topOperators = shouldHideNames && userData?.email
+      ? prioritizeCurrentUserInMiddle(filteredOperators, userData, 'totalCalls').slice(0, 10)
+      : filteredOperators.sort((a, b) => b.totalCalls - a.totalCalls).slice(0, 10)
+    
+    const labels = topOperators.map((op, index) => 
+      getOperatorDisplayName(op.operator, index, userData, shouldHideNames)
+    )
 
     chartInstances.current.operatorsChart = new Chart(chartRefs.operatorsChart.current, {
       type: 'bar',
       data: {
-        labels: topOperators.map(op => op.operator.length > 15 ? op.operator.substring(0, 15) + '...' : op.operator),
+        labels: labels,
         datasets: [{
           label: 'Chamadas por Operador',
           data: topOperators.map(op => op.totalCalls),
@@ -567,14 +577,17 @@ const ChartsSection = memo(({ data, operatorMetrics, rankings }) => {
   const createPerformanceChart = (Chart) => {
     if (!chartRefs.performanceChart.current || !operatorMetrics) return
 
-    const topOperators = operatorMetrics
+    const filteredOperators = operatorMetrics
       .filter(op => op.operator && !op.operator.toLowerCase().includes('sem operador'))
-      .sort((a, b) => b.totalCalls - a.totalCalls)
-      .slice(0, 6) // Top 6 operadores para melhor visualização
-
+    
+    // Priorizar usuário logado no meio se necessário
+    const topOperators = shouldHideNames && userData?.email
+      ? prioritizeCurrentUserInMiddle(filteredOperators, userData, 'totalCalls').slice(0, 6)
+      : filteredOperators.sort((a, b) => b.totalCalls - a.totalCalls).slice(0, 6)
+    
     // Preparar dados para gráfico de barras agrupadas
-    const labels = topOperators.map(op => 
-      op.operator.length > 12 ? op.operator.substring(0, 12) + '...' : op.operator
+    const labels = topOperators.map((op, index) => 
+      getOperatorDisplayName(op.operator, index, userData, shouldHideNames)
     )
     
     const callsData = topOperators.map(op => op.totalCalls || 0)
@@ -839,10 +852,6 @@ const ChartsSection = memo(({ data, operatorMetrics, rankings }) => {
 
         <div className="card">
           <canvas ref={chartRefs.hourlyChart}></canvas>
-        </div>
-
-        <div className="card">
-          <canvas ref={chartRefs.performanceChart}></canvas>
         </div>
 
         <div className="card">

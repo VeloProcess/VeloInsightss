@@ -303,7 +303,8 @@ export const processarDados = (dados, processAllRecords = false) => {
     }
   })
 
-  console.log(`📊 Debug do processamento:`)
+  // Debug do processamento
+  // console.log(`📊 Debug do processamento:`)
   console.log(`  ✅ Linhas processadas: ${linhasProcessadas}`)
   console.log(`  ❌ Linhas ignoradas: ${linhasIgnoradas}`)
   console.log(`  📋 Total esperado: ${linhasDados.length}`)
@@ -371,7 +372,7 @@ const calcularMetricas = (dados) => {
   // Contagem de chamadas por status - VERSÃO PERFEITA CORRIGIDA
   const totalChamadas = dados.length
   
-  console.log(`📊 Debug - Total de linhas processadas: ${totalChamadas}`)
+  // console.log(`📊 Debug - Total de linhas processadas: ${totalChamadas}`)
   
   // Verificar se temos exatamente 5000 linhas (incluindo cabeçalho)
   if (totalChamadas < 4999) {
@@ -414,7 +415,7 @@ const calcularMetricas = (dados) => {
     }
   })
   
-  console.log(`📊 Debug - Contagem detalhada:`)
+  // console.log(`📊 Debug - Contagem detalhada:`)
   console.log(`  📞 Retida na URA: ${retidaURA}`)
   console.log(`  ✅ Atendida: ${atendida}`)
   console.log(`  ❌ Abandonada: ${abandonada}`)
@@ -422,12 +423,12 @@ const calcularMetricas = (dados) => {
   console.log(`  📊 Soma: ${retidaURA + atendida + abandonada + naoClassificada}`)
   console.log(`  📊 Total esperado: ${totalChamadas}`)
 
-  console.log(`📊 Debug - Status das chamadas:`, {
-    retidaURA,
-    atendida,
-    abandonada,
-    soma: retidaURA + atendida + abandonada
-  })
+  // console.log(`📊 Debug - Status das chamadas:`, {
+  //   retidaURA,
+  //   atendida,
+  //   abandonada,
+  //   soma: retidaURA + atendida + abandonada
+  // })
 
   // Cálculo de médias - VERSÃO PERFEITA
   const temposFalado = dados.map(row => tempoParaMinutos(row.tempoFalado)).filter(tempo => tempo > 0)
@@ -536,7 +537,7 @@ const calcularMetricas = (dados) => {
 }
 
 // Calcular métricas por operador - VERSÃO PERFEITA IMPLEMENTADA
-const calcularMetricasOperadores = (dados) => {
+export const calcularMetricasOperadores = (dados) => {
   const operadores = {}
   
   // Função para converter tempo HH:MM:SS para minutos
@@ -630,7 +631,7 @@ const calcularMetricasOperadores = (dados) => {
 }
 
 // Calcular ranking - VERSÃO CORRIGIDA E FUNCIONAL
-const calcularRanking = (metricasOperadores) => {
+export const calcularRanking = (metricasOperadores) => {
   const operadores = Object.values(metricasOperadores)
   
   if (operadores.length === 0) {

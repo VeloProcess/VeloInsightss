@@ -49,6 +49,43 @@
   justify-content: center;
 }
 
+.export-card .btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Estilo específico para botões "Em breve" */
+.export-card .btn[data-status="coming-soon"] {
+  background: linear-gradient(135deg, #ffa500, #ff8c00);
+  border-color: #ff8c00;
+  color: white;
+  font-weight: 600;
+  position: relative;
+  overflow: hidden;
+}
+
+.export-card .btn[data-status="coming-soon"]:hover {
+  background: linear-gradient(135deg, #ff8c00, #ff7f00);
+  transform: none;
+  cursor: default;
+}
+
+.export-card .btn[data-status="coming-soon"]::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}
+
 .export-info {
   background: rgba(22, 52, 255, 0.05);
   border: 1px solid rgba(22, 52, 255, 0.1);

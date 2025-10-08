@@ -21,6 +21,9 @@
   margin-bottom: 24px;
   padding-bottom: 16px;
   border-bottom: 1px solid rgba(22, 52, 255, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .filters-header h3 {
@@ -29,6 +32,43 @@
   font-size: 1.5rem;
   font-weight: 600;
   font-family: 'Anton', sans-serif;
+}
+
+/* Botão de scroll rápido no cabeçalho */
+.filters-header .period-selector.clickable {
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  background: rgba(22, 52, 255, 0.1);
+  border: 1px solid rgba(22, 52, 255, 0.2);
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.filters-header .period-selector.clickable:hover {
+  background: rgba(22, 52, 255, 0.2);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(22, 52, 255, 0.15);
+}
+
+.filters-header .period-text {
+  font-weight: 600;
+}
+
+.filters-header .scroll-indicator {
+  font-size: 16px;
+  color: rgba(22, 52, 255, 0.8);
+  transition: all 0.3s ease;
+}
+
+.filters-header .period-selector.clickable:hover .scroll-indicator {
+  color: rgba(22, 52, 255, 1);
+  transform: translateY(2px);
 }
 
 /* Seletor de Período */
