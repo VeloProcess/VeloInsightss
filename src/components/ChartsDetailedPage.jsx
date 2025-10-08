@@ -956,16 +956,18 @@ const ChartsDetailedPage = ({ data, operatorMetrics, rankings, selectedPeriod, p
           🚀 Dashboard Moderno
         </button>
         <button 
-          className={`tab-button ${activeTab === 'general' ? 'active' : ''}`}
-          onClick={() => setActiveTab('general')}
+          className="tab-button disabled"
+          disabled
         >
           📊 Gráficos Gerais
+          <span className="coming-soon-badge">Em breve</span>
         </button>
         <button 
-          className={`tab-button ${activeTab === 'advanced' ? 'active' : ''}`}
-          onClick={() => setActiveTab('advanced')}
+          className="tab-button disabled"
+          disabled
         >
           📈 Gráficos Avançados
+          <span className="coming-soon-badge">Em breve</span>
         </button>
       </div>
 
