@@ -20,7 +20,7 @@ const Header = ({ onToggleSidebar, sidebarOpen, theme, onToggleTheme }) => {
         <div className="header-title">
           <div className="header-logo-container">
             <img 
-              src="/logo-veloinsights.png" 
+              src="https://github.com/VeloProcess/imagens-a-upar/blob/main/image-removebg-preview%20(5).png?raw=true" 
               alt="VeloInsights Logo" 
               className="header-logo-image"
               onError={(e) => {
@@ -31,7 +31,6 @@ const Header = ({ onToggleSidebar, sidebarOpen, theme, onToggleTheme }) => {
             />
             <h1 className="logo-text title-h2 text-gradient" style={{display: 'none'}}>VeloInsights</h1>
           </div>
-          <span className="logo-subtitle font-body-medium">Dashboard de Análise</span>
         </div>
       </div>
       

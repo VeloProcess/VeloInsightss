@@ -2,17 +2,63 @@
    VELOINSIGHTS - DESIGN PROFISSIONAL
    ======================================== */
 
-.loading-container {
-  padding: 40px;
-  text-align: center;
-  color: #F3F7FC;
-  background-color: #272A30;
-  border-radius: 12px;
-  margin: 20px;
-}
-
 /* Importar sistema de temas */
 @import './themes.css';
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  padding: 40px 20px;
+  text-align: center;
+  background: linear-gradient(135deg, var(--color-bg-primary) 0%, var(--color-card-bg) 100%);
+  border-radius: 16px;
+  margin: 20px;
+  box-shadow: 0 8px 32px var(--color-shadow);
+}
+
+.loading-container h2 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin-bottom: 16px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.loading-container p {
+  font-size: 1.2rem;
+  color: var(--color-text-secondary);
+  margin-bottom: 24px;
+  line-height: 1.6;
+}
+
+.loading-spinner {
+  font-size: 3rem;
+  margin: 20px 0;
+  animation: spin 2s linear infinite;
+}
+
+.loading-info {
+  margin-top: 24px;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.loading-info p {
+  font-size: 1rem;
+  color: var(--color-text-secondary);
+  margin: 8px 0;
+  opacity: 0.8;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
 
 /* === RESET E BASE === */
 * {
@@ -206,6 +252,13 @@ body {
   padding: var(--space-6) var(--space-8);
   border-bottom: none;
   border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  min-height: auto;
+  position: relative;
 }
 
 .card-title {
@@ -689,8 +742,13 @@ body {
 :root {
   --color-text-primary: #374151 !important;
   --color-text-secondary: #6B7280 !important;
+  --color-bg-primary: #F3F7FC !important;
   --color-bg-dark: #272A30 !important;
   --color-bg-light: #F3F7FC !important;
+  --color-card-bg: #FFFFFF !important;
+  --color-card-border: #E5E7EB !important;
+  --color-shadow: rgba(0, 0, 0, 0.1) !important;
+  --color-shadow-strong: rgba(0, 0, 0, 0.15) !important;
   --color-border: rgba(22, 148, 255, 0.2) !important;
   --color-blue-light: #1694FF !important;
   --color-blue-primary: #1634FF !important;
@@ -699,8 +757,120 @@ body {
   --transition: all 0.2s ease !important;
 }
 
+/* Tema escuro */
+[data-theme="dark"] {
+  --color-text-primary: #FFFFFF !important;
+  --color-text-secondary: #D1D5DB !important;
+  --color-bg-primary: #1a1a1a !important;
+  --color-bg-dark: #272A30 !important;
+  --color-bg-light: #2a2a2a !important;
+  --color-card-bg: #2a2a2a !important;
+  --color-card-border: rgba(255, 255, 255, 0.2) !important;
+  --color-shadow: rgba(0, 0, 0, 0.3) !important;
+  --color-shadow-strong: rgba(0, 0, 0, 0.4) !important;
+  --color-border: rgba(255, 255, 255, 0.2) !important;
+  --color-blue-light: #1694FF !important;
+  --color-blue-primary: #1634FF !important;
+}
+
+/* Tema claro - garantir que as variáveis sejam aplicadas */
+[data-theme="light"] {
+  --color-text-primary: #374151 !important;
+  --color-text-secondary: #6B7280 !important;
+  --color-bg-primary: #F3F7FC !important;
+  --color-bg-dark: #272A30 !important;
+  --color-bg-light: #F3F7FC !important;
+  --color-card-bg: #FFFFFF !important;
+  --color-card-border: #E5E7EB !important;
+  --color-shadow: rgba(0, 0, 0, 0.1) !important;
+  --color-shadow-strong: rgba(0, 0, 0, 0.15) !important;
+  --color-border: rgba(22, 148, 255, 0.2) !important;
+  --color-blue-light: #1694FF !important;
+  --color-blue-primary: #1634FF !important;
+}
+
 /* Forçar cores específicas para AdvancedFilters */
 .advanced-filters * {
+  color: #374151 !important;
+}
+
+/* CSS específico para tema escuro - containers principais */
+[data-theme="dark"] body {
+  background-color: #1a1a1a !important;
+}
+
+[data-theme="dark"] .app-content {
+  background-color: #1a1a1a !important;
+}
+
+[data-theme="dark"] .charts-page {
+  background: #1a1a1a !important;
+}
+
+[data-theme="dark"] .charts-detailed-page {
+  background: #1a1a1a !important;
+}
+
+/* CSS específico para tema claro - containers principais */
+[data-theme="light"] body {
+  background-color: #F3F7FC !important;
+}
+
+[data-theme="light"] .app-content {
+  background-color: #F3F7FC !important;
+}
+
+[data-theme="light"] .charts-page {
+  background: #F3F7FC !important;
+}
+
+[data-theme="light"] .charts-detailed-page {
+  background: #F3F7FC !important;
+}
+
+/* CSS específico para tema escuro - elementos com background branco fixo */
+[data-theme="dark"] .metrics-container {
+  background: #2a2a2a !important;
+}
+
+[data-theme="dark"] .table {
+  background: #2a2a2a !important;
+}
+
+[data-theme="dark"] .rankings-table {
+  background: #2a2a2a !important;
+}
+
+[data-theme="dark"] .advanced-filters {
+  background: #2a2a2a !important;
+}
+
+[data-theme="dark"] .advanced-filters select,
+[data-theme="dark"] .advanced-filters option {
+  background: #2a2a2a !important;
+  color: #FFFFFF !important;
+}
+
+/* CSS específico para tema claro - elementos com background branco fixo */
+[data-theme="light"] .metrics-container {
+  background: #FFFFFF !important;
+}
+
+[data-theme="light"] .table {
+  background: #FFFFFF !important;
+}
+
+[data-theme="light"] .rankings-table {
+  background: #FFFFFF !important;
+}
+
+[data-theme="light"] .advanced-filters {
+  background: #FFFFFF !important;
+}
+
+[data-theme="light"] .advanced-filters select,
+[data-theme="light"] .advanced-filters option {
+  background: #FFFFFF !important;
   color: #374151 !important;
 }
 
@@ -1062,7 +1232,7 @@ body {
   background: #ffffff;
   border: 1px solid #e5e7eb;
   border-radius: 12px;
-  padding: 16px;
+    padding: 16px;
   transition: all 0.2s ease;
 }
 
@@ -1102,4 +1272,93 @@ body {
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+/* No Data Container Styles */
+.no-data-container {
+  display: flex;
+    flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 2rem;
+  text-align: center;
+  background: var(--color-background);
+  border-radius: 12px;
+  border: 2px dashed var(--color-border);
+  margin: 2rem 0;
+}
+
+.no-data-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+  opacity: 0.7;
+}
+
+.no-data-container h3 {
+  color: var(--color-text-primary);
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.no-data-container p {
+  color: var(--color-text-secondary);
+  font-size: 1rem;
+  margin-bottom: 2rem;
+  max-width: 500px;
+  line-height: 1.6;
+}
+
+.no-data-actions {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.no-data-actions .btn {
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 500;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.no-data-actions .btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.period-selector {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.period-select {
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  font-weight: 500;
+  border: 2px solid var(--color-primary);
+  border-radius: 8px;
+  background: var(--color-background);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 250px;
+  text-align: center;
+}
+
+.period-select:focus {
+  outline: none;
+  border-color: var(--color-primary-light);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.period-select:hover {
+  border-color: var(--color-primary-light);
+  background: var(--color-background-light);
 }

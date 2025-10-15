@@ -60,18 +60,22 @@ const MetricsDashboard = memo(({ metrics, operatorMetrics, rankings, darkList, a
 
   return (
     <div className="metrics-dashboard">
-      {/* Métricas Gerais - Só mostra se há período selecionado */}
+      {/* Card de Período Separado */}
+      {periodo && (
+        <div className="period-card">
+          <div className="period-label">📅 Período:</div>
+          <div className="period-value">{periodo.periodLabel}</div>
+          <div className="period-details">
+            {periodo.totalDays} dias • {periodo.totalRecords.toLocaleString()} registros
+          </div>
+        </div>
+      )}
+
+      {/* Métricas Gerais */}
       {periodo ? (
         <div className="card">
           <div className="card-header">
             <h2 className="card-title">📊 Métricas Gerais</h2>
-            <div className="period-info">
-              <div className="period-label">📅 Período:</div>
-              <div className="period-value">{periodo.periodLabel}</div>
-              <div className="period-details">
-                {periodo.totalDays} dias • {periodo.totalRecords.toLocaleString()} registros
-              </div>
-            </div>
           </div>
           
           <div className="card-content">

@@ -1,95 +1,36 @@
-import React, { Suspense } from 'react'
-import LoadingSpinner from './LoadingSpinner'
+import React, { useState, useEffect, useRef } from 'react'
 
-/**
- * Wrapper para lazy loading de componentes
- * Mostra loading enquanto o componente carrega
- */
-const LazyWrapper = ({ 
-  children, 
-  fallback = null, 
-  loadingMessage = 'Carregando componente...',
-  showSpinner = true 
-}) => {
-  const defaultFallback = showSpinner ? (
-    <LoadingSpinner 
-      size="medium" 
-      message={loadingMessage}
-      type="skeleton"
-    />
-  ) : fallback
+const LazyWrapper = ({ children, threshold = 0.1 }) => {
+  const [isVisible, setIsVisible] = useState(false)
+  const ref = useRef(null)
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true)
+          observer.disconnect()
+        }
+      },
+      { threshold }
+    )
+
+    if (ref.current) {
+      observer.observe(ref.current)
+    }
+
+    return () => observer.disconnect()
+  }, [threshold])
 
   return (
-    <Suspense fallback={defaultFallback}>
-      {children}
-    </Suspense>
+    <div ref={ref}>
+      {isVisible ? children : <div style={{ height: '200px' }} />}
+    </div>
   )
 }
 
-/**
- * Componente para lazy loading de gráficos
- * Otimizado para componentes Chart.js
- */
-export const LazyChart = ({ 
-  children, 
-  height = 400,
-  loadingMessage = 'Carregando gráfico...'
-}) => {
-  return (
-    <LazyWrapper 
-      fallback={
-        <div 
-          className="chart-loading-placeholder"
-          style={{ height: `${height}px` }}
-        >
-          <LoadingSpinner 
-            size="large" 
-            message={loadingMessage}
-            type="pulse"
-          />
-        </div>
-      }
-      loadingMessage={loadingMessage}
-    >
-      {children}
-    </LazyWrapper>
-  )
-}
-
-/**
- * Componente para lazy loading de tabelas grandes
- */
-export const LazyTable = ({ 
-  children, 
-  rowCount = 10,
-  loadingMessage = 'Carregando dados...'
-}) => {
-  return (
-    <LazyWrapper 
-      fallback={
-        <div className="table-loading-placeholder">
-          <LoadingSpinner 
-            size="medium" 
-            message={loadingMessage}
-            type="skeleton"
-          />
-          <div className="skeleton-table">
-            {Array.from({ length: rowCount }).map((_, index) => (
-              <div key={index} className="skeleton-row">
-                <div className="skeleton-cell"></div>
-                <div className="skeleton-cell"></div>
-                <div className="skeleton-cell"></div>
-                <div className="skeleton-cell"></div>
-              </div>
-            ))}
-          </div>
-        </div>
-      }
-      loadingMessage={loadingMessage}
-    >
-      {children}
-    </LazyWrapper>
-  )
+export const LazyChart = ({ children, ...props }) => {
+  return <LazyWrapper {...props}>{children}</LazyWrapper>
 }
 
 export default LazyWrapper

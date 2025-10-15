@@ -182,20 +182,20 @@ export const CargoProvider = ({ children }) => {
     const userConfig = getCargoConfig(userCargo)
     const targetConfig = getCargoConfig(targetCargo)
     
-    // Diretor/SuperAdmin pode ver todos
+    // Administrador pode ver todos
     if (userConfig.level >= 4) return true
     
-    // Gestor pode ver Analistas e Operadores
+    // Gestão pode ver Monitor e Editor
     if (userConfig.level >= 3) {
-      return targetConfig.level <= 2 // Analista ou Operador
+      return targetConfig.level <= 2 // Monitor ou Editor
     }
     
-    // Analista pode ver apenas Operadores
+    // Monitor pode ver apenas Editor
     if (userConfig.level >= 2) {
-      return targetConfig.level <= 1 // Apenas Operador
+      return targetConfig.level <= 1 // Apenas Editor
     }
     
-    // Operador não pode ver dados de ninguém além de si mesmo
+    // Editor não pode ver dados de ninguém além de si mesmo
     return false
   }
 

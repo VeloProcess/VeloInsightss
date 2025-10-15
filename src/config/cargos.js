@@ -1,25 +1,23 @@
-// Sistema de Cargos e Hierarquia
+// Sistema de Cargos e Hierarquia - Nova Estrutura
 export const CARGO_HIERARCHY = {
-  DIRETOR: 4,
-  SUPERADMIN: 4,
-  GESTOR: 3,
-  ANALISTA: 2,
-  OPERADOR: 1
+  ADMINISTRADOR: 4,
+  GESTAO: 3,
+  MONITOR: 2,
+  EDITOR: 1
 }
 
 // Hierarquia de acesso - quais cargos cada usuário pode assumir
 export const CARGO_ACCESS_HIERARCHY = {
-  DIRETOR: ['DIRETOR', 'GESTOR', 'ANALISTA', 'OPERADOR'],
-  SUPERADMIN: ['DIRETOR', 'GESTOR', 'ANALISTA', 'OPERADOR'],
-  GESTOR: ['GESTOR', 'ANALISTA', 'OPERADOR'],
-  ANALISTA: ['ANALISTA', 'OPERADOR'],
-  OPERADOR: ['OPERADOR']
+  ADMINISTRADOR: ['ADMINISTRADOR', 'GESTAO', 'MONITOR', 'EDITOR'],
+  GESTAO: ['GESTAO', 'MONITOR', 'EDITOR'],
+  MONITOR: ['MONITOR', 'EDITOR'],
+  EDITOR: ['EDITOR']
 }
 
 export const CARGO_PERMISSIONS = {
-  DIRETOR: {
+  ADMINISTRADOR: {
     level: 4,
-    name: 'Diretor',
+    name: 'Administrador',
     icon: '👑',
     color: '#8B5CF6',
     permissions: {
@@ -33,25 +31,9 @@ export const CARGO_PERMISSIONS = {
       canViewMeasures: true
     }
   },
-  SUPERADMIN: {
-    level: 4,
-    name: 'SuperAdmin',
-    icon: '👑',
-    color: '#8B5CF6',
-    permissions: {
-      canViewAllUsers: true,
-      canViewManagers: true,
-      canViewAnalysts: true,
-      canViewOperators: true,
-      canViewGeneralMetrics: true,
-      canViewSystemSettings: true,
-      canViewAlerts: true,
-      canViewMeasures: true
-    }
-  },
-  GESTOR: {
+  GESTAO: {
     level: 3,
-    name: 'Gestor',
+    name: 'Gestão',
     icon: '👔',
     color: '#3B82F6',
     permissions: {
@@ -65,9 +47,9 @@ export const CARGO_PERMISSIONS = {
       canViewMeasures: true
     }
   },
-  ANALISTA: {
+  MONITOR: {
     level: 2,
-    name: 'Analista',
+    name: 'Monitor',
     icon: '📊',
     color: '#10B981',
     permissions: {
@@ -81,9 +63,9 @@ export const CARGO_PERMISSIONS = {
       canViewMeasures: false
     }
   },
-  OPERADOR: {
+  EDITOR: {
     level: 1,
-    name: 'Operador',
+    name: 'Editor',
     icon: '👤',
     color: '#6B7280',
     permissions: {
@@ -119,11 +101,11 @@ export const hasHigherLevel = (userCargo, targetCargo) => {
 
 // Função para obter configuração do cargo
 export const getCargoConfig = (cargo) => {
-  const result = CARGO_PERMISSIONS[cargo?.toUpperCase()] || CARGO_PERMISSIONS.OPERADOR
+  const result = CARGO_PERMISSIONS[cargo?.toUpperCase()] || CARGO_PERMISSIONS.EDITOR
   
   // Debug apenas se cargo não encontrado
   if (!CARGO_PERMISSIONS[cargo?.toUpperCase()]) {
-    console.warn('⚠️ Cargo não encontrado:', cargo, 'usando OPERADOR como padrão')
+    console.warn('⚠️ Cargo não encontrado:', cargo, 'usando EDITOR como padrão')
   }
   
   return result
@@ -136,22 +118,22 @@ export const canViewUserData = (viewerCargo, targetCargo, viewerEmail, targetEma
   // Sempre pode ver seus próprios dados
   if (viewerEmail === targetEmail) return true
   
-  // Diretor/SuperAdmin pode ver todos
+  // Administrador pode ver todos
   if (viewerConfig.level >= 4) return true
   
-  // Gestor pode ver Analistas e Operadores
+  // Gestão pode ver Monitor e Editor
   if (viewerConfig.level >= 3) {
     const targetConfig = getCargoConfig(targetCargo)
-    return targetConfig.level <= 2 // Analista ou Operador
+    return targetConfig.level <= 2 // Monitor ou Editor
   }
   
-  // Analista pode ver apenas Operadores
+  // Monitor pode ver apenas Editor
   if (viewerConfig.level >= 2) {
     const targetConfig = getCargoConfig(targetCargo)
-    return targetConfig.level <= 1 // Apenas Operador
+    return targetConfig.level <= 1 // Apenas Editor
   }
   
-  // Operador não pode ver dados de ninguém além de si mesmo
+  // Editor não pode ver dados de ninguém além de si mesmo
   return false
 }
 
@@ -167,14 +149,14 @@ export const canAssumeCargo = (userCargo, targetCargo) => {
 // Função para obter lista de cargos que um usuário pode assumir
 export const getAvailableCargos = (userCargo) => {
   const userCargoUpper = userCargo?.toUpperCase()
-  return CARGO_ACCESS_HIERARCHY[userCargoUpper] || ['OPERADOR']
+  return CARGO_ACCESS_HIERARCHY[userCargoUpper] || ['EDITOR']
 }
 
 // Função para obter configurações dos cargos disponíveis para um usuário
 export const getAvailableCargoConfigs = (userCargo) => {
   const userCargoUpper = userCargo?.toUpperCase()
   
-  const availableCargos = CARGO_ACCESS_HIERARCHY[userCargoUpper] || ['OPERADOR']
+  const availableCargos = CARGO_ACCESS_HIERARCHY[userCargoUpper] || ['EDITOR']
   
   const configs = availableCargos.map(cargo => {
     const config = getCargoConfig(cargo)

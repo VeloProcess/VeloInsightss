@@ -6,32 +6,141 @@ import PeriodSelectorV2 from './PeriodSelectorV2'
 import TemporalComparison from './TemporalComparison'
 import './AgentAnalysis.css'
 
-// Componente para cada operador
-const OperatorCard = ({ operator, index, onViewAgent, hideNames }) => {
+// Componente para seleção de operador
+const OperatorSelector = ({ operators, onSelectOperator, hideNames }) => {
+  const [isExpanded, setIsExpanded] = useState(false)
+  const [selectedOperator, setSelectedOperator] = useState(null)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [showSearchInput, setShowSearchInput] = useState(false)
+
+  // Função para formatar números com pontos como separadores de milhares
+  const formatarNumero = (numero) => {
+    if (!numero || numero === 0) return '0'
+    
+    const num = parseFloat(numero)
+    if (isNaN(num)) return '0'
+    
+    return num.toLocaleString('pt-BR')
+  }
+
+  const handleOperatorSelect = (operator) => {
+    setSelectedOperator(operator)
+    setIsExpanded(false)
+    setShowSearchInput(false)
+    setSearchTerm('')
+    onSelectOperator(operator)
+  }
+
+  const handleToggleExpanded = () => {
+    setIsExpanded(!isExpanded)
+    if (!isExpanded) {
+      setShowSearchInput(false)
+      setSearchTerm('')
+    }
+  }
+
+  const handleSearchToggle = (e) => {
+    e.stopPropagation()
+    setShowSearchInput(!showSearchInput)
+    if (!showSearchInput) {
+      setSearchTerm('')
+    }
+  }
+
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value)
+  }
+
+  // Filtrar operadores baseado na busca
+  const filteredOperators = operators.filter(operator => {
+    if (!searchTerm) return true
+    const operatorName = operator.operator.toLowerCase()
+    return operatorName.includes(searchTerm.toLowerCase())
+  })
+
   return (
-    <div className="agent-card">
-      <div className="agent-info">
-        <div className="agent-rank">#{index + 1}</div>
-        <div className="agent-details">
-          <h3>{hideNames ? 'Operador' : operator.operator}</h3>
-          <div className="agent-stats">
-            <div className="stat">
-              <span className="stat-label">Chamadas:</span>
-              <span className="stat-value">{operator.totalCalls}</span>
+    <div className="operator-selector">
+      <div className="selector-header">
+        <h3>👤 Selecionar Operador</h3>
+        <p>Escolha um operador para visualizar suas métricas detalhadas</p>
+      </div>
+      
+      <div className="selector-container">
+        <button 
+          className="selector-button"
+          onClick={handleToggleExpanded}
+        >
+          <span className="selector-text">
+            {selectedOperator 
+              ? (hideNames ? `Operador Selecionado` : selectedOperator.operator)
+              : 'Clique para selecionar um operador'
+            }
+          </span>
+          <span className="selector-icon">
+            {isExpanded ? '▲' : '▼'}
+          </span>
+        </button>
+        
+        {isExpanded && (
+          <div className="operators-list">
+            {/* Barra de busca */}
+            <div className="search-section">
+              <div className="search-toggle">
+                <button 
+                  className="search-toggle-btn"
+                  onClick={handleSearchToggle}
+                >
+                  🔍 Buscar por nome
+                </button>
+              </div>
+              
+              {showSearchInput && (
+                <div className="search-input-container">
+                  <input
+                    type="text"
+                    placeholder="Digite o nome do operador..."
+                    value={searchTerm}
+                    onChange={handleSearchChange}
+                    className="search-input"
+                    autoFocus
+                  />
+                </div>
+              )}
             </div>
-            <div className="stat">
-              <span className="stat-label">Score:</span>
-              <span className="stat-value">{operator.score}</span>
+
+            {/* Lista de operadores */}
+            <div className="operators-scroll">
+              {filteredOperators.length > 0 ? (
+                filteredOperators.map((operator, index) => (
+                  <div 
+                    key={operator.id || operator.operator || index}
+                    className="operator-item"
+                    onClick={() => handleOperatorSelect(operator)}
+                  >
+                    <div className="operator-info">
+                      <div className="operator-rank">#{operators.indexOf(operator) + 1}</div>
+                      <div className="operator-details">
+                        <span className="operator-name">
+                          {hideNames ? 'Operador' : operator.operator}
+                        </span>
+                        <div className="operator-stats">
+                          <span className="stat">📞 {formatarNumero(operator.totalCalls || 0)} chamadas</span>
+                          <span className="stat">⭐ Score: {formatarNumero(operator.score || 0)}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="select-indicator">✓</div>
+                  </div>
+                ))
+              ) : (
+                <div className="no-results">
+                  <p>Nenhum operador encontrado para "{searchTerm}"</p>
+                </div>
+              )}
             </div>
           </div>
-        </div>
+        )}
       </div>
-      <button 
-        className="view-button"
-        onClick={() => onViewAgent(operator)}
-      >
-        📊 Visualizar Dados
-      </button>
     </div>
   )
 }
@@ -89,8 +198,39 @@ const AgentAnalysis = ({ data, operatorMetrics, rankings }) => {
     const operatorsArray = Object.values(operatorMetrics)
     if (operatorsArray.length === 0) return []
     
-    // Primeiro filtrar operadores baseado no controle de acesso
-    const accessFiltered = getVisibleOperators(operatorsArray)
+    // Lista de operadores inválidos para filtrar
+    const invalidOperators = [
+      'sem operador',
+      'desligados',
+      'excluidos',
+      'excluídos',
+      'agentes indisponiveis',
+      'agentes indisponíveis',
+      'indisponivel',
+      'indisponível',
+      'desligado',
+      'excluido',
+      'excluído',
+      'rejeitaram',
+      'rejeitaram',
+      'rejeitado',
+      'rejeitados',
+      'sem nome',
+      'n/a',
+      'na',
+      ''
+    ]
+    
+    // Filtrar operadores inválidos primeiro
+    const validNamesFiltered = operatorsArray.filter(operator => {
+      if (!operator.operator) return false
+      
+      const operatorName = operator.operator.toLowerCase().trim()
+      return !invalidOperators.includes(operatorName)
+    })
+    
+    // Depois filtrar baseado no controle de acesso
+    const accessFiltered = getVisibleOperators(validNamesFiltered)
     
     // Ordenar por score (maior para menor) - melhor atendente primeiro
     return accessFiltered.sort((a, b) => {
@@ -322,13 +462,41 @@ const AgentAnalysis = ({ data, operatorMetrics, rankings }) => {
   // Calcular métricas individuais do agente
   // Função para formatar minutos em HH:MM:SS
   const formatarTempo = (minutos) => {
-    if (!minutos || minutos === 0) return 'Em breve'
+    if (!minutos || minutos === 0) return '00:00:00'
     
     const horas = Math.floor(minutos / 60)
     const mins = Math.floor(minutos % 60)
     const segs = Math.floor((minutos % 1) * 60)
     
     return `${horas.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${segs.toString().padStart(2, '0')}`
+  }
+
+  // Função para formatar números com pontos como separadores de milhares
+  const formatarNumero = (numero) => {
+    if (!numero || numero === 0) return '0'
+    
+    const num = parseFloat(numero)
+    if (isNaN(num)) return '0'
+    
+    return num.toLocaleString('pt-BR')
+  }
+
+  // Função para formatar qualquer tempo (minutos ou string) em HH:MM:SS
+  const formatarQualquerTempo = (tempo) => {
+    if (!tempo || tempo === 0 || tempo === '00:00:00' || tempo === '') return '00:00:00'
+    
+    // Se já é uma string no formato HH:MM:SS, retorna como está
+    if (typeof tempo === 'string' && tempo.includes(':')) {
+      return tempo
+    }
+    
+    // Se é um número (minutos), converte para HH:MM:SS
+    const minutos = parseFloat(tempo)
+    if (!isNaN(minutos)) {
+      return formatarTempo(minutos)
+    }
+    
+    return '00:00:00'
   }
 
   const calculateAgentMetrics = (agentData) => {
@@ -637,13 +805,13 @@ const AgentAnalysis = ({ data, operatorMetrics, rankings }) => {
           <p>Análise individual de performance</p>
         </div>
 
-        <div className="agent-metrics-grid">
+        <div className="agent-metrics-horizontal">
           {/* Métricas Principais */}
           <div className="metric-card">
             <div className="metric-icon">📞</div>
             <div className="metric-content">
               <h3>Total de Chamadas</h3>
-              <div className="metric-value">{agentMetrics.totalCalls}</div>
+              <div className="metric-value">{formatarNumero(agentMetrics.totalCalls)}</div>
               <p>Chamadas processadas</p>
             </div>
           </div>
@@ -652,7 +820,7 @@ const AgentAnalysis = ({ data, operatorMetrics, rankings }) => {
             <div className="metric-icon">⏱️</div>
             <div className="metric-content">
               <h3>Duração Média</h3>
-              <div className="metric-value">{agentMetrics.avgDuration} min</div>
+              <div className="metric-value">{formatarQualquerTempo(agentMetrics.avgDuration)}</div>
               <p>Tempo médio por atendimento</p>
             </div>
           </div>
@@ -734,7 +902,7 @@ const AgentAnalysis = ({ data, operatorMetrics, rankings }) => {
                       const melhorMes = monthlyData.reduce((max, mes) => 
                         mes.pontuacao > max.pontuacao ? mes : max
                       )
-                      return `${melhorMes.mes} (${melhorMes.pontuacao})`
+                      return `${melhorMes.mes} (${formatarNumero(melhorMes.pontuacao)})`
                     })()}
                   </div>
                 </div>
@@ -749,7 +917,7 @@ const AgentAnalysis = ({ data, operatorMetrics, rankings }) => {
                       const piorMes = monthlyData.reduce((min, mes) => 
                         mes.pontuacao < min.pontuacao ? mes : min
                       )
-                      return `${piorMes.mes} (${piorMes.pontuacao})`
+                      return `${piorMes.mes} (${formatarNumero(piorMes.pontuacao)})`
                     })()}
                   </div>
                 </div>
@@ -815,11 +983,11 @@ const AgentAnalysis = ({ data, operatorMetrics, rankings }) => {
                       <div className="analysis-metrics">
                         <div className="metric-row">
                           <span className="metric-label">Pontuação:</span>
-                          <span className="metric-value">{mes.pontuacao}</span>
+                          <span className="metric-value">{formatarNumero(mes.pontuacao)}</span>
                         </div>
                         <div className="metric-row">
                           <span className="metric-label">Chamadas:</span>
-                          <span className="metric-value">{mes.chamadas}</span>
+                          <span className="metric-value">{formatarNumero(mes.chamadas)}</span>
                         </div>
                         <div className="metric-row">
                           <span className="metric-label">Atendimento:</span>
@@ -831,7 +999,7 @@ const AgentAnalysis = ({ data, operatorMetrics, rankings }) => {
                         </div>
                         <div className="metric-row">
                           <span className="metric-label">Tempo Falado:</span>
-                          <span className="metric-value">{mes.tempoFaladoTotal} min</span>
+                          <span className="metric-value">{formatarQualquerTempo(mes.tempoFaladoTotal)}</span>
                         </div>
                       </div>
 
@@ -902,11 +1070,11 @@ const AgentAnalysis = ({ data, operatorMetrics, rankings }) => {
                         </div>
                       )}
                     </div>
-                    <div className="score-value">{mes.pontuacao}</div>
+                    <div className="score-value">{formatarNumero(mes.pontuacao)}</div>
                     <div className="score-details">
                       <div className="score-detail">
                         <span>Chamadas:</span>
-                        <span>{mes.chamadas}</span>
+                        <span>{formatarNumero(mes.chamadas)}</span>
                       </div>
                       <div className="score-detail">
                         <span>Atendimento:</span>
@@ -945,15 +1113,15 @@ const AgentAnalysis = ({ data, operatorMetrics, rankings }) => {
                     <div className="summary-metrics">
                       <div className="summary-metric">
                         <span className="metric-label">📞 Chamadas:</span>
-                        <span className="metric-value">{mes.chamadas}</span>
+                        <span className="metric-value">{formatarNumero(mes.chamadas)}</span>
                       </div>
                       <div className="summary-metric">
                         <span className="metric-label">🗣️ Tempo Falado:</span>
-                        <span className="metric-value">{mes.tempoFaladoTotal} min</span>
+                        <span className="metric-value">{formatarQualquerTempo(mes.tempoFaladoTotal)}</span>
                       </div>
                       <div className="summary-metric">
                         <span className="metric-label">⏳ Tempo Espera:</span>
-                        <span className="metric-value">{mes.tempoEsperaTotal} min</span>
+                        <span className="metric-value">{formatarQualquerTempo(mes.tempoEsperaTotal)}</span>
                       </div>
                       <div className="summary-metric">
                         <span className="metric-label">⭐ Nota Atendimento:</span>
@@ -1035,24 +1203,14 @@ const AgentAnalysis = ({ data, operatorMetrics, rankings }) => {
         </div>
       </div>
 
-      <div className="agent-header">
-        <h2>👤 Visualizar por Agente</h2>
-        <p>Selecione um atendente para visualizar suas métricas individuais</p>
-      </div>
-
-      <div className="agents-grid">
-        {validOperators.map((agent, index) => (
-          <OperatorCard
-            key={agent.id || agent.operator || index}
-            operator={agent}
-            index={index}
-            onViewAgent={handleViewAgent}
-            hideNames={shouldHideNames}
-          />
-        ))}
-      </div>
-
-      {validOperators.length === 0 && (
+      {/* Seletor de Operador */}
+      {validOperators.length > 0 ? (
+        <OperatorSelector
+          operators={validOperators}
+          onSelectOperator={handleViewAgent}
+          hideNames={shouldHideNames}
+        />
+      ) : (
         <div className="no-agents">
           <h3>📊 Nenhum agente encontrado</h3>
           <p>Não foram encontrados operadores válidos na base de dados.</p>

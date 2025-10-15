@@ -44,7 +44,6 @@ const generateDataHash = (dados) => {
 
 // Função para processar dados com paginação OTIMIZADA
 export const processarDadosPaginado = async (dados, page = 1, pageSize = PAGINATION_CONFIG.DEFAULT_PAGE_SIZE, filters = {}) => {
-  console.log(`⚡ Processando página ${page} com ${pageSize} registros (OTIMIZADO)...`)
   
   const startTime = performance.now()
   const dataHash = generateDataHash(dados)
@@ -53,7 +52,6 @@ export const processarDadosPaginado = async (dados, page = 1, pageSize = PAGINAT
   // Verificar cache
   const cachedResult = metricsCache.get(cacheKey)
   if (isCacheValid(cachedResult)) {
-    console.log('✅ Usando cache para métricas')
     return cachedResult.data
   }
 
@@ -122,7 +120,6 @@ export const processarDadosPaginado = async (dados, page = 1, pageSize = PAGINAT
   })
   
   const endTime = performance.now()
-  console.log(`✅ Página ${page} processada em ${(endTime - startTime).toFixed(2)}ms`)
   
   return result
 }
@@ -130,7 +127,6 @@ export const processarDadosPaginado = async (dados, page = 1, pageSize = PAGINAT
 // Função para limpar cache
 export const clearMetricsCache = () => {
   metricsCache.clear()
-  console.log('🗑️ Cache de métricas limpo')
 }
 
 // Função para obter estatísticas de cache
@@ -148,7 +144,6 @@ export const getCacheStats = () => {
 // Função para processar dados da planilha - VERSÃO PERFEITA IMPLEMENTADA
 export const processarDados = (dados, processAllRecords = false) => {
   if (!dados || dados.length === 0) {
-    console.log('⚠️ Nenhum dado para processar')
     return {
       dadosFiltrados: [],
       operadores: [],
@@ -157,14 +152,11 @@ export const processarDados = (dados, processAllRecords = false) => {
     }
   }
 
-  console.log(`🔄 Processando ${dados.length} linhas (${dados.length - 1} registros + 1 cabeçalho)...`)
 
   // Primeira linha são os cabeçalhos
   const cabecalhos = dados[0]
   const linhasDados = dados.slice(1)
 
-  console.log('📋 Cabeçalhos encontrados:', cabecalhos)
-  console.log('🔍 Procurando colunas T M Logado e T M Pausado...')
   
   // Encontrar índices das colunas T M Logado / Dia e T M Pausado
   let indiceTempoLogado = -1
@@ -173,27 +165,22 @@ export const processarDados = (dados, processAllRecords = false) => {
   cabecalhos.forEach((cabecalho, index) => {
     if (cabecalho && cabecalho.includes('T M Logado')) {
       indiceTempoLogado = index
-      console.log(`✅ T M Logado encontrado na coluna ${index}: ${cabecalho}`)
     }
     if (cabecalho && cabecalho.includes('T M Pausado')) {
       indiceTempoPausado = index
-      console.log(`✅ T M Pausado encontrado na coluna ${index}: ${cabecalho}`)
     }
   })
   
-  console.log(`📊 Linhas de dados para processar: ${linhasDados.length}`)
 
   // Função para filtrar dados dos últimos 60 dias (ou todos se processAllRecords = true)
   const filtrarUltimos60Dias = (linhas) => {
     // Se processAllRecords for true, retornar todos os dados sem filtro
     if (processAllRecords) {
-      console.log(`📅 Processando TODOS OS REGISTROS (${linhas.length} registros históricos)`)
       return linhas
     }
     const hoje = new Date()
     const sessentaDiasAtras = new Date(hoje.getTime() - (60 * 24 * 60 * 60 * 1000)) // 60 dias atrás
     
-    console.log(`📅 Filtrando dados de ${sessentaDiasAtras.toLocaleDateString()} até ${hoje.toLocaleDateString()}`)
     
     return linhas.filter(linha => {
       const dataStr = linha[3] // Coluna D - Data
@@ -239,7 +226,6 @@ export const processarDados = (dados, processAllRecords = false) => {
 
   // Filtrar dados dos últimos 60 dias
   const linhasFiltradas = filtrarUltimos60Dias(linhasDados)
-  console.log(`📊 Dados filtrados dos últimos 60 dias: ${linhasFiltradas.length} linhas (de ${linhasDados.length} total)`)
 
   // Mapeamento correto das colunas - VERSÃO PERFEITA
   const indices = {
@@ -257,7 +243,6 @@ export const processarDados = (dados, processAllRecords = false) => {
     notaSolucao: 28     // Coluna AC - Pergunta2 2 PERGUNTA SOLUCAO
   }
 
-  console.log('📍 Índices das colunas:', indices)
 
   // Processar dados linha por linha - VERSÃO PERFEITA
   const dadosProcessados = []
@@ -277,20 +262,47 @@ export const processarDados = (dados, processAllRecords = false) => {
       const operador = linha[indices.operador] || 'Sem Operador'
 
       // Processar dados da linha - VERSÃO PERFEITA (TODAS AS LINHAS)
+      const chamada = linha[indices.chamada] || ''
+      const tempoFalado = linha[indices.tempoFalado] || '00:00:00'
+      const tempoEspera = linha[indices.tempoEspera] || '00:00:00'
+      
+      // Função para converter tempo HH:MM:SS para minutos
+      const tempoParaMinutos = (tempo) => {
+        if (!tempo || tempo === '00:00:00') return 0
+        const [horas, minutos, segundos] = tempo.split(':').map(Number)
+        return horas * 60 + minutos + segundos / 60
+      }
+      
+      const tempoMinutos = tempoParaMinutos(tempoFalado)
+      const tempoEsperaMinutos = tempoParaMinutos(tempoEspera)
+      
+      // Classificar status da chamada
+      let status = 'naoClassificada'
+      if (chamada.toLowerCase().includes('retida') || chamada.toLowerCase().includes('ura')) {
+        status = 'retida'
+      } else if (chamada.toLowerCase().includes('abandonada')) {
+        status = 'abandonada'
+      } else if (tempoMinutos > 0 || chamada.toLowerCase().includes('atendida')) {
+        status = 'atendida'
+      } else if (tempoEsperaMinutos > 0 && tempoMinutos === 0 && !chamada.toLowerCase().includes('retida')) {
+        status = 'abandonada'
+      }
+      
       const dadosLinha = {
         linha: index + 2,
-        chamada: linha[indices.chamada] || '',
+        chamada: chamada,
         operador: operador.trim(),
         data: linha[indices.data] || '',
         hora: linha[indices.hora] || '00:00:00',
         tempoURA: linha[indices.tempoURA] || '00:00:00',
-        tempoEspera: linha[indices.tempoEspera] || '00:00:00',
-        tempoFalado: linha[indices.tempoFalado] || '00:00:00',
+        tempoEspera: tempoEspera,
+        tempoFalado: tempoFalado,
         tempoTotal: linha[indices.tempoTotal] || '00:00:00',
         tempoLogado: indices.tempoLogado >= 0 ? (linha[indices.tempoLogado] || '00:00:00') : '00:00:00',
         tempoPausado: indices.tempoPausado >= 0 ? (linha[indices.tempoPausado] || '00:00:00') : '00:00:00',
         notaAtendimento: parseFloat(linha[indices.notaAtendimento]) || null,
-        notaSolucao: parseFloat(linha[indices.notaSolucao]) || null
+        notaSolucao: parseFloat(linha[indices.notaSolucao]) || null,
+        status: status
       }
 
       dadosProcessados.push(dadosLinha)
@@ -305,15 +317,28 @@ export const processarDados = (dados, processAllRecords = false) => {
 
   // Debug do processamento
   // console.log(`📊 Debug do processamento:`)
-  console.log(`  ✅ Linhas processadas: ${linhasProcessadas}`)
-  console.log(`  ❌ Linhas ignoradas: ${linhasIgnoradas}`)
-  console.log(`  📋 Total esperado: ${linhasDados.length}`)
   
   // A diferença é esperada, pois 'linhasProcessadas' já está filtrada pelos últimos 60 dias.
   // console.warn(`⚠️ Diferença no processamento: Esperado ${linhasDados.length}, processado ${linhasProcessadas}`)
 
   // Calcular métricas gerais - VERSÃO PERFEITA IMPLEMENTADA
-  const metricas = calcularMetricas(dadosProcessados)
+  // Usar a função calcularMetricas para obter métricas reais
+  const metricasCalculadas = calcularMetricas(dadosProcessados)
+  
+  const metricas = {
+    totalChamadas: dadosProcessados.length,
+    retidaURA: dadosProcessados.filter(d => d.status === 'retida').length,
+    atendida: dadosProcessados.filter(d => d.status === 'atendida').length,
+    abandonada: dadosProcessados.filter(d => d.status === 'abandonada').length,
+    duracaoMediaAtendimento: metricasCalculadas.duracaoMediaAtendimento,
+    tempoMedioEspera: metricasCalculadas.tempoMedioEspera,
+    tempoMedioURA: metricasCalculadas.tempoMedioURA,
+    notaMediaAtendimento: metricasCalculadas.notaMediaAtendimento,
+    notaMediaSolucao: metricasCalculadas.notaMediaSolucao,
+    taxaAtendimento: metricasCalculadas.taxaAtendimento,
+    taxaAbandono: metricasCalculadas.taxaAbandono,
+    chamadasAvaliadas: metricasCalculadas.chamadasAvaliadas
+  }
 
   // Calcular métricas por operador
   const metricasOperadores = calcularMetricasOperadores(dadosProcessados)
@@ -376,7 +401,6 @@ const calcularMetricas = (dados) => {
   
   // Verificar se temos exatamente 5000 linhas (incluindo cabeçalho)
   if (totalChamadas < 4999) {
-    console.log(`⚠️ Aviso: Esperávamos ~5000 linhas, mas temos apenas ${totalChamadas}`)
   }
   
   // Debug detalhado para cada categoria
@@ -404,7 +428,7 @@ const calcularMetricas = (dados) => {
       naoClassificada++
       // Log das primeiras 5 linhas não classificadas para debug
       if (naoClassificada <= 5) {
-        console.log(`🔍 Linha não classificada ${index + 1}:`, {
+        console.log(`🔍 Linha não classificada ${naoClassificada}:`, {
           chamada,
           tempoFalado,
           tempoEspera,
@@ -416,12 +440,6 @@ const calcularMetricas = (dados) => {
   })
   
   // console.log(`📊 Debug - Contagem detalhada:`)
-  console.log(`  📞 Retida na URA: ${retidaURA}`)
-  console.log(`  ✅ Atendida: ${atendida}`)
-  console.log(`  ❌ Abandonada: ${abandonada}`)
-  console.log(`  ❓ Não classificada: ${naoClassificada}`)
-  console.log(`  📊 Soma: ${retidaURA + atendida + abandonada + naoClassificada}`)
-  console.log(`  📊 Total esperado: ${totalChamadas}`)
 
   // console.log(`📊 Debug - Status das chamadas:`, {
   //   retidaURA,
@@ -430,41 +448,26 @@ const calcularMetricas = (dados) => {
   //   soma: retidaURA + atendida + abandonada
   // })
 
-  // Cálculo de médias - VERSÃO PERFEITA
-  const temposFalado = dados.map(row => tempoParaMinutos(row.tempoFalado)).filter(tempo => tempo > 0)
-  const duracaoMediaAtendimento = temposFalado.length > 0 
-    ? temposFalado.reduce((sum, tempo) => sum + tempo, 0) / temposFalado.length
-    : 0
+  // Cálculo de médias - VERSÃO CORRIGIDA COM COLUNAS ESPECÍFICAS
+  // Duração Média: usar coluna Tempo Total (O)
+  const temposTotal = dados.map(row => tempoParaMinutos(row.tempoTotal)).filter(tempo => tempo > 0)
+  const duracaoMediaAtendimento = temposTotal.length > 0 ? temposTotal.reduce((sum, tempo) => sum + tempo, 0) / temposTotal.length : 0
 
   const temposEspera = dados.map(row => tempoParaMinutos(row.tempoEspera)).filter(tempo => tempo > 0)
-  const tempoMedioEspera = temposEspera.length > 0 
-    ? temposEspera.reduce((sum, tempo) => sum + tempo, 0) / temposEspera.length
-    : 0
+  const tempoMedioEspera = temposEspera.length > 0 ? temposEspera.reduce((sum, tempo) => sum + tempo, 0) / temposEspera.length : 0
 
   const temposURA = dados.map(row => tempoParaMinutos(row.tempoURA)).filter(tempo => tempo > 0)
-  const tempoMedioURA = temposURA.length > 0 
-    ? temposURA.reduce((sum, tempo) => sum + tempo, 0) / temposURA.length
-    : 0
+  const tempoMedioURA = temposURA.length > 0 ? temposURA.reduce((sum, tempo) => sum + tempo, 0) / temposURA.length : 0
 
   // Tempo médio logado e pausado - NOVOS INDICADORES
   const temposLogado = dados.map(row => tempoParaMinutos(row.tempoLogado)).filter(tempo => tempo > 0)
-  const tempoMedioLogado = temposLogado.length > 0 
-    ? temposLogado.reduce((sum, tempo) => sum + tempo, 0) / temposLogado.length
-    : 0
+  const tempoMedioLogado = temposLogado.length > 0 ? temposLogado.reduce((sum, tempo) => sum + tempo, 0) / temposLogado.length : 0
 
   const temposPausado = dados.map(row => tempoParaMinutos(row.tempoPausado)).filter(tempo => tempo > 0)
-  const tempoMedioPausado = temposPausado.length > 0 
-    ? temposPausado.reduce((sum, tempo) => sum + tempo, 0) / temposPausado.length
-    : 0
+  const tempoMedioPausado = temposPausado.length > 0 ? temposPausado.reduce((sum, tempo) => sum + tempo, 0) / temposPausado.length : 0
 
-  console.log(`📊 Debug - Tempos médios:`, {
-    tempoMedioLogado: tempoMedioLogado.toFixed(1),
-    tempoMedioPausado: tempoMedioPausado.toFixed(1),
-    registrosLogado: temposLogado.length,
-    registrosPausado: temposPausado.length
-  })
 
-  // Notas médias
+  // Notas médias - VERSÃO CORRIGIDA COM COLUNAS AB E AC
   const notasAtendimentoValidas = dados.filter(d => d.notaAtendimento !== null)
   const notaMediaAtendimento = notasAtendimentoValidas.length > 0 ?
     notasAtendimentoValidas.reduce((sum, d) => sum + d.notaAtendimento, 0) / notasAtendimentoValidas.length : 0
@@ -473,12 +476,9 @@ const calcularMetricas = (dados) => {
   const notaMediaSolucao = notasSolucaoValidas.length > 0 ?
     notasSolucaoValidas.reduce((sum, d) => sum + d.notaSolucao, 0) / notasSolucaoValidas.length : 0
 
-  console.log(`📊 Debug - Notas:`, {
-    notasAtendimentoValidas: notasAtendimentoValidas.length,
-    notasSolucaoValidas: notasSolucaoValidas.length,
-    notaMediaAtendimento: notaMediaAtendimento.toFixed(2),
-    notaMediaSolucao: notaMediaSolucao.toFixed(2)
-  })
+  // Taxa de Sucesso: média das colunas AB e AC
+  const taxaSucesso = (notaMediaAtendimento + notaMediaSolucao) / 2
+
 
   // Calcular chamadas avaliadas (que têm nota de 1-5 em atendimento OU solução)
   const chamadasAvaliadas = dados.filter(item => {
@@ -493,27 +493,10 @@ const calcularMetricas = (dados) => {
     return temNotaAtendimento || temNotaSolucao
   }).length
 
-  console.log(`📊 Debug - Chamadas Avaliadas:`, {
-    chamadasAvaliadas,
-    totalChamadas,
-    percentualAvaliadas: totalChamadas > 0 ? ((chamadasAvaliadas / totalChamadas) * 100).toFixed(1) : '0.0'
-  })
-
   // Taxas
   const taxaAtendimento = totalChamadas > 0 ? (atendida / totalChamadas) * 100 : 0
   const taxaAbandono = totalChamadas > 0 ? (abandonada / totalChamadas) * 100 : 0
 
-  console.log('📊 Métricas calculadas:', {
-    totalChamadas,
-    retidaURA,
-    atendida,
-    abandonada,
-    duracaoMediaAtendimento: duracaoMediaAtendimento.toFixed(1),
-    tempoMedioEspera: tempoMedioEspera.toFixed(1),
-    tempoMedioURA: tempoMedioURA.toFixed(1),
-    taxaAtendimento: taxaAtendimento.toFixed(1),
-    taxaAbandono: taxaAbandono.toFixed(1)
-  })
 
   return {
     totalCalls: totalChamadas, // Corrigido para compatibilidade com MetricsDashboard
@@ -532,6 +515,7 @@ const calcularMetricas = (dados) => {
     tempoMedioPausado: parseFloat(tempoMedioPausado.toFixed(1)), // NOVO INDICADOR
     taxaAtendimento: parseFloat(taxaAtendimento.toFixed(1)),
     taxaAbandono: parseFloat(taxaAbandono.toFixed(1)),
+    taxaSucesso: parseFloat(taxaSucesso.toFixed(1)), // NOVA MÉTRICA: média das colunas AB e AC
     chamadasAvaliadas // NOVA MÉTRICA
   }
 }
@@ -592,7 +576,7 @@ export const calcularMetricasOperadores = (dados) => {
     }
 
     operadores[d.operador].totalAtendimentos++
-    const tempoMinutos = tempoParaMinutos(d.tempoFalado)
+    const tempoMinutos = tempoParaMinutos(d.tempoTotal) // Usar coluna Tempo Total (O)
     operadores[d.operador].tempoTotal += tempoMinutos
     
     if (d.notaAtendimento !== null) {
@@ -620,10 +604,8 @@ export const calcularMetricasOperadores = (dados) => {
   // Calcular médias
   Object.values(operadores).forEach(op => {
     op.tempoMedio = op.totalAtendimentos > 0 ? op.tempoTotal / op.totalAtendimentos : 0
-    op.notaMediaAtendimento = op.notasAtendimento.length > 0 ? 
-      op.notasAtendimento.reduce((sum, nota) => sum + nota, 0) / op.notasAtendimento.length : 0
-    op.notaMediaSolucao = op.notasSolucao.length > 0 ?
-      op.notasSolucao.reduce((sum, nota) => sum + nota, 0) / op.notasSolucao.length : 0
+    op.notaMediaAtendimento = op.notasAtendimento.length > 0 ? op.notasAtendimento.reduce((sum, nota) => sum + nota, 0) / op.notasAtendimento.length : 0
+    op.notaMediaSolucao = op.notasSolucao.length > 0 ? op.notasSolucao.reduce((sum, nota) => sum + nota, 0) / op.notasSolucao.length : 0
     
   })
 

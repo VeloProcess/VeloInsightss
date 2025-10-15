@@ -283,24 +283,31 @@
 }
 
 /* Métricas do Agente */
-.agent-metrics {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 20px;
+.agent-metrics-horizontal {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  gap: 12px;
   margin-bottom: 30px;
+  overflow-x: auto;
+  /* Layout horizontal */
 }
 
 .metric-card {
   background: var(--color-card-bg);
   border-radius: 12px;
-  padding: 20px;
+  padding: 16px;
   border: 1px solid var(--color-card-border);
   box-shadow: 0 4px 20px var(--color-shadow);
   transition: all 0.3s ease;
   text-align: center;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 15px;
+  gap: 8px;
+  flex: 1;
+  min-width: 150px;
+  flex-shrink: 0;
 }
 
 .metric-card:hover {
@@ -310,7 +317,7 @@
 }
 
 .metric-icon {
-  font-size: 2.5rem;
+  font-size: 2rem;
   flex-shrink: 0;
 }
 
@@ -320,22 +327,25 @@
 
 .metric-content h3 {
   color: var(--color-text-primary);
-  font-size: 1rem;
-  margin-bottom: 10px;
+  font-size: 0.9rem;
+  margin-bottom: 6px;
   font-weight: 600;
+  line-height: 1.2;
 }
 
 .metric-content .metric-value {
   color: var(--color-blue-primary);
-  font-size: 1.8rem;
+  font-size: 1.5rem;
   font-weight: 700;
-  margin-bottom: 5px;
+  margin-bottom: 4px;
+  line-height: 1.2;
 }
 
 .metric-content p {
   color: var(--color-text-secondary);
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   margin: 0;
+  line-height: 1.2;
 }
 
 /* Tema claro - cards de métricas */
@@ -408,6 +418,7 @@
   border: 1px solid var(--color-card-border);
   box-shadow: 0 4px 20px var(--color-shadow);
   transition: all 0.3s ease;
+  overflow: hidden;
 }
 
 .summary-card:hover {
@@ -466,23 +477,36 @@
 
 .summary-metrics {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 15px;
+  padding: 10px;
+  overflow: hidden;
 }
 
 .summary-metric {
   text-align: center;
-  padding: 10px;
+  padding: 8px;
   background: var(--color-bg-secondary);
   border-radius: 8px;
   border: 1px solid var(--color-border-secondary);
+  overflow: hidden;
+  word-wrap: break-word;
 }
 
-.summary-metric .value {
+.summary-metric .metric-label {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+  margin-bottom: 4px;
+  line-height: 1.2;
+}
+
+.summary-metric .metric-value {
+  display: block;
   color: var(--color-blue-primary);
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   font-weight: 600;
-  margin-bottom: 5px;
+  line-height: 1.2;
 }
 
 .summary-metric .label {
@@ -672,24 +696,28 @@
 
 /* Resumo de Tendências */
 .trends-summary {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 24px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
   margin-bottom: 40px;
+  justify-content: space-between;
 }
 
 .trend-card {
   background: var(--color-bg-secondary);
   border-radius: 16px;
-  padding: 20px;
+  padding: 16px;
   border: 1px solid var(--color-border-primary);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   position: relative;
   overflow: hidden;
+  flex: 1;
+  min-width: 200px;
+  max-width: 250px;
 }
 
 .trend-card::before {
@@ -715,7 +743,7 @@
 }
 
 .trend-icon {
-  font-size: 2.2rem;
+  font-size: 1.8rem;
   flex-shrink: 0;
   filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.1));
   transition: transform 0.3s ease;
@@ -731,15 +759,15 @@
 
 .trend-content h4 {
   color: var(--color-text-primary);
-  font-size: 1.1rem;
-  margin-bottom: 12px;
+  font-size: 1rem;
+  margin-bottom: 8px;
   font-weight: 600;
   letter-spacing: 0.5px;
 }
 
 .trend-value {
   color: var(--color-blue-primary);
-  font-size: 1.1rem;
+  font-size: 0.9rem;
   font-weight: 700;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
@@ -1733,6 +1761,352 @@
 .theme-dark .period-summary {
   background: var(--color-bg-dark);
   border-color: var(--color-border-dark);
+}
+
+/* ===== SELETOR DE OPERADOR ===== */
+.operator-selector {
+  margin: 30px 0;
+  background: var(--color-bg-primary);
+  border-radius: 15px;
+  padding: 25px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--color-border);
+}
+
+.selector-header {
+  text-align: center;
+  margin-bottom: 25px;
+}
+
+.selector-header h3 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0 0 10px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.selector-header p {
+  font-size: 1rem;
+  color: var(--color-text-secondary);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.selector-container {
+  position: relative;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.selector-button {
+  width: 100%;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
+  color: white;
+  border: none;
+  border-radius: 12px;
+  padding: 20px 25px;
+  font-size: 1.1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.selector-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+.selector-button:active {
+  transform: translateY(0);
+}
+
+.selector-text {
+  flex: 1;
+  text-align: left;
+}
+
+.selector-icon {
+  font-size: 1.2rem;
+  transition: transform 0.3s ease;
+}
+
+.operators-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  max-height: 500px;
+  margin-top: 5px;
+  display: flex;
+  flex-direction: column;
+}
+
+.search-section {
+  padding: 15px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
+  border-radius: 12px 12px 0 0;
+}
+
+.search-toggle {
+  margin-bottom: 10px;
+}
+
+.search-toggle-btn {
+  background: linear-gradient(135deg, var(--color-secondary), var(--color-secondary-dark));
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 15px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.search-toggle-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.search-input-container {
+  margin-top: 10px;
+}
+
+.search-input {
+  width: 100%;
+  padding: 12px 15px;
+  border: 2px solid var(--color-border);
+  border-radius: 8px;
+  font-size: 1rem;
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  transition: all 0.2s ease;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.search-input::placeholder {
+  color: var(--color-text-secondary);
+}
+
+.operators-scroll {
+  max-height: 350px;
+  overflow-y: auto;
+}
+
+.no-results {
+  padding: 20px;
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-style: italic;
+}
+
+.operator-item {
+  padding: 15px 20px;
+  border-bottom: 1px solid var(--color-border);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.operator-item:last-child {
+  border-bottom: none;
+}
+
+.operator-item:hover {
+  background: var(--color-bg-secondary);
+  transform: translateX(5px);
+}
+
+.operator-info {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  flex: 1;
+}
+
+.operator-rank {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
+  color: white;
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.operator-details {
+  flex: 1;
+}
+
+.operator-name {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  display: block;
+  margin-bottom: 5px;
+}
+
+.operator-stats {
+  display: flex;
+  gap: 15px;
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+}
+
+.operator-stats .stat {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.select-indicator {
+  color: var(--color-primary);
+  font-size: 1.2rem;
+  font-weight: bold;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.operator-item:hover .select-indicator {
+  opacity: 1;
+}
+
+/* Tema escuro para seletor de operador */
+.theme-dark .operator-selector {
+  background: var(--color-bg-dark);
+  border-color: var(--color-border-dark);
+}
+
+.theme-dark .operators-list {
+  background: var(--color-bg-dark);
+  border-color: var(--color-border-dark);
+}
+
+.theme-dark .search-section {
+  background: var(--color-bg-secondary-dark);
+  border-color: var(--color-border-dark);
+}
+
+.theme-dark .search-input {
+  background: var(--color-bg-dark);
+  border-color: var(--color-border-dark);
+  color: var(--color-text-light);
+}
+
+.theme-dark .search-input:focus {
+  border-color: var(--color-primary);
+}
+
+.theme-dark .search-input::placeholder {
+  color: var(--color-text-secondary-dark);
+}
+
+.theme-dark .operator-item:hover {
+  background: var(--color-bg-secondary-dark);
+}
+
+.theme-dark .operator-name {
+  color: var(--color-text-light);
+}
+
+.theme-dark .operator-stats {
+  color: var(--color-text-secondary-dark);
+}
+
+.theme-dark .no-results {
+  color: var(--color-text-secondary-dark);
+}
+
+/* Responsividade para seletor de operador */
+@media (max-width: 768px) {
+  .operator-selector {
+    margin: 20px 0;
+    padding: 20px;
+  }
+  
+  .selector-header h3 {
+    font-size: 1.3rem;
+  }
+  
+  .selector-button {
+    padding: 15px 20px;
+    font-size: 1rem;
+  }
+  
+  .operator-item {
+    padding: 12px 15px;
+  }
+  
+  .operator-stats {
+    flex-direction: column;
+    gap: 5px;
+  }
+  
+  /* Responsividade para cards de tendência */
+  .trends-summary {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .trend-card {
+    min-width: unset;
+    max-width: unset;
+    width: 100%;
+  }
+  
+  /* Responsividade para métricas do agente */
+  .agent-metrics-horizontal {
+    gap: 12px;
+  }
+  
+  .metric-card {
+    min-width: 120px;
+    padding: 12px;
+  }
+  
+  .metric-icon {
+    font-size: 1.5rem;
+  }
+  
+  .metric-content h3 {
+    font-size: 0.75rem;
+  }
+  
+  .metric-content .metric-value {
+    font-size: 1.2rem;
+  }
+  
+  .metric-content p {
+    font-size: 0.65rem;
+  }
+  
 }
 
 /* Responsividade para seletor de período */

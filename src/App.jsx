@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import Header from './components/Header'
 import Sidebar from './components/Sidebar'
-import DataFetcher from './components/DataFetcher'
 import LoginTest from './components/LoginTest'
 import MetricsDashboard from './components/MetricsDashboard'
 import ChartsSection from './components/ChartsSection'
@@ -80,7 +79,8 @@ function AppContent() {
     isProcessingAllRecords,
     processingProgress,
     totalRecordsToProcess,
-    loadAllRecordsWithProgress
+    loadAllRecordsWithProgress,
+    loadDataOnDemand
   } = useGoogleSheetsDirectSimple()
 
   // Reset allRecordsLoadingStarted quando o filtro muda
@@ -107,7 +107,6 @@ function AppContent() {
 
       // Se o filtro for "allRecords", carregar todos os registros (apenas uma vez)
       if (filters.period === 'allRecords' && !isProcessingAllRecords && !allRecordsLoadingStarted) {
-        console.log('🚀 Filtro TODOS OS REGISTROS selecionado - iniciando carregamento completo...')
         setAllRecordsLoadingStarted(true)
         
         // Obter token de acesso do localStorage
@@ -116,7 +115,6 @@ function AppContent() {
         if (accessToken && loadAllRecordsWithProgress) {
           loadAllRecordsWithProgress(accessToken)
             .then((resultado) => {
-              console.log('✅ Todos os registros carregados com sucesso!')
               // Os dados já são atualizados automaticamente pelo hook
             })
             .catch((error) => {
@@ -539,8 +537,13 @@ function AppContent() {
     if (isAuthenticated && currentView === 'fetch') {
       console.log('🎯 Usuário autenticado, navegando automaticamente para dashboard...')
       setCurrentView('dashboard')
+      // Carregar dados automaticamente se não houver dados
+      if (loadDataOnDemand && (!data || data.length === 0)) {
+        console.log('📊 Carregando dados automaticamente após login...')
+        loadDataOnDemand('last15Days')
+      }
     }
-  }, [isAuthenticated, currentView])
+  }, [isAuthenticated, currentView, loadDataOnDemand, data])
 
   // Debug do dashboard
   useEffect(() => {
@@ -556,6 +559,11 @@ function AppContent() {
       const success = selectCargo(cargo, userData.email)
       if (success) {
         console.log('🎯 Cargo selecionado:', cargo)
+        // Carregar dados automaticamente após seleção de cargo
+        if (loadDataOnDemand && (!data || data.length === 0)) {
+          console.log('📊 Carregando dados automaticamente após seleção de cargo...')
+          loadDataOnDemand('last15Days')
+        }
       } else {
         console.error('❌ Erro ao selecionar cargo')
       }
@@ -600,6 +608,18 @@ function AppContent() {
         sidebarOpen={sidebarOpen}
         theme={theme}
         onToggleTheme={toggleTheme}
+        onSyncData={async () => {
+          console.log('🔄 Sincronização manual iniciada...')
+          setIsLoading(true)
+          try {
+            await fetchData()
+            console.log('✅ Sincronização manual concluída!')
+          } catch (error) {
+            console.error('❌ Erro na sincronização manual:', error)
+          } finally {
+            setIsLoading(false)
+          }
+        }}
       />
       
       <div className="app-content">
@@ -870,39 +890,29 @@ function AppContent() {
                 <div className="loading-container">
                   <h2>🔄 Carregando dados da planilha...</h2>
                   <p>Por favor, aguarde enquanto os dados são processados.</p>
-                  <div className="loading-spinner">⏳</div>
+                  <div className="loading-spinner"></div>
                 </div>
               ) : (
-                <div className="error-container">
-                  <h2>❌ Erro ao carregar dados</h2>
-                  <p>Não foi possível carregar os dados da planilha.</p>
-                  {errors && errors.length > 0 && (
-                    <div className="error-details">
-                      <p>Detalhes do erro:</p>
-                      <ul>
-                        {errors.map((error, index) => (
-                          <li key={index}>{error}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  <button 
-                    className="btn btn-primary"
-                    onClick={() => window.location.reload()}
-                  >
-                    🔄 Tentar Novamente
-                  </button>
+                <div className="loading-container">
+                  <h2>🔄 Preparando dashboard...</h2>
+                  <p>Aguarde enquanto carregamos os dados para você.</p>
+                  <div className="loading-spinner"></div>
+                  <div className="loading-info">
+                    <p>📊 Processando dados da planilha...</p>
+                    <p>📅 Detectando período dos dados...</p>
+                    <p>⚡ Preparando métricas e gráficos...</p>
+                  </div>
                 </div>
               )}
             </>
           )}
           
           {/* Aba Gráficos Detalhados */}
-          {currentView === 'charts' && data && data.length > 0 && (
+          {currentView === 'charts' && (
             <ChartsDetailedTab 
               data={filteredData.length > 0 ? filteredData : data}
-              operatorMetrics={filteredOperatorMetrics || operatorMetrics}
-              rankings={filteredRankings || rankings}
+              operatorMetrics={operatorMetrics} // Sempre usar operatorMetrics completo
+              rankings={rankings} // Sempre usar ranking completo para Melhores Desempenhos
               selectedPeriod={null}
               isLoading={isLoading}
               pauseData={filteredData.length > 0 ? filteredData : data}
@@ -910,6 +920,7 @@ function AppContent() {
               filters={filters}
               originalData={data}
               onFiltersChange={setFilters}
+              loadDataOnDemand={loadDataOnDemand}
             />
           )}
           

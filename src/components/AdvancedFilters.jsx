@@ -8,6 +8,16 @@ const AdvancedFilters = memo(({
 }) => {
   const [localFilters, setLocalFilters] = useState(filters)
 
+  // Função para formatar números com pontos como separadores de milhares
+  const formatarNumero = (numero) => {
+    if (!numero || numero === 0) return '0'
+    
+    const num = parseFloat(numero)
+    if (isNaN(num)) return '0'
+    
+    return num.toLocaleString('pt-BR')
+  }
+
   // Função para scroll suave até os gráficos
   const scrollToCharts = () => {
     console.log('🔄 Tentando fazer scroll para os gráficos...')
@@ -204,7 +214,7 @@ const AdvancedFilters = memo(({
               <div className="period-subtitle">Veja os últimos 7 dias</div>
             </div>
             <span className="period-count">
-              <span className="count-number">{getFilteredData('last7Days').length}</span>
+              <span className="count-number">{formatarNumero(getFilteredData('last7Days').length)}</span>
               <span className="count-label">registros</span>
             </span>
           </button>
@@ -219,7 +229,7 @@ const AdvancedFilters = memo(({
               <div className="period-subtitle">Últimas duas semanas</div>
             </div>
             <span className="period-count">
-              <span className="count-number">{getFilteredData('last15Days').length}</span>
+              <span className="count-number">{formatarNumero(getFilteredData('last15Days').length)}</span>
               <span className="count-label">registros</span>
             </span>
           </button>
@@ -234,7 +244,7 @@ const AdvancedFilters = memo(({
               <div className="period-subtitle">Mês anterior ao passado</div>
             </div>
             <span className="period-count">
-              <span className="count-number">{getFilteredData('penultimoMes').length}</span>
+              <span className="count-number">{formatarNumero(getFilteredData('penultimoMes').length)}</span>
               <span className="count-label">registros</span>
             </span>
           </button>
@@ -249,7 +259,7 @@ const AdvancedFilters = memo(({
               <div className="period-subtitle">Mês passado</div>
             </div>
             <span className="period-count">
-              <span className="count-number">{getFilteredData('ultimoMes').length}</span>
+              <span className="count-number">{formatarNumero(getFilteredData('ultimoMes').length)}</span>
               <span className="count-label">registros</span>
             </span>
           </button>
@@ -264,7 +274,7 @@ const AdvancedFilters = memo(({
               <div className="period-subtitle">{new Date().toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}</div>
             </div>
             <span className="period-count">
-              <span className="count-number">{getFilteredData('currentMonth').length}</span>
+              <span className="count-number">{formatarNumero(getFilteredData('currentMonth').length)}</span>
               <span className="count-label">registros</span>
             </span>
           </button>
@@ -279,7 +289,7 @@ const AdvancedFilters = memo(({
               <div className="period-subtitle">Histórico completo</div>
             </div>
             <span className="period-count">
-              <span className="count-number">{data.length}</span>
+              <span className="count-number">{formatarNumero(data.length)}</span>
               <span className="count-label">registros</span>
             </span>
           </button>
@@ -333,7 +343,7 @@ const AdvancedFilters = memo(({
               </div>
             </div>
             <div className="summary-stats">
-              <span className="stats-number">{filteredDataCount}</span>
+              <span className="stats-number">{formatarNumero(filteredDataCount)}</span>
               <span className="stats-label">registros</span>
             </div>
           </div>

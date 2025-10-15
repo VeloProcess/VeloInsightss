@@ -507,6 +507,19 @@ const ModernChartsDashboard = ({ data, operatorMetrics, rankings, selectedPeriod
     <div className="modern-dashboard">
       {/* Header */}
       <div className="dashboard-header">
+        <div className="header-icon">
+          <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+            <defs>
+              <linearGradient id="iconGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#8B5CF6" />
+                <stop offset="100%" stopColor="#FFFFFF" />
+              </linearGradient>
+            </defs>
+            <rect width="48" height="48" rx="8" fill="url(#iconGradient)" />
+            <path d="M12 32 L20 24 L28 28 L36 16" stroke="#1694FF" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+            <circle cx="36" cy="16" r="2" fill="#1694FF"/>
+          </svg>
+        </div>
         <div className="header-content">
           <h1>Dashboard</h1>
           <p>Análise completa dos dados de atendimento com precisão</p>
@@ -711,18 +724,10 @@ const ModernChartsDashboard = ({ data, operatorMetrics, rankings, selectedPeriod
               
               return (
                 <>
-                  <div className="pie-container">
-                    <div className="pie-slice excellent" style={{ '--percentage': `${excellentRate}%` }}>
-                      <div className="slice-content">
-                        <span className="slice-label">Excelente</span>
-                        <span className="slice-value">{excellentRate}%</span>
-                      </div>
-                    </div>
-                    <div className="pie-slice good" style={{ '--percentage': `${otherRate}%` }}>
-                      <div className="slice-content">
-                        <span className="slice-label">Outros</span>
-                        <span className="slice-value">{otherRate}%</span>
-                      </div>
+                  <div className="pie-container" style={{ '--percentage': `${excellentRate}%` }}>
+                    <div className="slice-content">
+                      <span className="slice-label">Excelente</span>
+                      <span className="slice-value">{(excellentRate / 100 * 5).toFixed(1)}/5</span>
                     </div>
                   </div>
                   <div className="pie-legend">
@@ -737,11 +742,11 @@ const ModernChartsDashboard = ({ data, operatorMetrics, rankings, selectedPeriod
                   </div>
                   <div className="rating-details">
                     <div className="rating-item">
-                      <span className="rating-label">Avaliação Atendimento (AB):</span>
+                      <span className="rating-label">Avaliação Atendimento:</span>
                       <span className="rating-value">{avgAttendance.toFixed(1)}</span>
                     </div>
                     <div className="rating-item">
-                      <span className="rating-label">Avaliação Solução (AC):</span>
+                      <span className="rating-label">Avaliação Solução:</span>
                       <span className="rating-value">{avgSolution.toFixed(1)}</span>
                     </div>
                     <div className="rating-item">

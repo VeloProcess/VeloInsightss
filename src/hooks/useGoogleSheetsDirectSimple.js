@@ -3,26 +3,185 @@ import { processarDados } from '../utils/dataProcessor'
 
 // Função para processamento assíncrono otimizado
 const processarDadosAssincrono = async (dados, processAllRecords = false) => {
-  return new Promise((resolve) => {
-    // Mostrar progresso no console
-    console.log(`⚡ Iniciando processamento de ${dados.length} registros...`)
+  // Processamento direto sem setTimeout para máxima performance
+  const startTime = performance.now()
+  const resultado = processarDados(dados, processAllRecords)
+  const endTime = performance.now()
+  
+  return resultado
+}
+
+// Função para filtrar dados por período baseado na coluna de data
+const filterDataByPeriod = (data, selectedPeriod) => {
+  if (!data || data.length === 0) return data
+  
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  
+  // Encontrar índice da coluna de data (coluna D = índice 3)
+  const headerRow = data[0]
+  let dateColumnIndex = headerRow.findIndex(col => 
+    col && col.toLowerCase().includes('data')
+  )
+  
+  // Se não encontrar por nome, usar índice 3 (coluna D)
+  if (dateColumnIndex === -1) {
+    dateColumnIndex = 3
+    console.log('📅 Usando coluna D (índice 3) para filtragem por data')
+  } else {
+    console.log(`📅 Coluna de data encontrada no índice: ${dateColumnIndex}`)
+  }
+  
+  // Detectar o ano dos dados automaticamente
+  let dataYear = now.getFullYear()
+  if (data.length > 1) {
+    console.log(`🔍 Verificando primeiras 10 datas para detectar ano...`)
+    // Verificar algumas datas para detectar o ano
+    for (let i = 1; i <= Math.min(10, data.length - 1); i++) {
+      const dateStr = data[i][dateColumnIndex]
+      console.log(`🔍 Linha ${i}, Data: "${dateStr}"`)
+      if (dateStr && dateStr.includes('/')) {
+        const parts = dateStr.split('/')
+        if (parts.length === 3) {
+          const year = parseInt(parts[2])
+          console.log(`🔍 Ano encontrado: ${year}`)
+          if (year > 2000) {
+            dataYear = year
+            console.log(`✅ Ano detectado: ${dataYear}`)
+            break
+          }
+        }
+      }
+    }
+  }
+  
+  console.log(`📅 Ano detectado nos dados: ${dataYear}`)
+  
+  // Se não conseguiu detectar o ano, assumir 2025 (baseado nos logs anteriores)
+  if (dataYear === now.getFullYear()) {
+    console.log('⚠️ Não foi possível detectar o ano automaticamente, assumindo 2025')
+    dataYear = 2025
+  }
+  
+  console.log(`📅 Filtrando dados por período: ${selectedPeriod}`)
+  console.log(`📅 Data de hoje: ${today.toLocaleDateString()}`)
+  console.log(`📅 Total de registros para filtrar: ${data.length - 1}`)
+  console.log(`📅 Coluna de data (índice ${dateColumnIndex}): ${headerRow[dateColumnIndex]}`)
+  
+  let validRecords = 0
+  let invalidRecords = 0
+  
+  const filteredData = data.filter((row, index) => {
+    // Manter cabeçalho
+    if (index === 0) return true
     
-    // Usar setTimeout para não bloquear a UI
-    setTimeout(() => {
-      const startTime = performance.now()
-      const resultado = processarDados(dados, processAllRecords)
-      const endTime = performance.now()
+    const dateStr = row[dateColumnIndex]
+    if (!dateStr) {
+      invalidRecords++
+      return false
+    }
+    
+    try {
+      // Tentar diferentes formatos de data
+      let rowDate
+      if (dateStr.includes('/')) {
+        // Formato DD/MM/YYYY ou DD/MM/YY
+        const parts = dateStr.split('/')
+        if (parts.length === 3) {
+          const day = parseInt(parts[0])
+          const month = parseInt(parts[1]) - 1 // Mês é 0-indexado
+          const year = parseInt(parts[2])
+          // Se ano tem 2 dígitos, assumir 20xx
+          const fullYear = year < 100 ? 2000 + year : year
+          rowDate = new Date(fullYear, month, day)
+        }
+      } else {
+        // Formato ISO ou outros
+        rowDate = new Date(dateStr)
+      }
       
-      console.log(`✅ Processamento concluído em ${(endTime - startTime).toFixed(2)}ms`)
-      resolve(resultado)
-    }, 0)
+      if (isNaN(rowDate.getTime())) {
+        invalidRecords++
+        return false
+      }
+      
+      const rowDateOnly = new Date(rowDate.getFullYear(), rowDate.getMonth(), rowDate.getDate())
+      
+      let shouldInclude = false
+      
+      switch (selectedPeriod) {
+        case 'last7Days':
+          // Usar o ano detectado nos dados
+          const sevenDaysAgo = new Date(dataYear, today.getMonth(), today.getDate() - 7)
+          shouldInclude = rowDateOnly >= sevenDaysAgo && rowDateOnly.getFullYear() === dataYear
+          break
+          
+        case 'last15Days':
+          // Usar o ano detectado nos dados
+          const fifteenDaysAgo = new Date(dataYear, today.getMonth(), today.getDate() - 15)
+          shouldInclude = rowDateOnly >= fifteenDaysAgo && rowDateOnly.getFullYear() === dataYear
+          break
+          
+        case 'lastMonth':
+          // Usar o ano detectado nos dados
+          const lastMonth = new Date(dataYear, today.getMonth() - 1, today.getDate())
+          shouldInclude = rowDateOnly.getMonth() === lastMonth.getMonth() && 
+                         rowDateOnly.getFullYear() === dataYear
+          break
+          
+        case 'penultimateMonth':
+          // Usar o ano detectado nos dados
+          const penultimateMonth = new Date(dataYear, today.getMonth() - 2, today.getDate())
+          shouldInclude = rowDateOnly.getMonth() === penultimateMonth.getMonth() && 
+                         rowDateOnly.getFullYear() === dataYear
+          break
+          
+        case 'currentMonth':
+          // Usar o ano detectado nos dados
+          shouldInclude = rowDateOnly.getMonth() === today.getMonth() && 
+                         rowDateOnly.getFullYear() === dataYear
+          break
+          
+        case 'all':
+        default:
+          shouldInclude = true
+          break
+      }
+      
+      if (shouldInclude) {
+        validRecords++
+      } else {
+        invalidRecords++
+      }
+      
+      return shouldInclude
+      
+    } catch (error) {
+      console.warn(`⚠️ Erro ao processar data: ${dateStr}`, error)
+      invalidRecords++
+      return false
+    }
   })
+  
+  console.log(`✅ Filtrados ${filteredData.length - 1} registros de ${data.length - 1} total`)
+  console.log(`📊 Registros válidos: ${validRecords}, Registros inválidos: ${invalidRecords}`)
+  
+  // Debug: mostrar algumas datas filtradas
+  if (filteredData.length > 1) {
+    console.log(`🔍 Primeiras 3 datas filtradas:`)
+    for (let i = 1; i <= Math.min(3, filteredData.length - 1); i++) {
+      console.log(`  ${i}: ${filteredData[i][dateColumnIndex]}`)
+    }
+  } else {
+    console.log(`⚠️ Nenhum registro foi filtrado!`)
+  }
+  
+  return filteredData
 }
 
 // Função para processamento completo com progresso
 const processarTodosOsDadosComProgresso = async (dados, onProgress) => {
   return new Promise((resolve) => {
-    console.log(`🚀 Iniciando processamento completo de ${dados.length - 1} registros históricos...`)
     
     const totalRecords = dados.length - 1 // Excluir cabeçalho
     let processedRecords = 0
@@ -47,12 +206,10 @@ const processarTodosOsDadosComProgresso = async (dados, onProgress) => {
           processChunk()
         } else {
           // Processamento completo - agora processar os dados reais
-          console.log(`📊 Processando dados finais...`)
           const startTime = performance.now()
           const resultado = processarDados(dados, true) // processAllRecords = true
           const endTime = performance.now()
           
-          console.log(`✅ Processamento completo concluído em ${(endTime - startTime).toFixed(2)}ms`)
           resolve(resultado)
         }
       }, 50) // Delay pequeno para mostrar progresso
@@ -96,7 +253,6 @@ export const useGoogleSheetsDirectSimple = () => {
     if (!CLIENT_ID || CLIENT_ID === 'seu_client_id_aqui') {
       setErrors(prev => [...prev, '❌ Configure o Client ID do Google no arquivo .env! Consulte GOOGLE_SSO_SETUP.md para instruções detalhadas.'])
     } else {
-      console.log('✅ Client ID configurado:', CLIENT_ID)
     }
   }, [CLIENT_ID])
 
@@ -108,7 +264,6 @@ export const useGoogleSheetsDirectSimple = () => {
       const redirectUri = `${window.location.origin}/callback.html`
       const clientSecret = import.meta.env.VITE_GOOGLE_CLIENT_SECRET
       
-      console.log('🔑 Client Secret configurado:', clientSecret ? 'SIM' : 'NÃO')
       
       if (!clientSecret || clientSecret === 'seu_client_secret_aqui') {
         throw new Error('Client Secret não configurado no arquivo .env')
@@ -134,7 +289,6 @@ export const useGoogleSheetsDirectSimple = () => {
       }
 
       const tokenData = await response.json()
-      console.log('✅ Token obtido com sucesso')
 
       // Obter informações do usuário do Google
       const userResponse = await fetch(`https://www.googleapis.com/oauth2/v2/userinfo?access_token=${tokenData.access_token}`)
@@ -145,7 +299,6 @@ export const useGoogleSheetsDirectSimple = () => {
       
       const googleUserInfo = await userResponse.json()
       
-      console.log('👤 Informações do usuário:', googleUserInfo)
       
       // Validar domínio do usuário
       if (!googleUserInfo.email || !googleUserInfo.email.endsWith(DOMINIO_PERMITIDO)) {
@@ -232,25 +385,8 @@ export const useGoogleSheetsDirectSimple = () => {
           setIsAuthenticated(true)
           console.log('✅ Usuário já logado')
           
-          // Carregar dados automaticamente para usuário já logado
-          console.log('📊 Carregando dados para usuário já logado...')
-          setIsLoading(true)
-          
-          // Para operadores, carregar TODOS os registros históricos
-          const loadDataFunction = userInfo.email?.includes('@velotax.com.br') 
-            ? fetchFullDataset(userInfo.accessToken)
-            : fetchSheetData(userInfo.accessToken)
-          
-          loadDataFunction
-            .then(() => {
-              console.log('✅ Dados carregados com sucesso para usuário já logado!')
-            })
-            .catch(error => {
-              console.error('❌ Erro ao carregar dados para usuário já logado:', error)
-            })
-            .finally(() => {
-              setIsLoading(false)
-            })
+          // NÃO carregar dados automaticamente - aguardar seleção de período
+          console.log('📊 Aguardando seleção de período para carregar dados...')
         } else {
           localStorage.removeItem('veloinsights_user')
           console.log('⏰ Token expirado, removido do localStorage')
@@ -313,8 +449,33 @@ export const useGoogleSheetsDirectSimple = () => {
     }
   }
 
+  // Função para carregar dados sob demanda (quando período é selecionado)
+  const loadDataOnDemand = async (selectedPeriod = 'all') => {
+    if (!userData?.accessToken) {
+      console.error('❌ Usuário não autenticado')
+      return
+    }
+    
+    console.log(`📊 Carregando dados para período: ${selectedPeriod}`)
+    setIsLoading(true)
+    
+    try {
+      // Para operadores, carregar TODOS os registros históricos
+      const loadDataFunction = userData.email?.includes('@velotax.com.br') 
+        ? fetchFullDataset(userData.accessToken, selectedPeriod)
+        : fetchSheetData(userData.accessToken, selectedPeriod)
+      
+      await loadDataFunction
+      console.log('✅ Dados carregados com sucesso!')
+    } catch (error) {
+      console.error('❌ Erro ao carregar dados:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   // Função para buscar todos os dados da planilha
-  const fetchFullDataset = async (accessToken) => {
+  const fetchFullDataset = async (accessToken, selectedPeriod = 'all') => {
     try {
       setIsLoading(true)
       console.log('🔄 Buscando dataset completo da planilha...')
@@ -335,24 +496,34 @@ export const useGoogleSheetsDirectSimple = () => {
         // Armazenar dataset completo
         setFullDataset(result.values)
         
-        // Processar TODOS os dados históricos (não apenas os últimos 2000)
-        console.log(`⚡ Processando TODOS os ${result.values.length} registros históricos...`)
+        // FILTRAGEM POR PERÍODO: aplicar filtro baseado no período selecionado
+        console.log(`🔍 Chamando filterDataByPeriod com ${result.values.length} registros para período: ${selectedPeriod}`)
+        const filteredData = filterDataByPeriod(result.values, selectedPeriod)
+        
+        console.log(`⚡ Processando ${filteredData.length - 1} registros filtrados por período: ${selectedPeriod}...`)
         
         // Processamento assíncrono com progresso
-        const dadosProcessados = await processarDadosAssincrono(result.values, true) // processAllRecords = true
+        const dadosProcessados = await processarDadosAssincrono(filteredData, true) // processAllRecords = true
         
         // Atualizar estados com dados processados
         setData(dadosProcessados.dadosFiltrados)
         setMetrics(dadosProcessados.metricas)
-        setOperatorMetrics(Object.values(dadosProcessados.metricasOperadores).map(op => ({
-          operator: op.operador,
-          totalCalls: op.totalAtendimentos,
-          avgDuration: parseFloat(op.tempoMedio.toFixed(1)),
-          avgRatingAttendance: parseFloat(op.notaMediaAtendimento.toFixed(1)),
-          avgRatingSolution: parseFloat(op.notaMediaSolucao.toFixed(1)),
-          avgPauseTime: 0,
-          totalRecords: op.totalAtendimentos
-        })))
+        
+        // Validar metricasOperadores antes de usar Object.values()
+        if (dadosProcessados.metricasOperadores && typeof dadosProcessados.metricasOperadores === 'object') {
+          setOperatorMetrics(Object.values(dadosProcessados.metricasOperadores).map(op => ({
+            operator: op.operador,
+            totalCalls: op.totalAtendimentos,
+            avgDuration: parseFloat(op.tempoMedio.toFixed(1)),
+            avgRatingAttendance: parseFloat(op.notaMediaAtendimento.toFixed(1)),
+            avgRatingSolution: parseFloat(op.notaMediaSolucao.toFixed(1)),
+            avgPauseTime: 0,
+            totalRecords: op.totalAtendimentos
+          })))
+        } else {
+          console.warn('⚠️ metricasOperadores não está disponível, definindo como objeto vazio')
+          setOperatorMetrics({})
+        }
         setRankings(dadosProcessados.rankings.map(ranking => ({
           ...ranking,
           isExcluded: false // Todos os operadores são incluídos
@@ -365,7 +536,7 @@ export const useGoogleSheetsDirectSimple = () => {
       }
     } catch (error) {
       console.error('❌ Erro ao buscar dataset completo:', error)
-      setError(error.message)
+      setErrors(prev => [...prev, error.message])
       throw error
     } finally {
       setIsLoading(false)
@@ -407,15 +578,22 @@ export const useGoogleSheetsDirectSimple = () => {
         // Atualizar estados com TODOS os dados processados
         setData(dadosProcessados.dadosFiltrados)
         setMetrics(dadosProcessados.metricas)
-        setOperatorMetrics(Object.values(dadosProcessados.metricasOperadores).map(op => ({
-          operator: op.operador,
-          totalCalls: op.totalAtendimentos,
-          avgDuration: parseFloat(op.tempoMedio.toFixed(1)),
-          avgRatingAttendance: parseFloat(op.notaMediaAtendimento.toFixed(1)),
-          avgRatingSolution: parseFloat(op.notaMediaSolucao.toFixed(1)),
-          avgPauseTime: 0,
-          totalRecords: op.totalAtendimentos
-        })))
+        
+        // Validar metricasOperadores antes de usar Object.values()
+        if (dadosProcessados.metricasOperadores && typeof dadosProcessados.metricasOperadores === 'object') {
+          setOperatorMetrics(Object.values(dadosProcessados.metricasOperadores).map(op => ({
+            operator: op.operador,
+            totalCalls: op.totalAtendimentos,
+            avgDuration: parseFloat(op.tempoMedio.toFixed(1)),
+            avgRatingAttendance: parseFloat(op.notaMediaAtendimento.toFixed(1)),
+            avgRatingSolution: parseFloat(op.notaMediaSolucao.toFixed(1)),
+            avgPauseTime: 0,
+            totalRecords: op.totalAtendimentos
+          })))
+        } else {
+          console.warn('⚠️ metricasOperadores não está disponível, definindo como objeto vazio')
+          setOperatorMetrics({})
+        }
         setRankings(dadosProcessados.rankings.map(ranking => ({
           ...ranking,
           isExcluded: false // Todos os operadores são incluídos
@@ -439,8 +617,8 @@ export const useGoogleSheetsDirectSimple = () => {
     }
   }, [])
 
-  // Função para filtrar dados por período
-  const filterDataByPeriod = (startDate, endDate) => {
+  // Função para filtrar dados por período (renomeada para evitar conflito)
+  const filterDataByDateRange = (startDate, endDate) => {
     if (!fullDataset || fullDataset.length === 0) {
       console.warn('⚠️ Dataset completo não carregado')
       return []
@@ -517,7 +695,7 @@ export const useGoogleSheetsDirectSimple = () => {
       setIsLoading(true)
       setSelectedPeriod({ startDate, endDate })
       
-      const dadosFiltrados = filterDataByPeriod(startDate, endDate)
+      const dadosFiltrados = filterDataByDateRange(startDate, endDate)
       
       if (dadosFiltrados.length === 0) {
         console.warn('⚠️ Nenhum dado encontrado para o período selecionado')
@@ -536,26 +714,30 @@ export const useGoogleSheetsDirectSimple = () => {
       
       // Converter metricasOperadores para o formato esperado pelo AgentAnalysis
       const operatorMetricsObj = {}
-      Object.values(dadosProcessados.metricasOperadores).forEach(op => {
-        // Filtrar apenas operadores com nomes válidos (excluir "Sem Operador", etc.)
-        if (op.operador && 
-            op.operador !== 'Sem Operador' && 
-            !op.operador.toLowerCase().includes('sem operador') &&
-            op.operador.trim().includes(' ') && // Deve ter pelo menos um espaço (nome completo)
-            op.totalAtendimentos > 0) {
-          
-          operatorMetricsObj[op.operador] = {
-            operator: op.operador,
-            totalCalls: op.totalAtendimentos,
-            avgDuration: parseFloat(op.tempoMedio?.toFixed(1) || 0),
-            avgRatingAttendance: parseFloat(op.notaMediaAtendimento?.toFixed(1) || 0),
-            avgRatingSolution: parseFloat(op.notaMediaSolucao?.toFixed(1) || 0),
-            avgPauseTime: 0,
-            totalRecords: op.totalAtendimentos,
-            score: parseFloat(op.score?.toFixed(2) || 0)
+      if (dadosProcessados.metricasOperadores && typeof dadosProcessados.metricasOperadores === 'object') {
+        Object.values(dadosProcessados.metricasOperadores).forEach(op => {
+          // Filtrar apenas operadores com nomes válidos (excluir "Sem Operador", etc.)
+          if (op.operador && 
+              op.operador !== 'Sem Operador' && 
+              !op.operador.toLowerCase().includes('sem operador') &&
+              op.operador.trim().includes(' ') && // Deve ter pelo menos um espaço (nome completo)
+              op.totalAtendimentos > 0) {
+            
+            operatorMetricsObj[op.operador] = {
+              operator: op.operador,
+              totalCalls: op.totalAtendimentos,
+              avgDuration: parseFloat(op.tempoMedio?.toFixed(1) || 0),
+              avgRatingAttendance: parseFloat(op.notaMediaAtendimento?.toFixed(1) || 0),
+              avgRatingSolution: parseFloat(op.notaMediaSolucao?.toFixed(1) || 0),
+              avgPauseTime: 0,
+              totalRecords: op.totalAtendimentos,
+              score: parseFloat(op.score?.toFixed(2) || 0)
+            }
           }
-        }
-      })
+        })
+      } else {
+        console.warn('⚠️ metricasOperadores não está disponível para processamento de período')
+      }
       
       // Aplicar Dark List aos rankings
       const rankingsComDarkList = dadosProcessados.rankings.map(ranking => ({
@@ -574,7 +756,7 @@ export const useGoogleSheetsDirectSimple = () => {
       
     } catch (error) {
       console.error('❌ Erro ao processar dados do período:', error)
-      setError(error.message)
+      setErrors(prev => [...prev, error.message])
     } finally {
       setIsLoading(false)
     }
@@ -671,26 +853,33 @@ export const useGoogleSheetsDirectSimple = () => {
         
         // Converter metricasOperadores para o formato esperado pelo AgentAnalysis
         const operatorMetricsObj = {}
-        Object.values(dadosProcessados.metricasOperadores).forEach(op => {
-          // Filtrar apenas operadores com nomes válidos (excluir "Sem Operador", etc.)
-          if (op.operador && 
-              op.operador !== 'Sem Operador' && 
-              !op.operador.toLowerCase().includes('sem operador') &&
-              op.operador.trim().includes(' ') && // Deve ter pelo menos um espaço (nome completo)
-              op.totalAtendimentos > 0) {
-            
-            operatorMetricsObj[op.operador] = {
-              operator: op.operador,
-              totalCalls: op.totalAtendimentos,
-              avgDuration: parseFloat(op.tempoMedio?.toFixed(1) || 0),
-              avgRatingAttendance: parseFloat(op.notaMediaAtendimento?.toFixed(1) || 0),
-              avgRatingSolution: parseFloat(op.notaMediaSolucao?.toFixed(1) || 0),
-              avgPauseTime: 0,
-              totalRecords: op.totalAtendimentos,
-              score: parseFloat(op.score?.toFixed(2) || 0)
+        if (dadosProcessados.metricasOperadores && typeof dadosProcessados.metricasOperadores === 'object') {
+          Object.values(dadosProcessados.metricasOperadores).forEach(op => {
+            // Filtrar apenas operadores com nomes válidos (excluir apenas os realmente inválidos)
+            if (op.operador && 
+                op.operador !== 'Sem Operador' && 
+                !op.operador.toLowerCase().includes('sem operador') &&
+                !op.operador.toLowerCase().includes('desligado') &&
+                !op.operador.toLowerCase().includes('excluído') &&
+                !op.operador.toLowerCase().includes('inativo') &&
+                op.totalAtendimentos > 0) {
+              
+              operatorMetricsObj[op.operador] = {
+                operator: op.operador,
+                totalCalls: op.totalAtendimentos,
+                avgDuration: parseFloat(op.tempoMedio?.toFixed(1) || 0),
+                avgRatingAttendance: parseFloat(op.notaMediaAtendimento?.toFixed(1) || 0),
+                avgRatingSolution: parseFloat(op.notaMediaSolucao?.toFixed(1) || 0),
+                avgPauseTime: 0,
+                totalRecords: op.totalAtendimentos,
+                score: parseFloat(op.score?.toFixed(2) || 0)
+              }
             }
-          }
-        })
+          })
+        } else {
+          console.warn('⚠️ metricasOperadores não está disponível para processamento completo')
+        }
+        
         
         // Aplicar Dark List aos rankings
         const rankingsComDarkList = dadosProcessados.rankings.map(ranking => ({
@@ -729,9 +918,9 @@ export const useGoogleSheetsDirectSimple = () => {
     }
   }
 
-  // Função para buscar dados (simplificada) - agora busca todos os dados por padrão para operadores
+  // Função para buscar dados (simplificada) - CARREGAMENTO COMPLETO RESTAURADO
   const fetchSheetData = async (accessToken, mode = 'recent') => {
-    // Para operadores (@velotax.com.br), buscar todos os dados históricos
+    // Para operadores (@velotax.com.br), buscar TODOS os dados históricos
     if (userData?.email?.includes('@velotax.com.br')) {
       console.log('🚀 Operador detectado - carregando TODOS os registros históricos...')
       return await fetchFullDataset(accessToken)
@@ -765,9 +954,11 @@ export const useGoogleSheetsDirectSimple = () => {
     processPeriodData,
     filterDataByPeriod,
     fetchDataByPeriod: fetchSheetData,
-    filterDataByDateRange: () => data,
+    filterDataByDateRange: filterDataByDateRange,
     // Nova função para carregar todos os registros
     loadAllRecordsWithProgress,
+    // Nova função para carregar dados sob demanda
+    loadDataOnDemand,
     setSelectedPeriod,
     setCustomDateRange,
     signIn,

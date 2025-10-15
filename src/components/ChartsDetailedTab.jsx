@@ -12,7 +12,8 @@ const ChartsDetailedTab = ({
   userData,
   filters = {},
   originalData,
-  onFiltersChange
+  onFiltersChange,
+  loadDataOnDemand
 }) => {
   return (
     <div className="charts-detailed-tab">
@@ -32,11 +33,35 @@ const ChartsDetailedTab = ({
           filters={filters}
           originalData={originalData}
           onFiltersChange={onFiltersChange}
+          loadDataOnDemand={loadDataOnDemand}
         />
       ) : (
         <div className="no-data-container">
-          <h3>📊 Nenhum dado disponível</h3>
-          <p>Carregue dados da planilha para visualizar os gráficos detalhados.</p>
+          <div className="no-data-icon">📊</div>
+          <h3>Selecione um período para carregar dados</h3>
+          <p>Escolha o período desejado para visualizar os gráficos avançados.</p>
+          <div className="no-data-actions">
+            <div className="period-selector">
+              <select 
+                className="period-select"
+                onChange={(e) => {
+                  const period = e.target.value
+                  if (period && loadDataOnDemand) {
+                    loadDataOnDemand(period)
+                  }
+                }}
+                defaultValue=""
+              >
+                <option value="">Selecione um período...</option>
+                <option value="last7Days">7 dias</option>
+                <option value="last15Days">15 dias</option>
+                <option value="lastMonth">Último mês</option>
+                <option value="penultimateMonth">Penúltimo mês</option>
+                <option value="currentMonth">Mês atual</option>
+                <option value="all">Todos os registros</option>
+              </select>
+            </div>
+          </div>
         </div>
       )}
     </div>

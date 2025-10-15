@@ -8,14 +8,12 @@ const LoginTest = ({ onContinue, onSignIn, isLoading, isLoggedIn }) => {
   // Monitorar mudança no estado de autenticação
   useEffect(() => {
     if (isLoggedIn) {
-      console.log('✅ Usuário autenticado, mostrando sucesso...')
       setShowSuccessMessage(true)
     }
   }, [isLoggedIn])
   
   // Debug reduzido
   if (isLoggedIn !== showSuccessMessage) {
-    console.log('🔍 Estado atual - isLoggedIn:', isLoggedIn, 'showSuccessMessage:', showSuccessMessage);
   }
 
 
@@ -121,7 +119,6 @@ const LoginTest = ({ onContinue, onSignIn, isLoading, isLoggedIn }) => {
             {!showSuccessMessage ? (
               <button 
                 onClick={() => {
-                  console.log('🔑 Botão de login clicado!')
                   if (onSignIn) {
                     onSignIn()
                   } else {
