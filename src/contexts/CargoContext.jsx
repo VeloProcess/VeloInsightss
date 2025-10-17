@@ -19,6 +19,28 @@ export const CargoProvider = ({ children }) => {
   const [showCargoSelection, setShowCargoSelection] = useState(false)
   const [lastActivity, setLastActivity] = useState(Date.now())
 
+  // Função para fazer login automático baseado no email
+  const autoLogin = (email) => {
+    const user = getUserByEmail(email)
+    if (user) {
+      console.log('🚀 Login automático para:', user.nome, 'como', user.cargo)
+      setSelectedCargo(user.cargo)
+      setUserEmail(email)
+      setUserInfo(user)
+      setShowCargoSelection(false)
+      setLastActivity(Date.now())
+
+      // Salvar no localStorage com timestamp
+      localStorage.setItem('selectedCargo', user.cargo)
+      localStorage.setItem('userEmail', email)
+      localStorage.setItem('cargoTimestamp', Date.now().toString())
+      localStorage.setItem('lastActivity', Date.now().toString())
+      
+      return true
+    }
+    return false
+  }
+
   // Carregar dados salvos do localStorage
   useEffect(() => {
     const savedCargo = localStorage.getItem('selectedCargo')
@@ -263,6 +285,7 @@ export const CargoProvider = ({ children }) => {
     showCargoSelection,
     lastActivity,
     selectCargo,
+    autoLogin,
     logout,
     hasPermission,
     canViewUserData,

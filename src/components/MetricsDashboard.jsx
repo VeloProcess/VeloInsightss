@@ -1,4 +1,4 @@
-import React, { memo } from 'react'
+import React, { memo, useState, useEffect } from 'react'
 import { useCargo } from '../contexts/CargoContext'
 import { getOperatorDisplayName, prioritizeCurrentUserInMiddle } from '../utils/operatorUtils'
 import ComparativosTemporais from './ComparativosTemporais'
@@ -85,7 +85,7 @@ const MetricsDashboard = memo(({ metrics, operatorMetrics, rankings, darkList, a
         {/* Seção 55PBX */}
         <div className="dashboard-section pbx-section">
           <div className="section-content">
-            <h2 className="section-title">dados 55pbx</h2>
+            <h2 className="section-title">Ligações</h2>
             
             {/* Métricas Gerais 55PBX */}
             {periodo ? (
@@ -93,84 +93,51 @@ const MetricsDashboard = memo(({ metrics, operatorMetrics, rankings, darkList, a
                 <div className="card-header">
                   <h2 className="card-title">📊 Métricas Gerais</h2>
                 </div>
-          
-          <div className="card-content">
-            <div className="metrics-grid">
-              {/* Total de Chamadas */}
-              <div className="metric-card">
-                <div className="metric-value">{(metrics.totalChamadas || metrics.totalCalls || 0).toLocaleString()}</div>
-                <div className="metric-label">Total de Chamadas</div>
-              </div>
-              
-              {/* Status das Chamadas */}
-              <div className="metric-card">
-                <div className="metric-value">{(metrics.retidaURA || 0).toLocaleString()}</div>
-                <div className="metric-label">Retida na URA</div>
-              </div>
-              
-              <div className="metric-card">
-                <div className="metric-value">{(metrics.atendida || 0).toLocaleString()}</div>
-                <div className="metric-label">Atendida</div>
-              </div>
-              
-              <div className="metric-card">
-                <div className="metric-value">{(metrics.abandonada || 0).toLocaleString()}</div>
-                <div className="metric-label">Abandonada</div>
-              </div>
-              
-              {/* Notas */}
-              <div className="metric-card">
-                <div className="metric-value">{metrics.avgRatingAttendance || metrics.notaMediaAtendimento || '0.0'}/5</div>
-                <div className="metric-label">Nota Média de Atendimento</div>
-              </div>
-              
-              <div className="metric-card">
-                <div className="metric-value">{metrics.avgRatingSolution || metrics.notaMediaSolucao || '0.0'}/5</div>
-                <div className="metric-label">Nota Média de Solução</div>
-              </div>
-              
-              {/* Tempos */}
-              <div className="metric-card">
-                <div className="metric-value">{metrics.duracaoMediaAtendimento || '0.0'} min</div>
-                <div className="metric-label">Duração Média de Atendimento</div>
-              </div>
-              
-              <div className="metric-card">
-                <div className="metric-value">{metrics.tempoMedioEspera || '0.0'} min</div>
-                <div className="metric-label">Tempo Médio de Espera</div>
-              </div>
-              
-              {/* Taxas */}
-              <div className="metric-card">
-                <div className="metric-value">{metrics.taxaAbandono || '0.0'}%</div>
-                <div className="metric-label">Taxa de Abandono</div>
-              </div>
-
-              {/* Chamadas Avaliadas */}
-              <div className="metric-card">
-                <div className="metric-value">{(metrics.chamadasAvaliadas || 0).toLocaleString()}</div>
-                <div className="metric-label">Chamadas Avaliadas</div>
-              </div>
-
-              {/* Estatísticas de Chamadas */}
-              {metrics.callStatuses && Object.keys(metrics.callStatuses).length > 0 && (
-                <>
-                  {Object.entries(metrics.callStatuses).map(([status, count], index) => (
-                    <div key={status} className="metric-card advanced">
-                      <div className="metric-value">{count}</div>
-                      <div className="metric-label">
-                        {status.toLowerCase().includes('atendida') ? 'Chamadas Atendidas' : 
-                          status.toLowerCase().includes('retida') ? 'Retidas na URA' : 
-                          status}
-                      </div>
+                <div className="card-content">
+                  <div className="metrics-grid">
+                    <div className="metric-card">
+                      <div className="metric-value">{(metrics.totalCalls || 0).toLocaleString('pt-BR')}</div>
+                      <div className="metric-label">📞 Total de Chamadas</div>
                     </div>
-                  ))}
-                </>
-              )}
-
-            </div>
-          </div>
-        </div>
+                    <div className="metric-card">
+                      <div className="metric-value">{(metrics.retidaURA || 0).toLocaleString('pt-BR')}</div>
+                      <div className="metric-label">🤖 Retida na URA</div>
+                    </div>
+                    <div className="metric-card">
+                      <div className="metric-value">{(metrics.atendida || 0).toLocaleString('pt-BR')}</div>
+                      <div className="metric-label">✅ Atendida</div>
+                    </div>
+                    <div className="metric-card">
+                      <div className="metric-value">{(metrics.abandonada || 0).toLocaleString('pt-BR')}</div>
+                      <div className="metric-label">❌ Abandonada</div>
+                    </div>
+                    <div className="metric-card">
+                      <div className="metric-value">{metrics.notaMediaAtendimento || '0.0'}/5</div>
+                      <div className="metric-label">⭐ Nota Média de Atendimento</div>
+                    </div>
+                    <div className="metric-card">
+                      <div className="metric-value">{metrics.notaMediaSolucao || '0.0'}/5</div>
+                      <div className="metric-label">🎯 Nota Média de Solução</div>
+                    </div>
+                    <div className="metric-card">
+                      <div className="metric-value">{metrics.duracaoMediaAtendimento || '0.0'} min</div>
+                      <div className="metric-label">💬 Duração Média de Atendimento</div>
+                    </div>
+                    <div className="metric-card">
+                      <div className="metric-value">{metrics.tempoMedioEspera || '0.0'} min</div>
+                      <div className="metric-label">⏱️ Tempo Médio de Espera</div>
+                    </div>
+                    <div className="metric-card">
+                      <div className="metric-value">{metrics.taxaAbandono || '0.0'}%</div>
+                      <div className="metric-label">📉 Taxa de Abandono</div>
+                    </div>
+                    <div className="metric-card">
+                      <div className="metric-value">{(metrics.chamadasAvaliadas || 0).toLocaleString('pt-BR')}</div>
+                      <div className="metric-label">📊 Chamadas Avaliadas</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
       ) : (
         /* Mensagem quando não há período selecionado para métricas gerais */
         <div className="card">
@@ -193,7 +160,7 @@ const MetricsDashboard = memo(({ metrics, operatorMetrics, rankings, darkList, a
         {/* Seção OCTA */}
         <div className="dashboard-section octa-section">
           <div className="section-content">
-            <h2 className="section-title">dados octa</h2>
+            <h2 className="section-title">Tickets</h2>
             
                    {/* Métricas OCTA - Só mostra se há período selecionado */}
                    {periodo ? (

@@ -397,19 +397,6 @@ const NewSheetAnalyzer = () => {
 
   return (
     <div className="new-sheet-analyzer">
-      <div className="analyzer-header">
-        <h2>📊 Análise da Nova Planilha</h2>
-        <p>Planilha ID: {NEW_SPREADSHEET_ID}</p>
-        
-        <button 
-          onClick={readNewSheetData}
-          disabled={isLoading}
-          className="btn btn-primary"
-        >
-          {isLoading ? '🔄 Carregando...' : '📋 Ler Dados'}
-        </button>
-      </div>
-
       {error && (
         <div className="alert alert-error">
           <h4>❌ Erro</h4>
@@ -419,10 +406,10 @@ const NewSheetAnalyzer = () => {
 
       {analysis && (
         <div className="analysis-results">
-          {/* Nova Seção: Análise de Tickets - Layout Específico */}
+          {/* Seção integrada: Análise de Tickets */}
           {analysis && analysis.avaliacoes && (
             <div className="ticket-analysis-section">
-              <h3>🎫 Análise de Tickets</h3>
+              <h2>📊 Análise de Ticket por Operador</h2>
               
               {/* Controles Superiores */}
               <div className="ticket-controls-top">
@@ -596,7 +583,17 @@ const TicketAvaliacaoCard = ({ avaliacao, tipo }) => {
   return (
     <div className={`ticket-avaliacao-card ${tipo}`}>
       <div className="ticket-info">
-        <span className="ticket-numero">🎫 Ticket #{avaliacao.numeroTicket}</span>
+        <span className="ticket-numero">
+          🎫 Ticket #
+          <a 
+            href={`https://app.octadesk.com/ticket/edit/${avaliacao.numeroTicket}`}
+            target="_blank"
+            className="ticket-link"
+            title="Abrir ticket no OCTA"
+          >
+            {avaliacao.numeroTicket}
+          </a>
+        </span>
         <span className="ticket-avaliacao">{avaliacao.tipoAvaliacao}</span>
       </div>
       

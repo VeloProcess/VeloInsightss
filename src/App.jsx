@@ -38,6 +38,7 @@ function AppContent() {
   const { 
     selectedCargo, 
     selectCargo,
+    autoLogin,
     showCargoSelection,
     userInfo
   } = useCargo()
@@ -132,26 +133,20 @@ function AppContent() {
         return
       }
 
-      // Se o filtro for "allRecords", carregar todos os registros (apenas uma vez)
-      if (filters.period === 'allRecords' && !isProcessingAllRecords && !allRecordsLoadingStarted) {
-        setAllRecordsLoadingStarted(true)
+      // Se o filtro for "allRecords", usar todos os dados disponíveis
+      if (filters.period === 'allRecords') {
+        console.log('🔍 Filtro allRecords: usando todos os dados disponíveis')
+        setFilteredData(data)
         
-        // Obter token de acesso do localStorage
-        const userData = localStorage.getItem('veloinsights_user')
-        const accessToken = userData ? JSON.parse(userData).accessToken : null
-        if (accessToken && loadAllRecordsWithProgress) {
-          loadAllRecordsWithProgress(accessToken)
-            .then((resultado) => {
-              // Os dados já são atualizados automaticamente pelo hook
-            })
-            .catch((error) => {
-              console.error('❌ Erro ao carregar todos os registros:', error)
-              setAllRecordsLoadingStarted(false) // Reset em caso de erro
-            })
-        } else {
-          console.warn('⚠️ Token de acesso não encontrado ou função não disponível')
-          setAllRecordsLoadingStarted(false) // Reset em caso de erro
+        // Garantir que metrics tenha totalCalls para compatibilidade com MetricsDashboard
+        const metricsWithTotalCalls = {
+          ...metrics,
+          totalCalls: metrics.totalChamadas || 0
         }
+        
+        setFilteredMetrics(metricsWithTotalCalls)
+        setFilteredOperatorMetrics(operatorMetrics)
+        setFilteredRankings(rankings)
         return
       }
       
@@ -413,6 +408,7 @@ function AppContent() {
         
         // Calcular métricas completas
         const metricasFiltradas = {
+          totalCalls: totalChamadas, // Adicionado para compatibilidade com MetricsDashboard
           totalChamadas,
           retidaURA,
           atendida,
@@ -425,6 +421,7 @@ function AppContent() {
           tempoMedioEspera: tempoMedioEspera,
           chamadasAvaliadas
         }
+        
         
         // Calcular métricas por operador
         const operadoresMap = new Map()
@@ -533,6 +530,7 @@ function AppContent() {
         setFilteredData([])
         // Criar métricas zeradas quando não há dados filtrados
         const metricasZeradas = {
+          totalCalls: 0, // Adicionado para compatibilidade com MetricsDashboard
           totalChamadas: 0,
           retidaURA: 0,
           atendida: 0,
@@ -558,6 +556,19 @@ function AppContent() {
       setAllRecordsLoadingStarted(false)
     }
   }, [filters.period])
+
+  // Login automático baseado no email do usuário
+  useEffect(() => {
+    if (isAuthenticated && userData?.email && showCargoSelection) {
+      console.log('🚀 Tentando login automático para:', userData.email)
+      const success = autoLogin(userData.email)
+      if (success) {
+        console.log('✅ Login automático realizado com sucesso!')
+      } else {
+        console.log('❌ Usuário não encontrado na base de dados')
+      }
+    }
+  }, [isAuthenticated, userData?.email, showCargoSelection, autoLogin])
 
   // Autenticação: navegar automaticamente para dashboard quando logado
   useEffect(() => {
@@ -1005,7 +1016,7 @@ function AppContent() {
           )}
           
           {/* Aba Visualizar por Agente */}
-          {currentView === 'agents' && data && data.length > 0 && (
+          {currentView === 'agents' && (
             <AgentAnalysis 
               data={data}
               operatorMetrics={operatorMetrics}

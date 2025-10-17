@@ -19,9 +19,9 @@ const Sidebar = ({ open, currentView, onViewChange, hasData, onClearData, viewMo
     },
     {
       id: 'new-sheet',
-      label: 'Nova Planilha',
+      label: 'Análise de Ticket por Operador',
       icon: '📋',
-      description: 'Análise de dados da nova planilha',
+      description: 'Análise de tickets por operador',
       disabled: false
     },
     // Só mostrar "Visualizar por Agente" se não for OPERADOR

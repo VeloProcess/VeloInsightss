@@ -825,6 +825,20 @@
   font-weight: 600;
 }
 
+.ticket-link {
+  color: var(--color-blue-light);
+  text-decoration: none;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.ticket-link:hover {
+  color: #60a5fa;
+  text-decoration: underline;
+  transform: scale(1.05);
+}
+
 .ticket-avaliacao {
   color: var(--color-text-secondary);
   font-family: var(--font-body);

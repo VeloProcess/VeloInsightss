@@ -173,6 +173,86 @@ const AgentAnalysis = ({ data, operatorMetrics, rankings }) => {
   const [isLoadingDetails, setIsLoadingDetails] = useState(false)
   const chartRef = useRef(null)
   const chartInstance = useRef(null)
+  
+  // Estados para o card de suporte
+  const [showSupportCard, setShowSupportCard] = useState(false)
+  const [supportMessage, setSupportMessage] = useState('')
+
+  // Debug adicional para rastrear mudanças de estado - MOVIDO PARA O TOPO
+  useEffect(() => {
+    console.log('🔄 AgentAnalysis re-render - selectedAgent mudou:', selectedAgent?.operator)
+  }, [selectedAgent])
+  
+  useEffect(() => {
+    console.log('🔄 AgentAnalysis re-render - agentData mudou:', agentData?.length)
+  }, [agentData])
+  
+  useEffect(() => {
+    console.log('🔄 AgentAnalysis re-render - showPeriodSelector mudou:', showPeriodSelector)
+  }, [showPeriodSelector])
+
+  // Atualizar estados quando dados mensais mudarem
+  useEffect(() => {
+    if (monthlyDataWithScores.length > 0) {
+      setMonthlyData(monthlyDataWithScores)
+      setMonthlyScores(monthlyDataWithScores.reduce((acc, mes) => {
+        acc[mes.mes] = mes.pontuacao
+        return acc
+      }, {}))
+    }
+  }, [monthlyDataWithScores])
+
+  // Criar gráfico quando dados mensais mudarem
+  useEffect(() => {
+    if (monthlyData && monthlyData.length > 0 && chartRef.current) {
+      const dadosGrafico = prepararDadosGrafico(monthlyData)
+      criarGraficoEvolucao(dadosGrafico)
+    }
+  }, [monthlyData, selectedAgent])
+
+  // Listener para mudanças de tema
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      if (monthlyData && monthlyData.length > 0) {
+        const dadosGrafico = prepararDadosGrafico(monthlyData)
+        criarGraficoEvolucao(dadosGrafico)
+      }
+    })
+
+    observer.observe(document.body, {
+      attributes: true,
+      attributeFilter: ['class']
+    })
+
+    return () => {
+      observer.disconnect()
+    }
+  }, [monthlyData])
+
+  // Função para enviar email de suporte
+  const sendSupportEmail = () => {
+    if (!supportMessage.trim()) return
+    
+    // Criar email direto
+    const emailBody = encodeURIComponent(
+      `Olá Gabriel,\n\n` +
+      `Estou enfrentando problemas para visualizar dados no período selecionado.\n\n` +
+      `Período: ${selectedPeriod.startDate || 'N/A'} a ${selectedPeriod.endDate || 'N/A'}\n\n` +
+      `Solicitação:\n${supportMessage}\n\n` +
+      `Obrigado!`
+    )
+    const emailSubject = encodeURIComponent("Solicitação de Suporte - VeloInsights")
+    
+    // Abrir cliente de email
+    window.open(`mailto:gabriel.araujo@velotax.com.br?subject=${emailSubject}&body=${emailBody}`)
+    
+    // Fechar card e limpar mensagem
+    setShowSupportCard(false)
+    setSupportMessage('')
+    
+    // Mostrar mensagem de sucesso
+    alert('Email aberto! Complete o envio no seu cliente de email.')
+  }
 
   // Debug inicial - verificar se há dados
   // console.log('🔍 AgentAnalysis - Dados recebidos:', data ? data.length : 'null')
@@ -183,9 +263,69 @@ const AgentAnalysis = ({ data, operatorMetrics, rankings }) => {
     return (
       <div className="agent-analysis">
         <div className="no-data-container">
-          <h2>📊 Nenhum dado disponível</h2>
-          <p>Carregue dados da planilha para visualizar a análise de agentes.</p>
+          <div className="no-data-icon">🔍</div>
+          <h2>Nenhum dado encontrado</h2>
+          <p>Infelizmente não pude localizar dados neste período, que tal selecionar outro período?</p>
+          
+          <div className="support-section">
+            <button 
+              className="support-button"
+              onClick={() => setShowSupportCard(true)}
+            >
+              📧 Contatar suporte para análise
+            </button>
+          </div>
+          
+          <div className="suggested-periods">
+            <button onClick={() => window.location.reload()}>🔄 Recarregar dados</button>
+            <button onClick={() => setShowPeriodSelector(true)}>📅 Selecionar período</button>
+          </div>
         </div>
+
+        {/* Card de Suporte */}
+        {showSupportCard && (
+          <div className="support-card-overlay" onClick={() => setShowSupportCard(false)}>
+            <div className="support-card" onClick={(e) => e.stopPropagation()}>
+              <div className="support-card-header">
+                <h4>📧 Contatar Suporte</h4>
+                <button 
+                  className="close-support-card"
+                  onClick={() => setShowSupportCard(false)}
+                >
+                  ❌
+                </button>
+              </div>
+              
+              <div className="support-form">
+                <div className="message-field">
+                  <label>Descreva sua solicitação:</label>
+                  <textarea 
+                    placeholder="Ex: Não consigo visualizar dados do período selecionado..."
+                    value={supportMessage}
+                    onChange={(e) => setSupportMessage(e.target.value)}
+                    rows={4}
+                  />
+                </div>
+                
+                <div className="support-actions">
+                  <button 
+                    onClick={sendSupportEmail}
+                    disabled={!supportMessage.trim()}
+                    className="send-button"
+                  >
+                    📧 Enviar
+                  </button>
+                  <button 
+                    onClick={() => setShowSupportCard(false)}
+                    className="cancel-button"
+                  >
+                    ❌ Cancelar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     )
   }
@@ -255,7 +395,10 @@ const AgentAnalysis = ({ data, operatorMetrics, rankings }) => {
     const startDate = startDateOverride || selectedPeriod.startDate
     const endDate = endDateOverride || selectedPeriod.endDate
     
+    console.log('🔍 loadAgentDetails chamada:', { selectedAgent: selectedAgent?.operator, startDate, endDate })
+    
     if (!selectedAgent || !startDate || !endDate) {
+      console.log('❌ Parâmetros inválidos para loadAgentDetails')
       return
     }
 
@@ -277,7 +420,11 @@ const AgentAnalysis = ({ data, operatorMetrics, rankings }) => {
         return isCorrectAgent && recordDate >= startDateObj && recordDate <= endDateObj
       })
       
+      console.log('📊 Dados encontrados para', selectedAgent.operator, ':', agentSpecificData.length, 'registros')
+      
+      console.log('🔄 Definindo agentData para:', agentSpecificData.length, 'registros')
       setAgentData(agentSpecificData)
+      console.log('✅ agentData definido')
       
       // Processar dados de atividades (coluna J e O)
       const timeData = agentSpecificData.filter(record => 
@@ -286,7 +433,14 @@ const AgentAnalysis = ({ data, operatorMetrics, rankings }) => {
       )
       
       setAgentPauses(timeData)
-      setShowPeriodSelector(false)
+      
+      // Só fechar o seletor de período se houver dados
+      if (agentSpecificData.length > 0) {
+        console.log('✅ Fechando seletor de período - dados encontrados')
+        setShowPeriodSelector(false)
+      } else {
+        console.log('❌ Mantendo seletor de período - nenhum dado encontrado')
+      }
       
     } catch (error) {
       console.error('Erro ao carregar dados do agente:', error)
@@ -716,48 +870,12 @@ const AgentAnalysis = ({ data, operatorMetrics, rankings }) => {
     return []
   }, [agentMetrics])
 
-  // Atualizar estados quando dados mensais mudarem
-  useEffect(() => {
-    if (monthlyDataWithScores.length > 0) {
-      setMonthlyData(monthlyDataWithScores)
-      setMonthlyScores(monthlyDataWithScores.reduce((acc, mes) => {
-        acc[mes.mes] = mes.pontuacao
-        return acc
-      }, {}))
-    }
-  }, [monthlyDataWithScores])
-
-  // Criar gráfico quando dados mensais mudarem
-  useEffect(() => {
-    if (monthlyData && monthlyData.length > 0 && chartRef.current) {
-      const dadosGrafico = prepararDadosGrafico(monthlyData)
-      criarGraficoEvolucao(dadosGrafico)
-    }
-  }, [monthlyData, selectedAgent])
-
-  // Listener para mudanças de tema
-  useEffect(() => {
-    const observer = new MutationObserver(() => {
-      if (monthlyData && monthlyData.length > 0) {
-        const dadosGrafico = prepararDadosGrafico(monthlyData)
-        criarGraficoEvolucao(dadosGrafico)
-      }
-    })
-
-    observer.observe(document.body, {
-      attributes: true,
-      attributeFilter: ['class']
-    })
-
-    return () => {
-      observer.disconnect()
-    }
-  }, [monthlyData])
-
   // Seletor de período
   // Função para lidar com seleção de período do PeriodSelectorV2
   const handlePeriodSelect = (periodData) => {
+    console.log('📅 handlePeriodSelect chamada com:', periodData)
     console.log('📅 Período selecionado:', periodData)
+    console.log('📅 Operador selecionado:', selectedAgent?.operator)
     
     // Atualizar o estado com o período selecionado
     setSelectedPeriod({
@@ -766,7 +884,87 @@ const AgentAnalysis = ({ data, operatorMetrics, rankings }) => {
     })
     
     // Carregar dados automaticamente com as novas datas
+    console.log('📅 Chamando loadAgentDetails com:', periodData.startDate, periodData.endDate)
     loadAgentDetails(periodData.startDate, periodData.endDate)
+  }
+
+  // Verificar se há operador selecionado mas sem dados para o período
+  if (selectedAgent && (!agentData || agentData.length === 0)) {
+    console.log('🔍 Mostrando mensagem de nenhum dado encontrado para:', selectedAgent.operator)
+    console.log('🔍 DEBUG Estados:', {
+      selectedAgent: selectedAgent?.operator,
+      agentData: agentData?.length,
+      showPeriodSelector,
+      isLoadingDetails
+    })
+    
+    return (
+      <div className="agent-analysis">
+        <div className="no-data-container">
+          <div className="no-data-icon">🔍</div>
+          <h2>Nenhum dado encontrado</h2>
+          <p>Infelizmente não pude localizar dados para <strong>{selectedAgent.operator}</strong> neste período, que tal selecionar outro período?</p>
+          
+          <div className="support-section">
+            <button 
+              className="support-button"
+              onClick={() => setShowSupportCard(true)}
+            >
+              📧 Contatar suporte para análise
+            </button>
+          </div>
+          
+          <div className="suggested-periods">
+            <button onClick={() => setShowPeriodSelector(true)}>📅 Selecionar outro período</button>
+            <button onClick={handleBackToList}>👥 Voltar à lista de operadores</button>
+          </div>
+        </div>
+
+        {/* Card de Suporte */}
+        {showSupportCard && (
+          <div className="support-card-overlay" onClick={() => setShowSupportCard(false)}>
+            <div className="support-card" onClick={(e) => e.stopPropagation()}>
+              <div className="support-card-header">
+                <h4>📧 Contatar Suporte</h4>
+                <button 
+                  className="close-support-card"
+                  onClick={() => setShowSupportCard(false)}
+                >
+                  ❌
+                </button>
+              </div>
+              <div className="support-form">
+                <div className="message-field">
+                  <label>Descreva sua solicitação:</label>
+                  <textarea 
+                    placeholder="Ex: Não consigo visualizar dados do operador Juliana no período selecionado..."
+                    value={supportMessage}
+                    onChange={(e) => setSupportMessage(e.target.value)}
+                    rows={4}
+                  />
+                </div>
+                
+                <div className="support-actions">
+                  <button 
+                    onClick={sendSupportEmail}
+                    disabled={!supportMessage.trim()}
+                    className="send-button"
+                  >
+                    📧 Enviar
+                  </button>
+                  <button 
+                    onClick={() => setShowSupportCard(false)}
+                    className="cancel-button"
+                  >
+                    ❌ Cancelar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    )
   }
 
   if (selectedAgent && showPeriodSelector) {

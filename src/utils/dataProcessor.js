@@ -686,13 +686,8 @@ const calcularMetricas = (dados) => {
   }
 
   // Contagem de chamadas por status - VERSÃO PERFEITA CORRIGIDA
+  // Total de chamadas = número de registros da coluna A (número da ligação)
   const totalChamadas = dados.length
-  
-  // console.log(`📊 Debug - Total de linhas processadas: ${totalChamadas}`)
-  
-  // Verificar se temos exatamente 5000 linhas (incluindo cabeçalho)
-  if (totalChamadas < 4999) {
-  }
   
   // Debug detalhado para cada categoria
   let retidaURA = 0
@@ -789,7 +784,13 @@ const calcularMetricas = (dados) => {
   const taxaAbandono = totalChamadas > 0 ? (abandonada / totalChamadas) * 100 : 0
 
 
-  return {
+  // Debug das métricas calculadas
+  console.log('🔍 DEBUG - calcularMetricas - totalChamadas:', totalChamadas)
+  console.log('🔍 DEBUG - calcularMetricas - retidaURA:', retidaURA)
+  console.log('🔍 DEBUG - calcularMetricas - atendida:', atendida)
+  console.log('🔍 DEBUG - calcularMetricas - abandonada:', abandonada)
+  
+  const resultado = {
     totalCalls: totalChamadas, // Corrigido para compatibilidade com MetricsDashboard
     totalChamadas,
     retidaURA,
@@ -809,6 +810,11 @@ const calcularMetricas = (dados) => {
     taxaSucesso: parseFloat(taxaSucesso.toFixed(1)), // NOVA MÉTRICA: média das colunas AB e AC
     chamadasAvaliadas // NOVA MÉTRICA
   }
+  
+  console.log('🔍 DEBUG - calcularMetricas - resultado:', resultado)
+  console.log('🔍 DEBUG - calcularMetricas - resultado.totalCalls:', resultado.totalCalls)
+  
+  return resultado
 }
 
 // Calcular métricas por operador - VERSÃO PERFEITA IMPLEMENTADA
@@ -1093,12 +1099,17 @@ export const calcEvolucaoAtendimentos = (dados) => {
         duration: 3000,
         easing: 'easeInOutQuart',
         delay: (context) => context.dataIndex * 100,
-        onComplete: function() {
-          // Efeito de glitch após animação
-          this.chart.canvas.style.filter = 'hue-rotate(180deg) brightness(1.2)';
-          setTimeout(() => {
-            this.chart.canvas.style.filter = 'none';
-          }, 200);
+        onComplete: function(context) {
+          // Verificar se o chart e canvas existem antes de aplicar efeitos
+          if (context && context.chart && context.chart.canvas) {
+            // Efeito de glitch após animação
+            context.chart.canvas.style.filter = 'hue-rotate(180deg) brightness(1.2)';
+            setTimeout(() => {
+              if (context.chart && context.chart.canvas) {
+                context.chart.canvas.style.filter = 'none';
+              }
+            }, 200);
+          }
         }
       },
       plugins: {
