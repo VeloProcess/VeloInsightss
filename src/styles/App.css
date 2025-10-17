@@ -507,7 +507,6 @@ body {
 
 .table td {
   padding: 1rem;
-  border-bottom: 1px solid rgba(22, 148, 255, 0.1);
   color: #374151;
 }
 
@@ -539,7 +538,6 @@ body {
 
 .rankings-table td {
   padding: 1rem;
-  border-bottom: 1px solid rgba(22, 148, 255, 0.1);
   color: #374151 !important;
   background: #FFFFFF !important;
 }
@@ -1361,4 +1359,90 @@ body {
 .period-select:hover {
   border-color: var(--color-primary-light);
   background: var(--color-background-light);
+}
+
+/* ========================================
+   DASHBOARD PRINCIPAL - LAYOUT INTEGRADO
+   ======================================== */
+
+.main-dashboard-container {
+  width: 100%;
+  margin: 0;
+  padding: 0 20px;
+}
+
+.pbx-section {
+  background: var(--color-card-bg);
+  border: 2px solid var(--color-border-secondary);
+  border-radius: 12px;
+  padding: 25px;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 25px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid var(--color-border-secondary);
+}
+
+.section-header h2 {
+  color: var(--color-blue-light);
+  font-family: var(--font-body);
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.section-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-text-secondary);
+  font-family: var(--font-body);
+  font-size: 14px;
+}
+
+.section-info .info-icon {
+  font-size: 16px;
+}
+
+.section-info .info-text {
+  font-style: italic;
+}
+
+/* Responsividade para o dashboard principal */
+@media (max-width: 768px) {
+  .main-dashboard-container {
+    padding: 0 10px;
+  }
+  
+  .pbx-section {
+    padding: 15px;
+  }
+  
+  .section-header {
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  
+  .section-header h2 {
+    font-size: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .main-dashboard-container {
+    padding: 0 5px;
+  }
+  
+  .pbx-section {
+    padding: 10px;
+  }
+  
+  .section-header h2 {
+    font-size: 18px;
+  }
 }

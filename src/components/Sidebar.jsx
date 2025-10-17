@@ -17,6 +17,13 @@ const Sidebar = ({ open, currentView, onViewChange, hasData, onClearData, viewMo
       description: 'Análise visual completa',
       disabled: !hasData
     },
+    {
+      id: 'new-sheet',
+      label: 'Nova Planilha',
+      icon: '📋',
+      description: 'Análise de dados da nova planilha',
+      disabled: false
+    },
     // Só mostrar "Visualizar por Agente" se não for OPERADOR
     ...(selectedCargo !== 'OPERADOR' ? [{
       id: 'agents',

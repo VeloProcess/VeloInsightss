@@ -3,6 +3,260 @@
 // ========================================
 
 // ========================================
+// COMPARATIVOS TEMPORAIS - FASE 1
+// ========================================
+
+// Função para calcular comparativo mensal
+export const calcularComparativoMensal = (dadosAtuais, dadosAnterior) => {
+  if (!dadosAtuais || !dadosAnterior) {
+    return {
+      chamadas: { atual: 0, anterior: 0, variacao: '0%', tendencia: 'neutra' },
+      duracaoMedia: { atual: '0:00', anterior: '0:00', variacao: '0%', tendencia: 'neutra' },
+      satisfacao: { atual: 0, anterior: 0, variacao: '0%', tendencia: 'neutra' }
+    }
+  }
+
+  // Calcular métricas atuais
+  const metricasAtuais = calcularMetricasBasicas(dadosAtuais)
+  
+  // Calcular métricas do mês anterior
+  const metricasAnterior = calcularMetricasBasicas(dadosAnterior)
+
+  // Calcular variações percentuais
+  const variacaoChamadas = calcularVariacaoPercentual(metricasAtuais.totalChamadas, metricasAnterior.totalChamadas)
+  const variacaoDuracao = calcularVariacaoPercentual(metricasAtuais.duracaoMedia, metricasAnterior.duracaoMedia)
+  const variacaoSatisfacao = calcularVariacaoPercentual(metricasAtuais.satisfacaoMedia, metricasAnterior.satisfacaoMedia)
+
+  return {
+    chamadas: {
+      atual: metricasAtuais.totalChamadas,
+      anterior: metricasAnterior.totalChamadas,
+      variacao: variacaoChamadas.percentual,
+      tendencia: variacaoChamadas.tendencia
+    },
+    duracaoMedia: {
+      atual: formatarTempo(metricasAtuais.duracaoMedia),
+      anterior: formatarTempo(metricasAnterior.duracaoMedia),
+      variacao: variacaoDuracao.percentual,
+      tendencia: variacaoDuracao.tendencia
+    },
+    satisfacao: {
+      atual: metricasAtuais.satisfacaoMedia,
+      anterior: metricasAnterior.satisfacaoMedia,
+      variacao: variacaoSatisfacao.percentual,
+      tendencia: variacaoSatisfacao.tendencia
+    }
+  }
+}
+
+// Função para calcular comparativo semanal
+export const calcularComparativoSemanal = (dadosAtuais, dadosAnterior) => {
+  if (!dadosAtuais || !dadosAnterior) {
+    return {
+      tendencias: 'neutra',
+      pontosCriticos: [],
+      melhoresDias: [],
+      variacaoGeral: '0%'
+    }
+  }
+
+  const metricasAtuais = calcularMetricasBasicas(dadosAtuais)
+  const metricasAnterior = calcularMetricasBasicas(dadosAnterior)
+  
+  const variacaoGeral = calcularVariacaoPercentual(metricasAtuais.totalChamadas, metricasAnterior.totalChamadas)
+  
+  // Analisar tendências por dia da semana
+  const analiseDias = analisarTendenciasPorDia(dadosAtuais, dadosAnterior)
+  
+  return {
+    tendencias: variacaoGeral.tendencia,
+    pontosCriticos: analiseDias.pontosCriticos,
+    melhoresDias: analiseDias.melhoresDias,
+    variacaoGeral: variacaoGeral.percentual,
+    eficiencia: {
+      atual: metricasAtuais.eficiencia,
+      anterior: metricasAnterior.eficiencia,
+      variacao: calcularVariacaoPercentual(metricasAtuais.eficiencia, metricasAnterior.eficiencia).percentual
+    }
+  }
+}
+
+// Função auxiliar para calcular métricas básicas
+const calcularMetricasBasicas = (dados) => {
+  if (!dados || dados.length === 0) {
+    return {
+      totalChamadas: 0,
+      duracaoMedia: 0,
+      satisfacaoMedia: 0,
+      eficiencia: 0
+    }
+  }
+
+  let totalChamadas = 0
+  let totalDuracao = 0
+  let totalSatisfacao = 0
+  let chamadasComSatisfacao = 0
+
+  dados.forEach(record => {
+    const isObject = typeof record === 'object' && !Array.isArray(record)
+    
+    // Contar chamadas
+    totalChamadas++
+    
+    // Calcular duração média
+    let tempoTotal = null
+    if (isObject) {
+      tempoTotal = record.tempoTotal || record.tempoAtendimento || record.duracao || 
+                  record.tempo || record.duration || record['Tempo Total'] || 
+                  record['Tempo Atendimento'] || record['Duração'] || record['Tempo']
+    } else {
+      tempoTotal = record[14] // Coluna O
+    }
+    
+    if (tempoTotal) {
+      const duracaoMinutos = parseDurationToMinutes(tempoTotal)
+      totalDuracao += duracaoMinutos
+    }
+    
+    // Calcular satisfação média
+    let notaAtendimento = null
+    if (isObject) {
+      notaAtendimento = record.notaAtendimento || record.rating || record['Nota Atendimento'] || 
+                       record['Pergunta2 1 PERGUNTA ATENDENTE'] || record['AB']
+    } else {
+      notaAtendimento = record[27] // Coluna AB
+    }
+    
+    if (notaAtendimento && notaAtendimento > 0) {
+      totalSatisfacao += parseFloat(notaAtendimento)
+      chamadasComSatisfacao++
+    }
+  })
+
+  return {
+    totalChamadas,
+    duracaoMedia: totalChamadas > 0 ? totalDuracao / totalChamadas : 0,
+    satisfacaoMedia: chamadasComSatisfacao > 0 ? totalSatisfacao / chamadasComSatisfacao : 0,
+    eficiencia: totalChamadas > 0 ? (totalSatisfacao / chamadasComSatisfacao) * (totalChamadas / Math.max(totalDuracao / 60, 1)) : 0
+  }
+}
+
+// Função para calcular variação percentual
+const calcularVariacaoPercentual = (atual, anterior) => {
+  if (anterior === 0) {
+    return {
+      percentual: atual > 0 ? '+100%' : '0%',
+      tendencia: atual > 0 ? 'crescimento' : 'neutra'
+    }
+  }
+  
+  const variacao = ((atual - anterior) / anterior) * 100
+  const percentual = variacao >= 0 ? `+${variacao.toFixed(1)}%` : `${variacao.toFixed(1)}%`
+  const tendencia = variacao > 5 ? 'crescimento' : variacao < -5 ? 'declínio' : 'neutra'
+  
+  return { percentual, tendencia }
+}
+
+// Função para analisar tendências por dia
+const analisarTendenciasPorDia = (dadosAtuais, dadosAnterior) => {
+  const diasSemana = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
+  const analiseDias = {}
+  
+  // Analisar dados atuais
+  dadosAtuais.forEach(record => {
+    const isObject = typeof record === 'object' && !Array.isArray(record)
+    let dataStr = null
+    
+    if (isObject) {
+      dataStr = record.data || record.dataAtendimento || record['Data'] || record['Data Atendimento']
+    } else {
+      dataStr = record[3] // Coluna D
+    }
+    
+    if (dataStr) {
+      try {
+        const data = new Date(dataStr.split('/').reverse().join('-'))
+        const diaSemana = diasSemana[data.getDay()]
+        
+        if (!analiseDias[diaSemana]) {
+          analiseDias[diaSemana] = { atual: 0, anterior: 0 }
+        }
+        analiseDias[diaSemana].atual++
+      } catch (error) {
+        // Ignorar datas inválidas
+      }
+    }
+  })
+  
+  // Analisar dados anteriores
+  dadosAnterior.forEach(record => {
+    const isObject = typeof record === 'object' && !Array.isArray(record)
+    let dataStr = null
+    
+    if (isObject) {
+      dataStr = record.data || record.dataAtendimento || record['Data'] || record['Data Atendimento']
+    } else {
+      dataStr = record[3] // Coluna D
+    }
+    
+    if (dataStr) {
+      try {
+        const data = new Date(dataStr.split('/').reverse().join('-'))
+        const diaSemana = diasSemana[data.getDay()]
+        
+        if (!analiseDias[diaSemana]) {
+          analiseDias[diaSemana] = { atual: 0, anterior: 0 }
+        }
+        analiseDias[diaSemana].anterior++
+      } catch (error) {
+        // Ignorar datas inválidas
+      }
+    }
+  })
+  
+  // Identificar pontos críticos e melhores dias
+  const pontosCriticos = []
+  const melhoresDias = []
+  
+  Object.entries(analiseDias).forEach(([dia, dados]) => {
+    const variacao = dados.anterior > 0 ? ((dados.atual - dados.anterior) / dados.anterior) * 100 : 0
+    
+    if (variacao < -10) {
+      pontosCriticos.push(dia)
+    } else if (variacao > 10) {
+      melhoresDias.push(dia)
+    }
+  })
+  
+  return { pontosCriticos, melhoresDias }
+}
+
+// Função para formatar tempo
+const formatarTempo = (minutos) => {
+  if (!minutos || minutos === 0) return '0:00'
+  
+  const horas = Math.floor(minutos / 60)
+  const mins = Math.floor(minutos % 60)
+  
+  return `${horas}:${mins.toString().padStart(2, '0')}`
+}
+
+// Função para converter HH:MM:SS para minutos
+const parseDurationToMinutes = (durationString) => {
+  if (!durationString || typeof durationString !== 'string') return 0
+  
+  const timeMatch = durationString.match(/^(\d{1,2}):(\d{2}):(\d{2})$/);
+  if (timeMatch) {
+    const hours = parseInt(timeMatch[1], 10);
+    const minutes = parseInt(timeMatch[2], 10);
+    const seconds = parseInt(timeMatch[3], 10);
+    return (hours * 60) + minutes + (seconds / 60);
+  }
+  
+  return parseFloat(durationString) || 0;
+}
+
+// ========================================
 // SISTEMA DE PAGINAÇÃO E PERFORMANCE
 // ========================================
 
@@ -176,6 +430,7 @@ export const processarDados = (dados, processAllRecords = false) => {
   const filtrarUltimos60Dias = (linhas) => {
     // Se processAllRecords for true, retornar todos os dados sem filtro
     if (processAllRecords) {
+      console.log(`✅ processAllRecords=true: retornando todos os ${linhas.length} registros sem filtro`)
       return linhas
     }
     const hoje = new Date()
@@ -224,7 +479,7 @@ export const processarDados = (dados, processAllRecords = false) => {
     })
   }
 
-  // Filtrar dados dos últimos 60 dias
+  // Filtrar dados dos últimos 60 dias (ou todos se processAllRecords = true)
   const linhasFiltradas = filtrarUltimos60Dias(linhasDados)
 
   // Mapeamento correto das colunas - VERSÃO PERFEITA
@@ -253,8 +508,11 @@ export const processarDados = (dados, processAllRecords = false) => {
 
   linhasFiltradas.forEach((linha, index) => {
     try {
-      // Verificar se a linha tem dados suficientes
-      if (!linha || linha.length < 3) {
+      // Verificar se a linha tem dados suficientes - CORRIGIDO PARA PERMITIR LINHAS COM PELO MENOS 1 ELEMENTO
+      if (!linha || !Array.isArray(linha) || linha.length < 1) {
+        console.warn(`⚠️ Linha ${index + 2} ignorada: linha vazia ou sem dados`)
+        console.warn(`⚠️ Conteúdo da linha:`, linha)
+        console.warn(`⚠️ Tipo da linha:`, typeof linha, Array.isArray(linha))
         linhasIgnoradas++
         return
       }
@@ -311,15 +569,48 @@ export const processarDados = (dados, processAllRecords = false) => {
 
     } catch (error) {
       console.error(`❌ Erro ao processar linha ${index + 2}:`, error)
+      console.error(`❌ Dados da linha problemática:`, linha)
       linhasIgnoradas++
     }
   })
 
   // Debug do processamento
-  // console.log(`📊 Debug do processamento:`)
+  console.log(`📊 Debug do processamento:`)
+  console.log(`📊 Total de linhas de dados: ${linhasDados.length}`)
+  console.log(`📊 Linhas filtradas: ${linhasFiltradas.length}`)
+  console.log(`📊 Linhas processadas: ${linhasProcessadas}`)
+  console.log(`📊 Linhas ignoradas: ${linhasIgnoradas}`)
+  console.log(`📊 processAllRecords: ${processAllRecords}`)
+  console.log(`📊 Diferença: ${linhasFiltradas.length - linhasProcessadas} linhas perdidas no processamento`)
   
-  // A diferença é esperada, pois 'linhasProcessadas' já está filtrada pelos últimos 60 dias.
-  // console.warn(`⚠️ Diferença no processamento: Esperado ${linhasDados.length}, processado ${linhasProcessadas}`)
+  // Verificar se há diferença no processamento
+  if (linhasFiltradas.length !== linhasProcessadas) {
+    console.warn(`⚠️ Diferença no processamento: Esperado ${linhasFiltradas.length}, processado ${linhasProcessadas}`)
+    console.warn(`⚠️ ${linhasFiltradas.length - linhasProcessadas} linhas foram perdidas durante o processamento`)
+    
+    // Debug adicional: mostrar algumas linhas que podem estar causando problema
+    console.log(`🔍 Debug das primeiras 5 linhas filtradas:`)
+    for (let i = 0; i < Math.min(5, linhasFiltradas.length); i++) {
+      const linha = linhasFiltradas[i]
+      console.log(`  Linha ${i + 1}:`, {
+        length: linha?.length,
+        tipo: typeof linha,
+        isArray: Array.isArray(linha),
+        primeiroElemento: linha?.[0],
+        segundoElemento: linha?.[1],
+        terceiroElemento: linha?.[2]
+      })
+    }
+  } else {
+    console.log(`✅ Todos os ${linhasFiltradas.length} registros foram processados com sucesso!`)
+  }
+  
+  // Verificar se há diferença no processamento
+  if (linhasDados.length !== linhasProcessadas) {
+    console.warn(`⚠️ Diferença no processamento: Esperado ${linhasDados.length}, processado ${linhasProcessadas}`)
+  } else {
+    console.log(`✅ Todos os ${linhasDados.length} registros foram processados com sucesso!`)
+  }
 
   // Calcular métricas gerais - VERSÃO PERFEITA IMPLEMENTADA
   // Usar a função calcularMetricas para obter métricas reais

@@ -1,9 +1,10 @@
 import React, { memo } from 'react'
 import { useCargo } from '../contexts/CargoContext'
 import { getOperatorDisplayName, prioritizeCurrentUserInMiddle } from '../utils/operatorUtils'
+import ComparativosTemporais from './ComparativosTemporais'
 import './MetricsDashboard.css'
 
-const MetricsDashboard = memo(({ metrics, operatorMetrics, rankings, darkList, addToDarkList, removeFromDarkList, periodo, onToggleNotes, userData, filters = {}, onFiltersChange }) => {
+const MetricsDashboard = memo(({ metrics, operatorMetrics, rankings, darkList, addToDarkList, removeFromDarkList, periodo, onToggleNotes, userData, filters = {}, onFiltersChange, data = [], previousPeriodData = [], fullDataset = [], octaData = null }) => {
   const { hasPermission, selectedCargo, userInfo } = useCargo()
   
   // Verificar se deve ocultar nomes baseado no cargo PRINCIPAL do usuário, não no cargo selecionado
@@ -71,12 +72,27 @@ const MetricsDashboard = memo(({ metrics, operatorMetrics, rankings, darkList, a
         </div>
       )}
 
-      {/* Métricas Gerais */}
-      {periodo ? (
-        <div className="card">
-          <div className="card-header">
-            <h2 className="card-title">📊 Métricas Gerais</h2>
-          </div>
+      {/* Comparativos Temporais - FASE 1 */}
+      <ComparativosTemporais 
+        dadosAtuais={fullDataset && fullDataset.length > 0 ? fullDataset : data || []} 
+        dadosAnterior={previousPeriodData || []} 
+        tipoComparativo="mensal"
+        periodoSelecionado={filters.period || 'allRecords'}
+      />
+
+      {/* Layout Principal - Duas Seções Lado a Lado */}
+      <div className="main-dashboard-layout">
+        {/* Seção 55PBX */}
+        <div className="dashboard-section pbx-section">
+          <div className="section-content">
+            <h2 className="section-title">dados 55pbx</h2>
+            
+            {/* Métricas Gerais 55PBX */}
+            {periodo ? (
+              <div className="card">
+                <div className="card-header">
+                  <h2 className="card-title">📊 Métricas Gerais</h2>
+                </div>
           
           <div className="card-content">
             <div className="metrics-grid">
@@ -151,6 +167,7 @@ const MetricsDashboard = memo(({ metrics, operatorMetrics, rankings, darkList, a
                   ))}
                 </>
               )}
+
             </div>
           </div>
         </div>
@@ -167,6 +184,118 @@ const MetricsDashboard = memo(({ metrics, operatorMetrics, rankings, darkList, a
           </div>
         </div>
       )}
+          </div>
+        </div>
+
+        {/* Separador Central */}
+        <div className="dashboard-separator"></div>
+
+        {/* Seção OCTA */}
+        <div className="dashboard-section octa-section">
+          <div className="section-content">
+            <h2 className="section-title">dados octa</h2>
+            
+                   {/* Métricas OCTA - Só mostra se há período selecionado */}
+                   {periodo ? (
+                     <div className="card">
+                       <div className="card-header">
+                         <h2 className="card-title">📊 Métricas OCTA</h2>
+                       </div>
+                       <div className="card-content">
+                         <div className="metrics-grid">
+                           {/* Dados OCTA - Tickets */}
+                           {octaData && octaData.octaMetrics ? (
+                             <>
+                               <div className="metric-card octa-section">
+                                 <div className="metric-value">{octaData.octaMetrics.totalTickets || 0}</div>
+                                 <div className="metric-label">🎫 Total de Tickets</div>
+                               </div>
+
+                               <div className="metric-card octa-section">
+                                 <div className="metric-value">{octaData.octaMetrics.ticketsNaoDesignados || 0}</div>
+                                 <div className="metric-label">❓ Tickets não designados</div>
+                               </div>
+
+                               <div className="metric-card octa-section">
+                                 <div className="metric-value">{octaData.octaMetrics.porcentagemGeral || '0%'}</div>
+                                 <div className="metric-label">📈 Performance Geral</div>
+                               </div>
+
+                               <div className="metric-card octa-section">
+                                 <div className="metric-value">{octaData.octaMetrics.totalAvaliados || 0}</div>
+                                 <div className="metric-label">✅ Tickets Avaliados</div>
+                               </div>
+
+                               <div className="metric-card octa-section">
+                                 <div className="metric-value">{octaData.octaMetrics.bomSemComentario || 0}</div>
+                                 <div className="metric-label">👍 Bom</div>
+                               </div>
+
+                               <div className="metric-card octa-section">
+                                 <div className="metric-value">{octaData.octaMetrics.bomComComentario || 0}</div>
+                                 <div className="metric-label">👍 Bom com comentário</div>
+                               </div>
+
+                               <div className="metric-card octa-section">
+                                 <div className="metric-value">{octaData.octaMetrics.ruimSemComentario || 0}</div>
+                                 <div className="metric-label">👎 Ruim</div>
+                               </div>
+
+                               <div className="metric-card octa-section">
+                                 <div className="metric-value">{octaData.octaMetrics.ruimComComentario || 0}</div>
+                                 <div className="metric-label">👎 Ruim com comentário</div>
+                               </div>
+                             </>
+                           ) : octaData && octaData.error ? (
+                             <div className="metric-card octa-section octa-error">
+                               <div className="metric-value">❌</div>
+                               <div className="metric-label">Erro OCTA</div>
+                               <div className="octa-error-details">
+                                 <p>{octaData.error}</p>
+                                 {octaData.retryLoad && (
+                                   <button 
+                                     onClick={octaData.retryLoad}
+                                     className="octa-retry-btn"
+                                   >
+                                     🔄 Tentar Novamente
+                                   </button>
+                                 )}
+                               </div>
+                             </div>
+                           ) : octaData && octaData.isLoading ? (
+                             <div className="metric-card octa-section octa-loading">
+                               <div className="metric-value">
+                                 <div className="loading-spinner-octa">
+                                   <div className="spinner"></div>
+                                 </div>
+                               </div>
+                               <div className="metric-label">Carregando dados OCTA...</div>
+                             </div>
+                           ) : (
+                             <div className="metric-card octa-section">
+                               <div className="metric-value">📊</div>
+                               <div className="metric-label">Aguardando dados OCTA</div>
+                             </div>
+                           )}
+                         </div>
+                       </div>
+                     </div>
+                   ) : (
+                     /* Mensagem quando não há período selecionado para OCTA */
+                     <div className="card">
+                       <div className="card-header">
+                         <h2 className="card-title">📊 Métricas OCTA</h2>
+                       </div>
+                       <div className="card-content">
+                         <div className="no-data-message">
+                           <p>📅 Selecione um período para visualizar as métricas OCTA</p>
+                         </div>
+                       </div>
+                     </div>
+                   )}
+          </div>
+        </div>
+      </div>
 
       {/* Ranking de Operadores - Só mostra se há período selecionado */}
       {prioritizedRankings && prioritizedRankings.length > 0 && periodo && (

@@ -14,10 +14,12 @@ import AgentAnalysis from './components/AgentAnalysis'
 import PreferencesManager from './components/PreferencesManager'
 import CargoSelection from './components/CargoSelection'
 import ProcessingLoader from './components/ProcessingLoader'
+import NewSheetAnalyzer from './components/NewSheetAnalyzer'
 import { CargoProvider, useCargo } from './contexts/CargoContext'
 import { useGoogleSheetsDirectSimple } from './hooks/useGoogleSheetsDirectSimple'
 import { useDataFilters } from './hooks/useDataFilters'
 import { useTheme } from './hooks/useTheme'
+import { useOctaData } from './hooks/useOctaData'
 import './styles/App.css'
 
 // Componente interno que usa o hook useCargo
@@ -30,6 +32,7 @@ function AppContent() {
   const [showNewLogin, setShowNewLogin] = useState(false) // Para mostrar a nova tela de login
   const [showPreferences, setShowPreferences] = useState(false)
   const [expandedOperator, setExpandedOperator] = useState(null) // Para controlar qual operador está expandido
+  const [previousPeriodData, setPreviousPeriodData] = useState([]) // Dados do período anterior para comparação
   
   // Hook do sistema de cargos - apenas para cargo selecionado
   const { 
@@ -63,6 +66,9 @@ function AppContent() {
   const [allRecordsLoadingStarted, setAllRecordsLoadingStarted] = useState(false)
   const [filteredRankings, setFilteredRankings] = useState(null)
   
+  // Hook para dados OCTA - passar filtros para que ele recarregue quando período mudar
+  const octaData = useOctaData(filters)
+  
   // Hook do Google Sheets - fonte principal de autenticação e dados
   const {
     data,
@@ -75,12 +81,14 @@ function AppContent() {
     signOut,
     isAuthenticated,
     userData,
+    fullDataset, // Dataset completo da planilha
     // Novos estados para processamento completo
     isProcessingAllRecords,
     processingProgress,
     totalRecordsToProcess,
     loadAllRecordsWithProgress,
-    loadDataOnDemand
+    loadDataOnDemand,
+    loadPreviousPeriodData
   } = useGoogleSheetsDirectSimple()
 
   // Reset allRecordsLoadingStarted quando o filtro muda
@@ -89,6 +97,25 @@ function AppContent() {
       setAllRecordsLoadingStarted(false)
     }
   }, [filters.period])
+
+  // Carregar dados do período anterior para comparação
+  useEffect(() => {
+    const loadPreviousData = async () => {
+      if (filters.period && loadPreviousPeriodData) {
+        try {
+          const previousData = await loadPreviousPeriodData(filters.period)
+          setPreviousPeriodData(previousData)
+        } catch (error) {
+          console.error('❌ Erro ao carregar dados do período anterior:', error)
+          setPreviousPeriodData([])
+        }
+      } else {
+        setPreviousPeriodData([])
+      }
+    }
+
+    loadPreviousData()
+  }, [filters.period]) // Removido loadPreviousPeriodData das dependências
 
   // Processar dados quando filtros mudam
   useEffect(() => {
@@ -158,15 +185,15 @@ function AppContent() {
 
       switch (filters.period) {
         case 'last7Days':
-          startDate = new Date(ultimaDataDisponivel.getTime() - (6 * 24 * 60 * 60 * 1000))
+          startDate = new Date(now.getTime() - (6 * 24 * 60 * 60 * 1000))
           startDate.setHours(0, 0, 0, 0)
-          endDate = new Date(ultimaDataDisponivel)
+          endDate = new Date(now)
           endDate.setHours(23, 59, 59, 999)
           break
         case 'last15Days':
-          startDate = new Date(ultimaDataDisponivel.getTime() - (14 * 24 * 60 * 60 * 1000))
+          startDate = new Date(now.getTime() - (14 * 24 * 60 * 60 * 1000))
           startDate.setHours(0, 0, 0, 0)
-          endDate = new Date(ultimaDataDisponivel)
+          endDate = new Date(now)
           endDate.setHours(23, 59, 59, 999)
           break
         case 'ultimoMes':
@@ -345,7 +372,7 @@ function AppContent() {
           try {
             const [horas, minutos, segundos] = tempo.split(':').map(Number)
             return horas * 60 + minutos + segundos / 60
-          } catch (error) {
+    } catch (error) {
             console.warn('Erro ao converter tempo:', tempo, error)
             return 0
           }
@@ -540,7 +567,7 @@ function AppContent() {
       // Carregar dados automaticamente se não houver dados
       if (loadDataOnDemand && (!data || data.length === 0)) {
         console.log('📊 Carregando dados automaticamente após login...')
-        loadDataOnDemand('last15Days')
+        loadDataOnDemand('all')
       }
     }
   }, [isAuthenticated, currentView, loadDataOnDemand, data])
@@ -562,7 +589,7 @@ function AppContent() {
         // Carregar dados automaticamente após seleção de cargo
         if (loadDataOnDemand && (!data || data.length === 0)) {
           console.log('📊 Carregando dados automaticamente após seleção de cargo...')
-          loadDataOnDemand('last15Days')
+          loadDataOnDemand('all')
         }
       } else {
         console.error('❌ Erro ao selecionar cargo')
@@ -680,123 +707,176 @@ function AppContent() {
                     pauseData={data}
                   />
                   
-                  <MetricsDashboard 
-                    metrics={filteredMetrics && Object.keys(filteredMetrics).length > 0 ? filteredMetrics : metrics}
-                    operatorMetrics={filteredOperatorMetrics && Object.keys(filteredOperatorMetrics).length > 0 ? filteredOperatorMetrics : operatorMetrics}
-                    rankings={(() => {
-                      // Para o período "allRecords", sempre usar rankings originais
-                      if (filters.period === 'allRecords') {
-                        return rankings
-                      }
-                      
-                      // Para outros períodos, usar filteredRankings se disponível
-                      return filteredRankings && filteredRankings.length > 0 ? filteredRankings : rankings
-                    })()}
-                    filteredData={filteredData.length > 0 ? filteredData : data}
-                    data={filteredData.length > 0 ? filteredData : data}
-                    periodo={(() => {
-                      // Se não há filtro selecionado, retornar null para ocultar o ranking
-                      if (!filters.period) {
-                        return null
-                      }
-                      
-                      // Se há filtros ativos, sempre usar filteredData (mesmo que vazio)
-                      const currentData = filteredData
-                      
-                      
-                      if (!currentData || currentData.length === 0) {
-                        return {
-                          startDate: null,
-                          endDate: null,
-                          totalDays: 0,
-                          totalRecords: 0,
-                          periodLabel: 'Nenhum dado disponível'
-                        }
-                      }
-                      
-                      // Verificar se os dados são objetos ou arrays
-                      const firstItem = currentData[0]
-                      const isObject = typeof firstItem === 'object' && !Array.isArray(firstItem)
-                      
-                      let datas = []
-                      
-                      if (isObject) {
-                        // Dados são objetos - acessar propriedade 'data'
-                        datas = currentData.map(d => d.data).filter(d => d && d.trim() !== '')
-                      } else {
-                        // Dados são arrays - acessar índice 3
-                        datas = currentData.map(d => d[3]).filter(d => d && d.trim() !== '')
-                      }
-                      
-                      if (datas.length === 0) {
-                        return {
-                          startDate: null,
-                          endDate: null,
-                          totalDays: 0,
-                          totalRecords: currentData.length,
-                          periodLabel: 'Datas não disponíveis'
-                        }
-                      }
-                      
-                      // Para período customizado, usar as datas selecionadas pelo usuário
-                      if (filters.period === 'custom' && filters.customStartDate && filters.customEndDate) {
-                        // Converter datas customizadas para formato DD/MM/YYYY
-                        let startDateFormatted, endDateFormatted
-                        
-                        if (typeof filters.customStartDate === 'string' && filters.customStartDate.includes('/')) {
-                          startDateFormatted = filters.customStartDate
-                        } else if (typeof filters.customStartDate === 'string' && filters.customStartDate.includes('-')) {
-                          // Formato YYYY-MM-DD (do input type="date")
-                          const startDate = new Date(filters.customStartDate + 'T00:00:00')
-                          startDateFormatted = startDate.toLocaleDateString('pt-BR')
-                        } else {
-                          const startDate = new Date(filters.customStartDate)
-                          startDateFormatted = startDate.toLocaleDateString('pt-BR')
-                        }
-                        
-                        if (typeof filters.customEndDate === 'string' && filters.customEndDate.includes('/')) {
-                          endDateFormatted = filters.customEndDate
-                        } else if (typeof filters.customEndDate === 'string' && filters.customEndDate.includes('-')) {
-                          // Formato YYYY-MM-DD (do input type="date")
-                          const endDate = new Date(filters.customEndDate + 'T23:59:59')
-                          endDateFormatted = endDate.toLocaleDateString('pt-BR')
-                        } else {
-                          const endDate = new Date(filters.customEndDate)
-                          endDateFormatted = endDate.toLocaleDateString('pt-BR')
-                        }
-                        
-                        return {
-                          startDate: startDateFormatted,
-                          endDate: endDateFormatted,
-                          totalDays: Math.ceil((new Date(filters.customEndDate) - new Date(filters.customStartDate)) / (1000 * 60 * 60 * 24)) + 1,
-                          totalRecords: currentData.length,
-                          periodLabel: `${startDateFormatted} a ${endDateFormatted}`
-                        }
-                      }
-                      
-                      // Para outros períodos, usar as datas dos dados filtrados
-                      const datasUnicas = [...new Set(datas)].sort((a, b) => {
-                        // Converter para Date para ordenação correta
-                        const dateA = new Date(a.split('/').reverse().join('-'))
-                        const dateB = new Date(b.split('/').reverse().join('-'))
-                        return dateA - dateB
-                      })
-                      const startDate = datasUnicas[0]
-                      const endDate = datasUnicas[datasUnicas.length - 1]
-                      
-                      return {
-                        startDate,
-                        endDate,
-                        totalDays: datasUnicas.length,
-                        totalRecords: currentData.length,
-                        periodLabel: `${startDate} a ${endDate}`
-                      }
-                    })()}
-                    onToggleNotes={handleToggleNotes}
-                    userData={userData}
-                    filters={filters}
-                    onFiltersChange={setFilters}
-                  />
+                  {/* Dashboard Principal - Métricas Gerais com OCTA integrado */}
+                  <div className="main-dashboard-container">
+                    <div className="pbx-section">
+                      <div className="section-header">
+                        <h2>📞 55PBX</h2>
+                        <div className="section-info">
+                          <span className="info-icon">ℹ️</span>
+                          <span className="info-text">Dados de ligações e atendimentos</span>
+                        </div>
+                      </div>
+                      <MetricsDashboard
+                        metrics={filteredMetrics && Object.keys(filteredMetrics).length > 0 ? filteredMetrics : metrics}
+                        operatorMetrics={filteredOperatorMetrics && Object.keys(filteredOperatorMetrics).length > 0 ? filteredOperatorMetrics : operatorMetrics}
+                        rankings={(() => {
+                          // Para o período "allRecords", sempre usar rankings originais
+                          if (filters.period === 'allRecords') {
+                            return rankings
+                          }
+                          
+                          // Para outros períodos, usar filteredRankings se disponível
+                          return filteredRankings && filteredRankings.length > 0 ? filteredRankings : rankings
+                        })()}
+                        filteredData={filteredData.length > 0 ? filteredData : data}
+                        data={filteredData.length > 0 ? filteredData : data}
+                        previousPeriodData={previousPeriodData}
+                        periodo={(() => {
+                          // Se não há filtro selecionado, retornar null para ocultar o ranking
+                          if (!filters.period) {
+                            return null
+                          }
+                          
+                          // Se há filtros ativos, sempre usar filteredData (mesmo que vazio)
+                          const currentData = filteredData
+                          
+                          
+                          if (!currentData || currentData.length === 0) {
+                            return {
+                              startDate: null,
+                              endDate: null,
+                              totalDays: 0,
+                              totalRecords: 0,
+                              periodLabel: 'Nenhum dado disponível'
+                            }
+                          }
+                          
+                          // Verificar se os dados são objetos ou arrays
+                          const firstItem = currentData[0]
+                          const isObject = typeof firstItem === 'object' && !Array.isArray(firstItem)
+                          
+                          let datas = []
+                          
+                          if (isObject) {
+                            // Dados são objetos - acessar propriedade 'data'
+                            datas = currentData.map(d => d.data).filter(d => d && d.trim() !== '')
+                          } else {
+                            // Dados são arrays - acessar índice 3
+                            datas = currentData.map(d => d[3]).filter(d => d && d.trim() !== '')
+                          }
+                          
+                          if (datas.length === 0) {
+                            return {
+                              startDate: null,
+                              endDate: null,
+                              totalDays: 0,
+                              totalRecords: currentData.length,
+                              periodLabel: 'Datas não disponíveis'
+                            }
+                          }
+                          
+                          // Para período customizado, usar as datas selecionadas pelo usuário
+                          if (filters.period === 'custom' && filters.customStartDate && filters.customEndDate) {
+                            // Converter datas customizadas para formato DD/MM/YYYY
+                            let startDateFormatted, endDateFormatted
+                            
+                            if (typeof filters.customStartDate === 'string' && filters.customStartDate.includes('/')) {
+                              startDateFormatted = filters.customStartDate
+                            } else if (typeof filters.customStartDate === 'string' && filters.customStartDate.includes('-')) {
+                              // Formato YYYY-MM-DD (do input type="date")
+                              const startDate = new Date(filters.customStartDate + 'T00:00:00')
+                              startDateFormatted = startDate.toLocaleDateString('pt-BR')
+                            } else {
+                              const startDate = new Date(filters.customStartDate)
+                              startDateFormatted = startDate.toLocaleDateString('pt-BR')
+                            }
+                            
+                            if (typeof filters.customEndDate === 'string' && filters.customEndDate.includes('/')) {
+                              endDateFormatted = filters.customEndDate
+                            } else if (typeof filters.customEndDate === 'string' && filters.customEndDate.includes('-')) {
+                              // Formato YYYY-MM-DD (do input type="date")
+                              const endDate = new Date(filters.customEndDate + 'T23:59:59')
+                              endDateFormatted = endDate.toLocaleDateString('pt-BR')
+                            } else {
+                              const endDate = new Date(filters.customEndDate)
+                              endDateFormatted = endDate.toLocaleDateString('pt-BR')
+                            }
+                            
+                            return {
+                              startDate: startDateFormatted,
+                              endDate: endDateFormatted,
+                              totalDays: Math.ceil((new Date(filters.customEndDate) - new Date(filters.customStartDate)) / (1000 * 60 * 60 * 24)) + 1,
+                              totalRecords: currentData.length,
+                              periodLabel: `${startDateFormatted} a ${endDateFormatted}`
+                            }
+                          }
+                          
+                          // Para outros períodos, usar as datas do filtro aplicado (não dos dados filtrados)
+                          const now = new Date()
+                          let startDate, endDate, totalDays
+                          
+                          switch (filters.period) {
+                            case 'last7Days':
+                              startDate = new Date(now.getTime() - (6 * 24 * 60 * 60 * 1000))
+                              endDate = new Date(now)
+                              totalDays = 7
+                              break
+                            case 'last15Days':
+                              startDate = new Date(now.getTime() - (14 * 24 * 60 * 60 * 1000))
+                              endDate = new Date(now)
+                              totalDays = 15
+                              break
+                            case 'lastMonth':
+                              startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+                              endDate = new Date(now.getFullYear(), now.getMonth(), 0)
+                              totalDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1
+                              break
+                            case 'penultimateMonth':
+                              startDate = new Date(now.getFullYear(), now.getMonth() - 2, 1)
+                              endDate = new Date(now.getFullYear(), now.getMonth() - 1, 0)
+                              totalDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1
+                              break
+                            case 'currentMonth':
+                              startDate = new Date(now.getFullYear(), now.getMonth(), 1)
+                              endDate = new Date(now)
+                              totalDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1
+                              break
+                            default:
+                              // Fallback para dados filtrados se não for um período conhecido
+                              const datasUnicas = [...new Set(datas)].sort((a, b) => {
+                                const dateA = new Date(a.split('/').reverse().join('-'))
+                                const dateB = new Date(b.split('/').reverse().join('-'))
+                                return dateA - dateB
+                              })
+                              startDate = datasUnicas[0]
+                              endDate = datasUnicas[datasUnicas.length - 1]
+                              totalDays = datasUnicas.length
+                          }
+                          
+                          // Formatar datas para exibição
+                          const startDateFormatted = startDate instanceof Date ? 
+                            startDate.toLocaleDateString('pt-BR') : startDate
+                          const endDateFormatted = endDate instanceof Date ? 
+                            endDate.toLocaleDateString('pt-BR') : endDate
+                          
+                          return {
+                            startDate: startDateFormatted,
+                            endDate: endDateFormatted,
+                            totalDays: totalDays,
+                            totalRecords: currentData.length,
+                            periodLabel: `${startDateFormatted} a ${endDateFormatted}`
+                          }
+                        })()}
+                        onToggleNotes={handleToggleNotes}
+                        userData={userData}
+                        filters={filters}
+                        onFiltersChange={setFilters}
+                        fullDataset={fullDataset}
+                        octaData={octaData}
+                      />
+                    </div>
+                  </div>
                   
                   {/* Modal de Notas Detalhadas */}
                   {expandedOperator && (
@@ -879,7 +959,7 @@ function AppContent() {
                     </div>
                   )}
                   
-                  <ExportSection 
+                  <ExportSection
                     data={filteredData.length > 0 ? filteredData : data}
                     metrics={filteredMetrics || metrics}
                     operatorMetrics={filteredOperatorMetrics || operatorMetrics}
@@ -909,7 +989,7 @@ function AppContent() {
           
           {/* Aba Gráficos Detalhados */}
           {currentView === 'charts' && (
-            <ChartsDetailedTab 
+            <ChartsDetailedTab
               data={filteredData.length > 0 ? filteredData : data}
               operatorMetrics={operatorMetrics} // Sempre usar operatorMetrics completo
               rankings={rankings} // Sempre usar ranking completo para Melhores Desempenhos
@@ -931,6 +1011,10 @@ function AppContent() {
               operatorMetrics={operatorMetrics}
               rankings={rankings}
             />
+          )}
+          
+          {currentView === 'new-sheet' && (
+            <NewSheetAnalyzer />
           )}
           
           {currentView === 'operators' && data && data.length > 0 && (

@@ -12,11 +12,16 @@ const processarDadosAssincrono = async (dados, processAllRecords = false) => {
 }
 
 // Função para filtrar dados por período baseado na coluna de data
-const filterDataByPeriod = (data, selectedPeriod) => {
+const filterDataByPeriod = (data, selectedPeriod, offsetDays = 0) => {
   if (!data || data.length === 0) return data
   
   const now = new Date()
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  
+  // Aplicar offset se especificado
+  if (offsetDays !== 0) {
+    today.setDate(today.getDate() + offsetDays)
+  }
   
   // Encontrar índice da coluna de data (coluna D = índice 3)
   const headerRow = data[0]
@@ -35,19 +40,17 @@ const filterDataByPeriod = (data, selectedPeriod) => {
   // Detectar o ano dos dados automaticamente
   let dataYear = now.getFullYear()
   if (data.length > 1) {
-    console.log(`🔍 Verificando primeiras 10 datas para detectar ano...`)
-    // Verificar algumas datas para detectar o ano
-    for (let i = 1; i <= Math.min(10, data.length - 1); i++) {
+    console.log(`🔍 Verificando primeiras 50 datas para detectar ano...`)
+    // Verificar mais datas para detectar o ano
+    for (let i = 1; i <= Math.min(50, data.length - 1); i++) {
       const dateStr = data[i][dateColumnIndex]
-      console.log(`🔍 Linha ${i}, Data: "${dateStr}"`)
       if (dateStr && dateStr.includes('/')) {
         const parts = dateStr.split('/')
         if (parts.length === 3) {
           const year = parseInt(parts[2])
-          console.log(`🔍 Ano encontrado: ${year}`)
           if (year > 2000) {
             dataYear = year
-            console.log(`✅ Ano detectado: ${dataYear}`)
+            console.log(`✅ Ano detectado na linha ${i}: ${dataYear} (data: "${dateStr}")`)
             break
           }
         }
@@ -74,6 +77,12 @@ const filterDataByPeriod = (data, selectedPeriod) => {
   const filteredData = data.filter((row, index) => {
     // Manter cabeçalho
     if (index === 0) return true
+    
+    // Se selectedPeriod for 'all', retornar todos os dados sem validação de data
+    if (selectedPeriod === 'all') {
+      validRecords++
+      return true
+    }
     
     const dateStr = row[dateColumnIndex]
     if (!dateStr) {
@@ -142,7 +151,6 @@ const filterDataByPeriod = (data, selectedPeriod) => {
                          rowDateOnly.getFullYear() === dataYear
           break
           
-        case 'all':
         default:
           shouldInclude = true
           break
@@ -165,6 +173,7 @@ const filterDataByPeriod = (data, selectedPeriod) => {
   
   console.log(`✅ Filtrados ${filteredData.length - 1} registros de ${data.length - 1} total`)
   console.log(`📊 Registros válidos: ${validRecords}, Registros inválidos: ${invalidRecords}`)
+  console.log(`🔍 DEBUG FILTRO: selectedPeriod="${selectedPeriod}", dataYear=${dataYear}, today=${today.toLocaleDateString()}`)
   
   // Debug: mostrar algumas datas filtradas
   if (filteredData.length > 1) {
@@ -238,7 +247,7 @@ export const useGoogleSheetsDirectSimple = () => {
 
   // Configurações
   const SPREADSHEET_ID = '1F1VJrAzGage7YyX1tLCUCaIgB2GhvHSqJRVnmwwYhkA'
-  const SHEET_RANGE_INITIAL = 'Base!A1:AC15000' // Aumentado para buscar mais dados dos últimos 60 dias
+  const SHEET_RANGE_INITIAL = 'Base!A1:AC150000' // Atualizado para 150k linhas
   const SHEET_RANGE_FULL = 'Base!A1:AC150000'
   const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID
   const DOMINIO_PERMITIDO = '@velotax.com.br'
@@ -474,6 +483,48 @@ export const useGoogleSheetsDirectSimple = () => {
     }
   }
 
+  // Função para carregar dados de período anterior para comparação
+  const loadPreviousPeriodData = useCallback(async (currentPeriod) => {
+    if (!userData?.accessToken || !fullDataset || fullDataset.length === 0) {
+      return []
+    }
+
+    try {
+      console.log(`📊 Carregando dados do período anterior para: ${currentPeriod}`)
+      
+      let previousPeriodData = []
+      
+      switch (currentPeriod) {
+        case 'last7Days':
+          // Comparar com os 7 dias anteriores aos últimos 7 dias
+          previousPeriodData = filterDataByPeriod(fullDataset, 'last7Days', -7) // -7 dias de offset
+          break
+        case 'last15Days':
+          // Comparar com os 15 dias anteriores aos últimos 15 dias
+          previousPeriodData = filterDataByPeriod(fullDataset, 'last15Days', -15) // -15 dias de offset
+          break
+        case 'last30Days':
+          // Comparar com os 30 dias anteriores aos últimos 30 dias
+          previousPeriodData = filterDataByPeriod(fullDataset, 'last30Days', -30) // -30 dias de offset
+          break
+        case 'currentMonth':
+          // Comparar com o mês anterior
+          previousPeriodData = filterDataByPeriod(fullDataset, 'currentMonth', -1) // -1 mês de offset
+          break
+        default:
+          // Para outros períodos, não há comparação
+          return []
+      }
+      
+      console.log(`✅ Dados do período anterior carregados: ${previousPeriodData.length} registros`)
+      return previousPeriodData
+      
+    } catch (error) {
+      console.error('❌ Erro ao carregar dados do período anterior:', error)
+      return []
+    }
+  }, [userData?.accessToken, fullDataset])
+
   // Função para buscar todos os dados da planilha
   const fetchFullDataset = async (accessToken, selectedPeriod = 'all') => {
     try {
@@ -498,6 +549,7 @@ export const useGoogleSheetsDirectSimple = () => {
         
         // FILTRAGEM POR PERÍODO: aplicar filtro baseado no período selecionado
         console.log(`🔍 Chamando filterDataByPeriod com ${result.values.length} registros para período: ${selectedPeriod}`)
+        console.log(`🔍 DEBUG: selectedPeriod="${selectedPeriod}", result.values.length=${result.values.length}`)
         const filteredData = filterDataByPeriod(result.values, selectedPeriod)
         
         console.log(`⚡ Processando ${filteredData.length - 1} registros filtrados por período: ${selectedPeriod}...`)
@@ -710,7 +762,7 @@ export const useGoogleSheetsDirectSimple = () => {
 
       // Processar dados do período (OTIMIZADO)
       console.log(`⚡ Processando ${dadosFiltrados.length} registros do período...`)
-      const dadosProcessados = await processarDadosAssincrono(dadosFiltrados)
+      const dadosProcessados = await processarDadosAssincrono(dadosFiltrados, true) // processAllRecords = true
       
       // Converter metricasOperadores para o formato esperado pelo AgentAnalysis
       const operatorMetricsObj = {}
@@ -841,7 +893,7 @@ export const useGoogleSheetsDirectSimple = () => {
         
         // Processar dados (já filtra os últimos 60 dias) - OTIMIZADO
         console.log(`⚡ Processando ${result.values.length} registros de forma otimizada...`)
-        const dadosProcessados = await processarDadosAssincrono(result.values)
+        const dadosProcessados = await processarDadosAssincrono(result.values, true) // processAllRecords = true
         
         // console.log('📊 Debug - Dados processados (últimos 60 dias):', {
         //   dadosFiltrados: dadosProcessados.dadosFiltrados.length,
@@ -942,6 +994,7 @@ export const useGoogleSheetsDirectSimple = () => {
     userData,
     selectedPeriod,
     customDateRange,
+    fullDataset, // Dataset completo da planilha
     // Dark List removida - todos os operadores são contabilizados normalmente
     // Novos estados para processamento completo
     isProcessingAllRecords,
@@ -959,6 +1012,8 @@ export const useGoogleSheetsDirectSimple = () => {
     loadAllRecordsWithProgress,
     // Nova função para carregar dados sob demanda
     loadDataOnDemand,
+    // Nova função para carregar dados do período anterior
+    loadPreviousPeriodData,
     setSelectedPeriod,
     setCustomDateRange,
     signIn,

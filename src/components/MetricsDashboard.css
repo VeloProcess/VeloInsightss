@@ -1,8 +1,8 @@
 /* MetricsDashboard.css - Dashboard principal com tema claro/escuro */
 
 .metrics-dashboard {
-  max-width: 1200px;
-  margin: 0 auto;
+  width: 100%;
+  margin: 0;
   padding: 20px;
   background: var(--color-bg-primary);
   min-height: 100vh;
@@ -694,4 +694,253 @@
 
 .expand-notes-btn:active {
   transform: scale(0.95);
+}
+
+/* ========================================
+   LAYOUT PRINCIPAL - DUAS SEÇÕES LADO A LADO
+   ======================================== */
+
+.main-dashboard-layout {
+  display: flex;
+  gap: 0;
+  margin: 10px 0;
+  background: var(--color-card-bg);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  min-height: 80vh;
+  width: 100%;
+  max-width: none;
+}
+
+.dashboard-section {
+  flex: 1;
+  padding: 30px;
+  background: var(--color-card-bg);
+  position: relative;
+}
+
+.dashboard-section.pbx-section {
+  background: linear-gradient(135deg, var(--color-card-bg) 0%, rgba(59, 130, 246, 0.02) 100%);
+}
+
+.dashboard-section.octa-section {
+  background: linear-gradient(135deg, var(--color-card-bg) 0%, rgba(34, 197, 94, 0.02) 100%);
+}
+
+.dashboard-separator {
+  width: 2px;
+  background: var(--color-border-secondary);
+  flex-shrink: 0;
+}
+
+.section-content {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.section-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0 0 25px 0;
+  text-align: center;
+  padding: 15px;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 8px;
+  border: 2px solid var(--color-border-secondary);
+}
+
+.pbx-section .section-title {
+  color: var(--color-blue-light);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.octa-section .section-title {
+  color: var(--color-green-light);
+  border-color: rgba(34, 197, 94, 0.3);
+}
+
+/* Remover backgrounds escuros de elementos de operadores */
+.ranking-card *,
+.ranking-header *,
+.ranking-info *,
+.ranking-stats *,
+.stat-item *,
+.operator-name,
+.operator-name * {
+  background: none !important;
+}
+
+/* Responsividade para o layout lateral */
+@media (max-width: 1200px) {
+  .main-dashboard-layout {
+    flex-direction: column;
+    gap: 0;
+  }
+  
+  .dashboard-separator {
+    width: 100%;
+    height: 2px;
+    background: var(--color-border-secondary);
+  }
+  
+  .dashboard-section {
+    padding: 25px;
+  }
+  
+  .section-title {
+    font-size: 20px;
+    margin-bottom: 20px;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-section {
+    padding: 20px;
+  }
+  
+  .section-title {
+    font-size: 18px;
+    padding: 12px;
+    margin-bottom: 15px;
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard-section {
+    padding: 15px;
+  }
+  
+  .section-title {
+    font-size: 16px;
+    padding: 10px;
+  }
+}
+
+.metric-card.octa-section {
+  background: linear-gradient(135deg, var(--color-card-bg) 0%, rgba(59, 130, 246, 0.05) 100%);
+  border: 2px solid rgba(59, 130, 246, 0.2);
+  position: relative;
+}
+
+.metric-card.octa-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #3B82F6, #1D4ED8);
+  border-radius: 12px 12px 0 0;
+}
+
+.metric-card.octa-section:hover {
+  border-color: rgba(59, 130, 246, 0.4);
+  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.15);
+  transform: translateY(-2px);
+}
+
+.metric-card.octa-section .metric-value {
+  color: var(--color-blue-light);
+  font-weight: 700;
+}
+
+.metric-card.octa-section .metric-label {
+  color: var(--color-text-primary);
+  font-weight: 500;
+}
+
+/* Estados especiais para OCTA */
+.metric-card.octa-section.octa-error {
+  background: linear-gradient(135deg, var(--color-card-bg) 0%, rgba(239, 68, 68, 0.05) 100%);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.metric-card.octa-section.octa-error::before {
+  background: linear-gradient(90deg, #EF4444, #DC2626);
+}
+
+.metric-card.octa-section.octa-loading {
+  background: linear-gradient(135deg, var(--color-card-bg) 0%, rgba(59, 130, 246, 0.05) 100%);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.octa-error-details {
+  margin-top: 10px;
+  text-align: center;
+}
+
+.octa-error-details p {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  margin: 5px 0;
+}
+
+.octa-retry-btn {
+  background: var(--color-blue-light);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 5px;
+}
+
+.octa-retry-btn:hover {
+  background: var(--color-blue-dark);
+  transform: scale(1.05);
+}
+
+.octa-retry-btn:active {
+  transform: scale(0.95);
+}
+
+/* Responsividade para cards OCTA */
+@media (max-width: 768px) {
+  .metric-card.octa-section {
+    padding: 15px;
+  }
+  
+  .metric-card.octa-section .metric-value {
+    font-size: 1.8rem;
+  }
+  
+  .metric-card.octa-section .metric-label {
+    font-size: 0.9rem;
+  }
+  
+  .octa-error-details p {
+    font-size: 11px;
+  }
+  
+  .octa-retry-btn {
+    font-size: 11px;
+    padding: 5px 10px;
+  }
+}
+
+/* Spinner de carregamento OCTA */
+.loading-spinner-octa {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 40px;
+}
+
+.loading-spinner-octa .spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid rgba(34, 197, 94, 0.2);
+  border-top: 3px solid var(--color-green-light);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
