@@ -10,9 +10,10 @@
   height: 80px;
   background: var(--color-bg-header);
   color: var(--color-text-light);
-  display: flex;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
-  justify-content: space-between;
+  gap: 1.5rem;
   padding: 0 2rem;
   z-index: 1000;
   box-shadow: 0 2px 20px var(--color-shadow);
@@ -114,6 +115,120 @@
   gap: 1rem;
 }
 
+/* Botão Seletor de Período */
+.period-selector-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 2px solid var(--brand-primary);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(22, 52, 255, 0.15);
+  height: 44px;
+}
+
+.period-selector-btn:hover {
+  border-color: var(--brand-secondary);
+  background: var(--brand-primary);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(22, 52, 255, 0.3);
+}
+
+.period-selector-btn i {
+  font-size: 20px;
+  color: var(--brand-primary);
+  transition: color 0.3s ease;
+  flex-shrink: 0;
+}
+
+.period-selector-btn:hover i,
+.period-selector-btn:hover .period-text {
+  color: #FFFFFF;
+}
+
+.period-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  transition: color 0.3s ease;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Tema escuro - ajustar cores */
+.theme-dark .period-selector-btn {
+  background: rgba(30, 30, 30, 0.95);
+  border-color: var(--brand-secondary);
+}
+
+.theme-dark .period-selector-btn:hover {
+  background: var(--brand-primary);
+}
+
+.theme-dark .period-text {
+  color: #FFFFFF;
+}
+
+/* ========================================
+   TABS DE NAVEGAÇÃO - ESTILO PÍLULA
+   ======================================== */
+
+.header-nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  justify-content: center;
+}
+
+.nav-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  border: 2px solid var(--brand-secondary);
+  border-radius: 50px;
+  background: var(--bg-tertiary);
+  color: var(--brand-primary);
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.nav-tab i {
+  font-size: 16px;
+}
+
+/* Tab Ativa - Gradiente Azul */
+.nav-tab.active {
+  background: var(--gradient-primary);
+  color: #FFFFFF;
+  border-color: var(--brand-primary);
+}
+
+/* Hover - Fundo Azul */
+.nav-tab:not(.active):not(.disabled):hover {
+  background: var(--brand-secondary);
+  color: #FFFFFF;
+  border-color: var(--brand-secondary);
+  transform: translateY(-1px);
+}
+
+/* Tab Desabilitada */
+.nav-tab.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
 /* Status indicator styles removed */
 
 /* Responsividade */
@@ -142,6 +257,20 @@
   
   .status-text {
     font-size: 0.8rem;
+  }
+  
+  /* Tabs responsivas */
+  .header-nav {
+    gap: 8px;
+  }
+  
+  .nav-tab {
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+  
+  .nav-tab i {
+    font-size: 14px;
   }
 }
 

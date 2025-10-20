@@ -15,6 +15,70 @@ const MetricsDashboard = memo(({ metrics, operatorMetrics, rankings, darkList, a
   const getOperatorName = (operator, index) => {
     return getOperatorDisplayName(operator.operator, index, userData, shouldHideNames)
   }
+
+  // Função para calcular performance individual de tickets do operador
+  const calculateOperatorPerformance = (operatorName) => {
+    // Debug: verificar estrutura dos dados
+    console.log('🔍 calculateOperatorPerformance - Debug:', {
+      operatorName,
+      octaData: octaData ? 'presente' : 'ausente',
+      octaMetrics: octaData?.octaMetrics ? 'presente' : 'ausente',
+      avaliacoes: octaData?.octaMetrics?.avaliacoes ? 'presente' : 'ausente',
+      avaliacoesBoas: octaData?.octaMetrics?.avaliacoes?.boas ? `array com ${octaData.octaMetrics.avaliacoes.boas.length} itens` : 'ausente',
+      avaliacoesRuins: octaData?.octaMetrics?.avaliacoes?.ruins ? `array com ${octaData.octaMetrics.avaliacoes.ruins.length} itens` : 'ausente'
+    })
+    
+    if (!octaData?.octaMetrics?.avaliacoes) {
+      console.log('❌ Dados de avaliações não disponíveis')
+      return '0%'
+    }
+    
+    // Usar a mesma lógica do NewSheetAnalyzer: filtrar avaliações por operador
+    const avaliacoesBoas = octaData.octaMetrics.avaliacoes.boas.filter(av => 
+      av.operador && av.operador.toLowerCase().trim() === operatorName.toLowerCase().trim()
+    )
+    
+    const avaliacoesRuins = octaData.octaMetrics.avaliacoes.ruins.filter(av => 
+      av.operador && av.operador.toLowerCase().trim() === operatorName.toLowerCase().trim()
+    )
+    
+    console.log('🔍 Avaliações filtradas:', {
+      avaliacoesBoas: avaliacoesBoas.length,
+      avaliacoesRuins: avaliacoesRuins.length,
+      totalAvaliados: avaliacoesBoas.length + avaliacoesRuins.length
+    })
+    
+    // Debug: mostrar alguns exemplos de operadores nas avaliações
+    if (octaData.octaMetrics.avaliacoes.boas.length > 0) {
+      console.log('🔍 Exemplos de operadores nas avaliações boas:', 
+        octaData.octaMetrics.avaliacoes.boas.slice(0, 5).map(av => av.operador)
+      )
+    }
+    if (octaData.octaMetrics.avaliacoes.ruins.length > 0) {
+      console.log('🔍 Exemplos de operadores nas avaliações ruins:', 
+        octaData.octaMetrics.avaliacoes.ruins.slice(0, 5).map(av => av.operador)
+      )
+    }
+    
+    // Debug: mostrar todos os operadores únicos disponíveis nas avaliações
+    const todosOperadores = [
+      ...octaData.octaMetrics.avaliacoes.boas.map(av => av.operador),
+      ...octaData.octaMetrics.avaliacoes.ruins.map(av => av.operador)
+    ]
+    const operadoresUnicos = [...new Set(todosOperadores)].slice(0, 10)
+    console.log('🔍 Operadores únicos disponíveis nas avaliações:', operadoresUnicos)
+    
+    const totalAvaliados = avaliacoesBoas.length + avaliacoesRuins.length
+    
+    if (totalAvaliados === 0) {
+      console.log('❌ Nenhuma avaliação encontrada para o operador:', operatorName)
+      return '0%'
+    }
+    
+    const performance = ((avaliacoesBoas.length / totalAvaliados) * 100).toFixed(1)
+    console.log('✅ Performance calculada:', `${performance}%`)
+    return `${performance}%`
+  }
   
   // Ordenar rankings dando prioridade ao usuário logado no meio
   const prioritizedRankings = shouldHideNames && userData?.email 
@@ -60,113 +124,86 @@ const MetricsDashboard = memo(({ metrics, operatorMetrics, rankings, darkList, a
   }
 
   return (
-    <div className="metrics-dashboard">
-      {/* Card de Período Separado */}
-      {periodo && (
-        <div className="period-card">
-          <div className="period-label">📅 Período:</div>
-          <div className="period-value">{periodo.periodLabel}</div>
-          <div className="period-details">
-            {periodo.totalDays} dias • {periodo.totalRecords.toLocaleString()} registros
-          </div>
+    <div className="container">
+      {/* Section Title */}
+      <div className="section-title">
+        <i className='bx bxs-phone'></i>
+        <h2>55pbx - Sistema de Telefonia</h2>
+      </div>
+
+      {/* Indicadores */}
+      <div className="indicators-grid">
+        <div className="indicator-card">
+          <i className='bx bx-phone-call indicator-icon'></i>
+          <div className="indicator-label">Total de Chamadas</div>
+          <div className="indicator-value">{(metrics.totalCalls || 0).toLocaleString('pt-BR')}</div>
         </div>
-      )}
+        <div className="indicator-card">
+          <i className='bx bx-time-five indicator-icon'></i>
+          <div className="indicator-label">TMA Geral</div>
+          <div className="indicator-value">{metrics.duracaoMediaAtendimento || '0.0'} min</div>
+        </div>
+        <div className="indicator-card">
+          <i className='bx bx-check-circle indicator-icon'></i>
+          <div className="indicator-label">Taxa de Atendimento</div>
+          <div className="indicator-value">{((metrics.atendida / metrics.totalCalls * 100) || 0).toFixed(0)}%</div>
+        </div>
+        <div className="indicator-card">
+          <i className='bx bx-star indicator-icon'></i>
+          <div className="indicator-label">Nota Média</div>
+          <div className="indicator-value">{metrics.notaMediaAtendimento || '0.0'}/5</div>
+        </div>
+      </div>
 
-      {/* Comparativos Temporais - FASE 1 */}
-      <ComparativosTemporais 
-        dadosAtuais={fullDataset && fullDataset.length > 0 ? fullDataset : data || []} 
-        dadosAnterior={previousPeriodData || []} 
-        tipoComparativo="mensal"
-        periodoSelecionado={filters.period || 'allRecords'}
-      />
+      {/* Cards de Gráficos */}
+      <div className="card">
+        <div className="card-header">
+          <h3 className="card-title">Volume Histórico Geral</h3>
+          <i className='bx bx-trending-up card-icon'></i>
+        </div>
+        <div className="chart-container">
+          {/* Gráfico será renderizado aqui */}
+        </div>
+      </div>
 
-      {/* Layout Principal - Duas Seções Lado a Lado */}
-      <div className="main-dashboard-layout">
-        {/* Seção 55PBX */}
-        <div className="dashboard-section pbx-section">
-          <div className="section-content">
-            <h2 className="section-title">Ligações</h2>
-            
-            {/* Métricas Gerais 55PBX */}
-            {periodo ? (
-              <div className="card">
-                <div className="card-header">
-                  <h2 className="card-title">📊 Métricas Gerais</h2>
-                </div>
-                <div className="card-content">
-                  <div className="metrics-grid">
-                    <div className="metric-card">
-                      <div className="metric-value">{(metrics.totalCalls || 0).toLocaleString('pt-BR')}</div>
-                      <div className="metric-label">📞 Total de Chamadas</div>
-                    </div>
-                    <div className="metric-card">
-                      <div className="metric-value">{(metrics.retidaURA || 0).toLocaleString('pt-BR')}</div>
-                      <div className="metric-label">🤖 Retida na URA</div>
-                    </div>
-                    <div className="metric-card">
-                      <div className="metric-value">{(metrics.atendida || 0).toLocaleString('pt-BR')}</div>
-                      <div className="metric-label">✅ Atendida</div>
-                    </div>
-                    <div className="metric-card">
-                      <div className="metric-value">{(metrics.abandonada || 0).toLocaleString('pt-BR')}</div>
-                      <div className="metric-label">❌ Abandonada</div>
-                    </div>
-                    <div className="metric-card">
-                      <div className="metric-value">{metrics.notaMediaAtendimento || '0.0'}/5</div>
-                      <div className="metric-label">⭐ Nota Média de Atendimento</div>
-                    </div>
-                    <div className="metric-card">
-                      <div className="metric-value">{metrics.notaMediaSolucao || '0.0'}/5</div>
-                      <div className="metric-label">🎯 Nota Média de Solução</div>
-                    </div>
-                    <div className="metric-card">
-                      <div className="metric-value">{metrics.duracaoMediaAtendimento || '0.0'} min</div>
-                      <div className="metric-label">💬 Duração Média de Atendimento</div>
-                    </div>
-                    <div className="metric-card">
-                      <div className="metric-value">{metrics.tempoMedioEspera || '0.0'} min</div>
-                      <div className="metric-label">⏱️ Tempo Médio de Espera</div>
-                    </div>
-                    <div className="metric-card">
-                      <div className="metric-value">{metrics.taxaAbandono || '0.0'}%</div>
-                      <div className="metric-label">📉 Taxa de Abandono</div>
-                    </div>
-                    <div className="metric-card">
-                      <div className="metric-value">{(metrics.chamadasAvaliadas || 0).toLocaleString('pt-BR')}</div>
-                      <div className="metric-label">📊 Chamadas Avaliadas</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-      ) : (
-        /* Mensagem quando não há período selecionado para métricas gerais */
+      <div className="card">
+        <div className="card-header">
+          <h3 className="card-title">CSAT - Satisfação do Cliente</h3>
+          <i className='bx bx-star card-icon'></i>
+        </div>
+        <div className="chart-container">
+          {/* Gráfico será renderizado aqui */}
+        </div>
+      </div>
+
+      {/* Gráficos em Grid */}
+      <div className="charts-grid">
         <div className="card">
           <div className="card-header">
-            <h2 className="card-title">📊 Métricas Gerais</h2>
+            <h3 className="card-title">Volume por Produto URA</h3>
+            <i className='bx bx-line-chart card-icon'></i>
           </div>
-          <div className="card-content">
-            <div className="no-data-message">
-              <p>📅 Selecione um período para visualizar as métricas gerais</p>
-            </div>
-          </div>
-        </div>
-      )}
+          <div className="chart-container">
+            {/* Gráfico será renderizado aqui */}
           </div>
         </div>
 
-        {/* Separador Central */}
-        <div className="dashboard-separator"></div>
+        <div className="card">
+          <div className="card-header">
+            <h3 className="card-title">Volume por Hora</h3>
+            <i className='bx bx-bar-chart-alt-2 card-icon'></i>
+          </div>
+          <div className="chart-container">
+            {/* Gráfico será renderizado aqui */}
+          </div>
+        </div>
+      </div>
 
-        {/* Seção OCTA */}
-        <div className="dashboard-section octa-section">
-          <div className="section-content">
-            <h2 className="section-title">Tickets</h2>
-            
-                   {/* Métricas OCTA - Só mostra se há período selecionado */}
-                   {periodo ? (
+      {/* Ranking de Operadores */}
+      {prioritizedRankings && prioritizedRankings.length > 0 && (
                      <div className="card">
                        <div className="card-header">
-                         <h2 className="card-title">📊 Métricas OCTA</h2>
+                         <h2 className="card-title">📊Tickets </h2>
                        </div>
                        <div className="card-content">
                          <div className="metrics-grid">
@@ -176,11 +213,6 @@ const MetricsDashboard = memo(({ metrics, operatorMetrics, rankings, darkList, a
                                <div className="metric-card octa-section">
                                  <div className="metric-value">{octaData.octaMetrics.totalTickets || 0}</div>
                                  <div className="metric-label">🎫 Total de Tickets</div>
-                               </div>
-
-                               <div className="metric-card octa-section">
-                                 <div className="metric-value">{octaData.octaMetrics.ticketsNaoDesignados || 0}</div>
-                                 <div className="metric-label">❓ Tickets não designados</div>
                                </div>
 
                                <div className="metric-card octa-section">
@@ -194,23 +226,13 @@ const MetricsDashboard = memo(({ metrics, operatorMetrics, rankings, darkList, a
                                </div>
 
                                <div className="metric-card octa-section">
-                                 <div className="metric-value">{octaData.octaMetrics.bomSemComentario || 0}</div>
+                                 <div className="metric-value">{(parseInt(octaData.octaMetrics.bomSemComentario?.replace(/\./g, '') || '0') + parseInt(octaData.octaMetrics.bomComComentario?.replace(/\./g, '') || '0')).toLocaleString('pt-BR')}</div>
                                  <div className="metric-label">👍 Bom</div>
                                </div>
 
                                <div className="metric-card octa-section">
-                                 <div className="metric-value">{octaData.octaMetrics.bomComComentario || 0}</div>
-                                 <div className="metric-label">👍 Bom com comentário</div>
-                               </div>
-
-                               <div className="metric-card octa-section">
-                                 <div className="metric-value">{octaData.octaMetrics.ruimSemComentario || 0}</div>
+                                 <div className="metric-value">{(parseInt(octaData.octaMetrics.ruimSemComentario?.replace(/\./g, '') || '0') + parseInt(octaData.octaMetrics.ruimComComentario?.replace(/\./g, '') || '0')).toLocaleString('pt-BR')}</div>
                                  <div className="metric-label">👎 Ruim</div>
-                               </div>
-
-                               <div className="metric-card octa-section">
-                                 <div className="metric-value">{octaData.octaMetrics.ruimComComentario || 0}</div>
-                                 <div className="metric-label">👎 Ruim com comentário</div>
                                </div>
                              </>
                            ) : octaData && octaData.error ? (
@@ -251,7 +273,7 @@ const MetricsDashboard = memo(({ metrics, operatorMetrics, rankings, darkList, a
                      /* Mensagem quando não há período selecionado para OCTA */
                      <div className="card">
                        <div className="card-header">
-                         <h2 className="card-title">📊 Métricas OCTA</h2>
+                         <h2 className="card-title">📊 Tickets</h2>
                        </div>
                        <div className="card-content">
                          <div className="no-data-message">
@@ -325,7 +347,7 @@ const MetricsDashboard = memo(({ metrics, operatorMetrics, rankings, darkList, a
                     <th>Nota Atendimento</th>
                     <th>Nota Solução</th>
                     <th>Chamadas Avaliadas</th>
-                    <th>Ações</th>
+                    <th>Performance</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -365,20 +387,8 @@ const MetricsDashboard = memo(({ metrics, operatorMetrics, rankings, darkList, a
                           )}
                         </div>
                       </td>
-                      <td>
-                        {operator.isExcluded ? (
-                          <button 
-                            className="action-button restore"
-                            onClick={() => removeFromDarkList(operator.operator)}
-                            title="Restaurar operador"
-                          >
-                            ✅ Restaurar
-                          </button>
-                        ) : operator.isDesligado ? (
-                          <span className="desligado-info">Desligado</span>
-                        ) : (
-                          <span className="active-info">Ativo</span>
-                        )}
+                      <td className="performance-cell">
+                        {calculateOperatorPerformance(operator.operator)}
                       </td>
                     </tr>
                   ))}

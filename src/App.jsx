@@ -2,12 +2,10 @@ import React, { useState, useEffect } from 'react'
 import Header from './components/Header'
 import Sidebar from './components/Sidebar'
 import LoginTest from './components/LoginTest'
-import MetricsDashboard from './components/MetricsDashboard'
+import MetricsDashboard from './components/MetricsDashboardNovo'
 import ChartsSection from './components/ChartsSection'
-import ExportSection from './components/ExportSection'
 import OperatorAnalysis from './components/OperatorAnalysis'
 import ProgressIndicator from './components/ProgressIndicator'
-import AdvancedFilters from './components/AdvancedFilters'
 import { processarDados } from './utils/dataProcessor'
 import ChartsDetailedTab from './components/ChartsDetailedTab'
 import AgentAnalysis from './components/AgentAnalysis'
@@ -15,6 +13,8 @@ import PreferencesManager from './components/PreferencesManager'
 import CargoSelection from './components/CargoSelection'
 import ProcessingLoader from './components/ProcessingLoader'
 import NewSheetAnalyzer from './components/NewSheetAnalyzer'
+import PeriodModal from './components/PeriodModal'
+import ExportFAB from './components/ExportFAB'
 import { CargoProvider, useCargo } from './contexts/CargoContext'
 import { useGoogleSheetsDirectSimple } from './hooks/useGoogleSheetsDirectSimple'
 import { useDataFilters } from './hooks/useDataFilters'
@@ -33,6 +33,8 @@ function AppContent() {
   const [showPreferences, setShowPreferences] = useState(false)
   const [expandedOperator, setExpandedOperator] = useState(null) // Para controlar qual operador está expandido
   const [previousPeriodData, setPreviousPeriodData] = useState([]) // Dados do período anterior para comparação
+  const [showPeriodModal, setShowPeriodModal] = useState(false) // Modal de período
+  const [currentPeriodLabel, setCurrentPeriodLabel] = useState('Selecionar') // Label do período atual
   
   // Hook do sistema de cargos - apenas para cargo selecionado
   const { 
@@ -646,6 +648,11 @@ function AppContent() {
         sidebarOpen={sidebarOpen}
         theme={theme}
         onToggleTheme={toggleTheme}
+        currentView={currentView}
+        onViewChange={handleViewChange}
+        hasData={data && data.length > 0}
+        onOpenPeriodModal={() => setShowPeriodModal(true)}
+        currentPeriod={currentPeriodLabel}
         onSyncData={async () => {
           console.log('🔄 Sincronização manual iniciada...')
           setIsLoading(true)
@@ -710,19 +717,11 @@ function AppContent() {
             <>
               {!isLoading && data && data.length > 0 ? (
                 <>
-                  <AdvancedFilters
-                    filters={filters}
-                    onFiltersChange={setFilters}
-                    operatorMetrics={operatorMetrics}
-                    data={data}
-                    pauseData={data}
-                  />
-                  
                   {/* Dashboard Principal - Métricas Gerais com OCTA integrado */}
                   <div className="main-dashboard-container">
                     <div className="pbx-section">
                       <div className="section-header">
-                        <h2>📞 55PBX</h2>
+                        
                         <div className="section-info">
                           <span className="info-icon">ℹ️</span>
                           <span className="info-text">Dados de ligações e atendimentos</span>
@@ -740,9 +739,7 @@ function AppContent() {
                           // Para outros períodos, usar filteredRankings se disponível
                           return filteredRankings && filteredRankings.length > 0 ? filteredRankings : rankings
                         })()}
-                        filteredData={filteredData.length > 0 ? filteredData : data}
                         data={filteredData.length > 0 ? filteredData : data}
-                        previousPeriodData={previousPeriodData}
                         periodo={(() => {
                           // Se não há filtro selecionado, retornar null para ocultar o ranking
                           if (!filters.period) {
@@ -969,13 +966,6 @@ function AppContent() {
                       </div>
                     </div>
                   )}
-                  
-                  <ExportSection
-                    data={filteredData.length > 0 ? filteredData : data}
-                    metrics={filteredMetrics || metrics}
-                    operatorMetrics={filteredOperatorMetrics || operatorMetrics}
-                    rankings={filteredRankings || rankings}
-                  />
                 </>
               ) : isLoading ? (
                 <div className="loading-container">
@@ -1068,6 +1058,37 @@ function AppContent() {
           onCargoSelected={handleCargoSelected}
         />
       )}
+
+      {/* Period Modal */}
+      <PeriodModal 
+        isOpen={showPeriodModal}
+        onClose={() => setShowPeriodModal(false)}
+        onApply={(newFilters) => {
+          setFilters(prev => ({ ...prev, ...newFilters }))
+          // Atualizar label do período
+          const periodLabels = {
+            'last7Days': 'Últimos 7 dias',
+            'last15Days': 'Últimos 15 dias',
+            'penultimoMes': 'Penúltimo mês',
+            'ultimoMes': 'Último mês',
+            'currentMonth': 'Mês atual',
+            'allRecords': 'Todos os registros',
+            'custom': 'Personalizado'
+          }
+          setCurrentPeriodLabel(periodLabels[newFilters.period] || 'Selecionar')
+        }}
+        currentFilters={filters}
+        data={data}
+      />
+
+      {/* Export FAB */}
+      <ExportFAB 
+        hasData={data && data.length > 0}
+        onExport={(format) => {
+          console.log('Exportar como:', format)
+          // Aqui você pode adicionar a lógica de exportação real
+        }}
+      />
       
     </div>
   )

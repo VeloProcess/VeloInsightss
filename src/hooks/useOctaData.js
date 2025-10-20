@@ -522,6 +522,7 @@ export const useOctaData = (filters = {}) => {
 
   return {
     octaData,
+    octaRawData: octaData, // Dados brutos para os gráficos
     octaMetrics,
     isLoading,
     error,
