@@ -1,5 +1,4 @@
 import React from 'react'
-import ThemeToggle from './ThemeToggle'
 import './Header.css'
 
 const Header = ({ onToggleSidebar, sidebarOpen, theme, onToggleTheme, currentView, onViewChange, hasData, onOpenPeriodModal, currentPeriod }) => {
@@ -21,10 +20,7 @@ const Header = ({ onToggleSidebar, sidebarOpen, theme, onToggleTheme, currentVie
         )}
         
         <div className="header-actions">
-          <ThemeToggle 
-            theme={theme}
-            onToggle={onToggleTheme}
-          />
+          {/* Botão de tema removido */}
         </div>
       </header>
 

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import './ProgressIndicator.css'
 
 const ProgressIndicator = ({ progress, onCancel }) => {
-  const percentage = Math.round((progress.current / progress.total) * 100)
+  const percentage = ((progress.current / progress.total) * 100).toFixed(1)
   const [startTime] = useState(Date.now())
   const [elapsedTime, setElapsedTime] = useState(0)
   const [estimatedTime, setEstimatedTime] = useState(0)
@@ -14,8 +14,8 @@ const ProgressIndicator = ({ progress, onCancel }) => {
       setElapsedTime(elapsed)
       
       // Calcular tempo estimado baseado no progresso
-      if (percentage > 0) {
-        const estimated = Math.floor((elapsed / percentage) * 100) - elapsed
+      if (parseFloat(percentage) > 0) {
+        const estimated = Math.floor((elapsed / parseFloat(percentage)) * 100) - elapsed
         setEstimatedTime(Math.max(0, estimated))
       }
     }, 1000)

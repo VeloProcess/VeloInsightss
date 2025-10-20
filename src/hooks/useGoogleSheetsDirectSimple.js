@@ -32,15 +32,12 @@ const filterDataByPeriod = (data, selectedPeriod, offsetDays = 0) => {
   // Se não encontrar por nome, usar índice 3 (coluna D)
   if (dateColumnIndex === -1) {
     dateColumnIndex = 3
-    console.log('📅 Usando coluna D (índice 3) para filtragem por data')
   } else {
-    console.log(`📅 Coluna de data encontrada no índice: ${dateColumnIndex}`)
   }
   
   // Detectar o ano dos dados automaticamente
   let dataYear = now.getFullYear()
   if (data.length > 1) {
-    console.log(`🔍 Verificando primeiras 50 datas para detectar ano...`)
     // Verificar mais datas para detectar o ano
     for (let i = 1; i <= Math.min(50, data.length - 1); i++) {
       const dateStr = data[i][dateColumnIndex]
@@ -50,7 +47,7 @@ const filterDataByPeriod = (data, selectedPeriod, offsetDays = 0) => {
           const year = parseInt(parts[2])
           if (year > 2000) {
             dataYear = year
-            console.log(`✅ Ano detectado na linha ${i}: ${dataYear} (data: "${dateStr}")`)
+            // Debug removido para melhor performance
             break
           }
         }
@@ -58,18 +55,18 @@ const filterDataByPeriod = (data, selectedPeriod, offsetDays = 0) => {
     }
   }
   
-  console.log(`📅 Ano detectado nos dados: ${dataYear}`)
+  // Debug removido para melhor performance
   
   // Se não conseguiu detectar o ano, assumir 2025 (baseado nos logs anteriores)
   if (dataYear === now.getFullYear()) {
-    console.log('⚠️ Não foi possível detectar o ano automaticamente, assumindo 2025')
+    // Debug removido para melhor performance
     dataYear = 2025
   }
   
-  console.log(`📅 Filtrando dados por período: ${selectedPeriod}`)
-  console.log(`📅 Data de hoje: ${today.toLocaleDateString()}`)
-  console.log(`📅 Total de registros para filtrar: ${data.length - 1}`)
-  console.log(`📅 Coluna de data (índice ${dateColumnIndex}): ${headerRow[dateColumnIndex]}`)
+  // Debug removido para melhor performance
+  // Debug removido para melhor performance
+  // Debug removido para melhor performance
+  // Debug removido para melhor performance
   
   let validRecords = 0
   let invalidRecords = 0
@@ -171,18 +168,18 @@ const filterDataByPeriod = (data, selectedPeriod, offsetDays = 0) => {
     }
   })
   
-  console.log(`✅ Filtrados ${filteredData.length - 1} registros de ${data.length - 1} total`)
-  console.log(`📊 Registros válidos: ${validRecords}, Registros inválidos: ${invalidRecords}`)
-  console.log(`🔍 DEBUG FILTRO: selectedPeriod="${selectedPeriod}", dataYear=${dataYear}, today=${today.toLocaleDateString()}`)
+  // Debug removido para melhor performance
+  // Debug removido para melhor performance
+  // Debug removido para melhor performance
   
   // Debug: mostrar algumas datas filtradas
   if (filteredData.length > 1) {
-    console.log(`🔍 Primeiras 3 datas filtradas:`)
+    // Debug removido para melhor performance
     for (let i = 1; i <= Math.min(3, filteredData.length - 1); i++) {
-      console.log(`  ${i}: ${filteredData[i][dateColumnIndex]}`)
+      // Debug removido para melhor performance
     }
   } else {
-    console.log(`⚠️ Nenhum registro foi filtrado!`)
+    // Debug removido para melhor performance
   }
   
   return filteredData
@@ -330,13 +327,12 @@ export const useGoogleSheetsDirectSimple = () => {
       // Salvar no localStorage
       localStorage.setItem('veloinsights_user', JSON.stringify(userInfo))
       
-      console.log('🎉 Login realizado com sucesso!')
+      // Debug removido para melhor performance
       
       // Buscar dados automaticamente após login
       try {
-        console.log('📊 Buscando dados automaticamente após login...')
+        // Debug removido para melhor performance
         await fetchSheetData(tokenData.access_token)
-        console.log('✅ Dados carregados com sucesso!')
       } catch (error) {
         console.error('❌ Erro ao carregar dados após login:', error)
       }
@@ -371,7 +367,7 @@ export const useGoogleSheetsDirectSimple = () => {
     const storedAuthError = localStorage.getItem('google_auth_error')
     
     if (storedAuthCode) {
-      console.log('🔄 Código de autorização encontrado no localStorage')
+      // Debug removido para melhor performance
       exchangeCodeForTokens(storedAuthCode)
       localStorage.removeItem('google_auth_code')
     }
@@ -392,13 +388,11 @@ export const useGoogleSheetsDirectSimple = () => {
         if (userInfo.expiresAt > Date.now()) {
           setUserData(userInfo)
           setIsAuthenticated(true)
-          console.log('✅ Usuário já logado')
           
           // NÃO carregar dados automaticamente - aguardar seleção de período
-          console.log('📊 Aguardando seleção de período para carregar dados...')
         } else {
           localStorage.removeItem('veloinsights_user')
-          console.log('⏰ Token expirado, removido do localStorage')
+          // Debug removido para melhor performance
         }
       } catch (error) {
         console.error('❌ Erro ao carregar dados do usuário:', error)
@@ -427,8 +421,8 @@ export const useGoogleSheetsDirectSimple = () => {
         `access_type=online&` +
         `prompt=select_account`
 
-      console.log('🔗 Redirecionando para Google OAuth...')
-      console.log('📋 URL de autorização:', authUrl)
+      // Debug removido para melhor performance
+      // Debug removido para melhor performance
       window.location.href = authUrl
       
     } catch (error) {
@@ -452,7 +446,7 @@ export const useGoogleSheetsDirectSimple = () => {
       localStorage.removeItem('google_auth_code')
       localStorage.removeItem('google_auth_error')
       
-      console.log('👋 Logout realizado com sucesso')
+      // Debug removido para melhor performance
     } catch (error) {
       console.error('❌ Erro ao fazer logout:', error)
     }
@@ -465,7 +459,6 @@ export const useGoogleSheetsDirectSimple = () => {
       return
     }
     
-    console.log(`📊 Carregando dados para período: ${selectedPeriod}`)
     setIsLoading(true)
     
     try {
@@ -475,7 +468,7 @@ export const useGoogleSheetsDirectSimple = () => {
         : fetchSheetData(userData.accessToken, selectedPeriod)
       
       await loadDataFunction
-      console.log('✅ Dados carregados com sucesso!')
+      // Debug removido para melhor performance
     } catch (error) {
       console.error('❌ Erro ao carregar dados:', error)
     } finally {
@@ -490,7 +483,6 @@ export const useGoogleSheetsDirectSimple = () => {
     }
 
     try {
-      console.log(`📊 Carregando dados do período anterior para: ${currentPeriod}`)
       
       let previousPeriodData = []
       
@@ -516,7 +508,7 @@ export const useGoogleSheetsDirectSimple = () => {
           return []
       }
       
-      console.log(`✅ Dados do período anterior carregados: ${previousPeriodData.length} registros`)
+      // Debug removido para melhor performance
       return previousPeriodData
       
     } catch (error) {
@@ -529,7 +521,6 @@ export const useGoogleSheetsDirectSimple = () => {
   const fetchFullDataset = async (accessToken, selectedPeriod = 'all') => {
     try {
       setIsLoading(true)
-      console.log('🔄 Buscando dataset completo da planilha...')
       
       const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${SHEET_RANGE_FULL}?access_token=${accessToken}`
       
@@ -542,17 +533,13 @@ export const useGoogleSheetsDirectSimple = () => {
       const result = await response.json()
       
       if (result.values && result.values.length > 0) {
-        console.log(`✅ ${result.values.length} linhas obtidas do dataset completo`)
         
         // Armazenar dataset completo
         setFullDataset(result.values)
         
         // FILTRAGEM POR PERÍODO: aplicar filtro baseado no período selecionado
-        console.log(`🔍 Chamando filterDataByPeriod com ${result.values.length} registros para período: ${selectedPeriod}`)
-        console.log(`🔍 DEBUG: selectedPeriod="${selectedPeriod}", result.values.length=${result.values.length}`)
         const filteredData = filterDataByPeriod(result.values, selectedPeriod)
         
-        console.log(`⚡ Processando ${filteredData.length - 1} registros filtrados por período: ${selectedPeriod}...`)
         
         // Processamento assíncrono com progresso
         const dadosProcessados = await processarDadosAssincrono(filteredData, true) // processAllRecords = true
@@ -600,7 +587,7 @@ export const useGoogleSheetsDirectSimple = () => {
     try {
       setIsProcessingAllRecords(true)
       setProcessingProgress(0)
-      console.log('🚀 Iniciando carregamento de TODOS OS REGISTROS...')
+      // Debug removido para melhor performance
       
       const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${SHEET_RANGE_FULL}?access_token=${accessToken}`
       
@@ -613,7 +600,7 @@ export const useGoogleSheetsDirectSimple = () => {
       const result = await response.json()
       
       if (result.values && result.values.length > 0) {
-        console.log(`✅ ${result.values.length} linhas obtidas - TODOS OS REGISTROS (${result.values.length - 1} registros históricos)`)
+        // Debug removido para melhor performance
         
         // Definir total de registros para processar (excluindo cabeçalho)
         setTotalRecordsToProcess(result.values.length - 1)
@@ -623,7 +610,7 @@ export const useGoogleSheetsDirectSimple = () => {
           result.values,
           (progress, processed, total) => {
             setProcessingProgress(progress)
-            console.log(`📊 Progresso: ${progress.toFixed(1)}% - ${processed.toLocaleString()} de ${total.toLocaleString()} registros`)
+            // Debug removido para melhor performance
           }
         )
         
@@ -652,7 +639,7 @@ export const useGoogleSheetsDirectSimple = () => {
         })))
         setOperators(dadosProcessados.operadores)
         
-        console.log(`🎉 TODOS OS REGISTROS carregados com sucesso!`)
+        // Debug removido para melhor performance
         // console.log(`📊 Debug - Dados processados (TODOS): {dadosFiltrados: ${dadosProcessados.dadosFiltrados.length}, metricas: {...}, metricasOperadores: ${Object.keys(dadosProcessados.metricasOperadores).length}, rankings: ${dadosProcessados.rankings.length}, operadores: ${dadosProcessados.operadores.length}}`)
         
         return dadosProcessados
@@ -727,11 +714,11 @@ export const useGoogleSheetsDirectSimple = () => {
     })
 
     // console.log(`📊 Debug da filtragem:`)
-    console.log(`  ✅ Registros válidos no período: ${contadorValidos}`)
-    console.log(`  ❌ Registros inválidos: ${contadorInvalidos}`)
-    console.log(`  📅 Registros fora do período: ${contadorForaPeriodo}`)
-    console.log(`  📋 Total de datas únicas encontradas: ${datasEncontradas.size}`)
-    console.log(`  📅 Primeiras 10 datas encontradas:`, Array.from(datasEncontradas).slice(0, 10))
+    // Debug removido para melhor performance
+    // Debug removido para melhor performance
+    // Debug removido para melhor performance
+    // Debug removido para melhor performance
+    // Debug removido para melhor performance
     
     // Debug específico para encontrar o registro perdido
     if (contadorValidos !== 1228) {
@@ -761,7 +748,7 @@ export const useGoogleSheetsDirectSimple = () => {
       }
 
       // Processar dados do período (OTIMIZADO)
-      console.log(`⚡ Processando ${dadosFiltrados.length} registros do período...`)
+      // Debug removido para melhor performance
       const dadosProcessados = await processarDadosAssincrono(dadosFiltrados, true) // processAllRecords = true
       
       // Converter metricasOperadores para o formato esperado pelo AgentAnalysis
@@ -804,7 +791,7 @@ export const useGoogleSheetsDirectSimple = () => {
       setRankings(rankingsComDarkList)
       setOperators(dadosProcessados.operadores)
       
-      console.log(`📊 Dados do período processados: ${dadosProcessados.dadosFiltrados.length} registros`)
+      // Debug removido para melhor performance
       
     } catch (error) {
       console.error('❌ Erro ao processar dados do período:', error)
@@ -849,21 +836,21 @@ export const useGoogleSheetsDirectSimple = () => {
     setUserData(updatedUserData)
     localStorage.setItem('veloinsights_user', JSON.stringify(updatedUserData))
     
-    console.log('✅ Token renovado com sucesso')
+    // Debug removido para melhor performance
   }
 
   // Função para buscar dados dos últimos 60 dias
   const fetchLast60Days = async (accessToken) => {
     try {
       setIsLoading(true)
-      console.log('🔄 Buscando dados dos últimos 60 dias...')
+      // Debug removido para melhor performance
       
       // Verificar se o token está válido
       let tokenToUse = accessToken
       if (!tokenToUse && userData) {
         // Verificar se o token expirou
         if (userData.expiresAt && Date.now() > userData.expiresAt) {
-          console.log('🔄 Token expirado, renovando...')
+          // Debug removido para melhor performance
           await refreshAccessToken()
           tokenToUse = userData.accessToken
         } else {
@@ -889,10 +876,10 @@ export const useGoogleSheetsDirectSimple = () => {
       const result = await response.json()
       
       if (result.values && result.values.length > 0) {
-        console.log(`✅ ${result.values.length} linhas obtidas`)
+        // Debug removido para melhor performance
         
         // Processar dados (já filtra os últimos 60 dias) - OTIMIZADO
-        console.log(`⚡ Processando ${result.values.length} registros de forma otimizada...`)
+        // Debug removido para melhor performance
         const dadosProcessados = await processarDadosAssincrono(result.values, true) // processAllRecords = true
         
         // console.log('📊 Debug - Dados processados (últimos 60 dias):', {
@@ -948,7 +935,7 @@ export const useGoogleSheetsDirectSimple = () => {
         setErrors(dadosProcessados.erros || [])
         setFullDataset(result.values)
         
-        console.log('✅ Dados dos últimos 60 dias carregados com sucesso!')
+        // Debug removido para melhor performance
       } else {
         console.log('⚠️ Nenhum dado encontrado')
         setData([])
@@ -974,7 +961,7 @@ export const useGoogleSheetsDirectSimple = () => {
   const fetchSheetData = async (accessToken, mode = 'recent') => {
     // Para operadores (@velotax.com.br), buscar TODOS os dados históricos
     if (userData?.email?.includes('@velotax.com.br')) {
-      console.log('🚀 Operador detectado - carregando TODOS os registros históricos...')
+      // Debug removido para melhor performance
       return await fetchFullDataset(accessToken)
     }
     

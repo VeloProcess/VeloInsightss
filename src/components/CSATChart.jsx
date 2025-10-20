@@ -9,6 +9,7 @@ import {
   Tooltip,
   Legend
 } from 'chart.js'
+import ChartDataLabels from 'chartjs-plugin-datalabels'
 
 ChartJS.register(
   CategoryScale,
@@ -16,11 +17,105 @@ ChartJS.register(
   BarElement,
   Title,
   Tooltip,
-  Legend
+  Legend,
+  ChartDataLabels
 )
 
+// Versão otimizada - mantém telefonia intacta, melhora apenas tickets
 const CSATChart = ({ data = [], periodo = null }) => {
+  // Verificar se é dados de tickets ou telefonia ANTES do useMemo
+  const processedDataForType = processCSATByPeriod(data, periodo)
+  
+  // Detecção melhorada de dados de tickets
+  const totalAvaliacoesTotal = processedDataForType.totalAvaliacoes ? processedDataForType.totalAvaliacoes.reduce((sum, v) => sum + (v || 0), 0) : 0
+  const bomTotal = processedDataForType.bom ? processedDataForType.bom.reduce((sum, v) => sum + (v || 0), 0) : 0
+  const ruimTotal = processedDataForType.ruim ? processedDataForType.ruim.reduce((sum, v) => sum + (v || 0), 0) : 0
+  
+  // Considerar como dados de tickets se houver avaliações ou contadores de bom/ruim
+  const isTicketData = totalAvaliacoesTotal > 0 || bomTotal > 0 || ruimTotal > 0
+  
+  const notaAtendimentoTotal = processedDataForType.notaAtendimento ? processedDataForType.notaAtendimento.reduce((sum, v) => sum + (v || 0), 0) : 0
+  const isPhoneData = notaAtendimentoTotal > 0 && !isTicketData
+  
+  // Verificar se há dados de tickets na coluna O a partir da linha 15
+  let encontrouTickets = false
+  let exemploTicket = null
+  
+  // Verificar a partir da linha 15 (índice 14) até linha 50
+  for (let i = 14; i < Math.min(data.length, 50); i++) {
+    const registro = data[i]
+    if (registro && registro[14]) {
+      const colunaO = String(registro[14]).trim().toLowerCase()
+      if (colunaO.includes('bom') || colunaO.includes('ruim')) {
+        encontrouTickets = true
+        exemploTicket = { 
+          linhaIndex: i, 
+          linhaReal: i + 1, // Linha real no Excel
+          colunaO: registro[14]
+        }
+        break
+      }
+    }
+  }
+  
+  console.log('🎫 Verificação linha 15+:', {
+    encontrouTickets,
+    exemploTicket,
+    totalRegistros: data.length
+  })
+
   const chartData = useMemo(() => {
+    if (encontrouTickets) {
+      // Para tickets: contagem simples da coluna O
+      const ticketCounts = data.slice(14).reduce((acc, row) => {
+        if (Array.isArray(row) && row[14] !== undefined && row[14] !== null && row[14] !== '') {
+          const tipo = String(row[14]).trim().toLowerCase()
+          if (tipo.includes('bom')) {
+            acc.bom++
+          } else if (tipo.includes('ruim')) {
+            acc.ruim++
+          }
+        }
+        return acc
+      }, { bom: 0, ruim: 0 })
+      
+      console.log('🎫 Contagem tickets:', ticketCounts)
+      
+      const total = ticketCounts.bom + ticketCounts.ruim
+      const percentualSatisfacao = total > 0 ? (ticketCounts.bom / total) * 100 : 0
+      
+      return {
+        labels: ['Avaliações'],
+        datasets: [
+          {
+            label: 'Bom',
+            data: [ticketCounts.bom],
+            backgroundColor: 'rgba(16, 185, 129, 0.8)',
+            borderColor: '#10B981',
+            borderWidth: 2,
+            yAxisID: 'y'
+          },
+          {
+            label: 'Ruim', 
+            data: [ticketCounts.ruim],
+            backgroundColor: 'rgba(239, 68, 68, 0.8)',
+            borderColor: '#EF4444',
+            borderWidth: 2,
+            yAxisID: 'y'
+          },
+          {
+            label: 'Satisfação (%)',
+            data: [percentualSatisfacao],
+            backgroundColor: 'rgba(139, 92, 246, 0.8)',
+            borderColor: '#8B5CF6',
+            borderWidth: 2,
+            yAxisID: 'y1'
+          }
+        ]
+      }
+    }
+    
+    // Para telefonia: manter lógica original
     const processedData = processCSATByPeriod(data, periodo)
     
     // Criar gradientes para as barras
@@ -30,31 +125,24 @@ const CSATChart = ({ data = [], periodo = null }) => {
       gradient.addColorStop(1, color2)
       return gradient
     }
-
-    // Verificar se é dados de tickets (tem campo bom/ruim)
-    const isTicketData = processedData.bom && processedData.bom.some(v => v > 0)
     
-    // Converter para porcentagem
+    // Converter para notas médias
     let bomPercent = []
     let ruimPercent = []
     let mediaTendencia = []
     
-    if (isTicketData) {
-      // Para tickets, calcular porcentagens
+    if (isPhoneData) {
+      // Para dados de telefonia (colunas AB e AC), calcular notas médias
       processedData.labels.forEach((_, index) => {
-        const bomCount = processedData.bom[index] || 0
-        const ruimCount = processedData.ruim[index] || 0
-        const total = bomCount + ruimCount
+        const notaAtend = processedData.notaAtendimento[index] || 0
+        const notaSol = processedData.notaSolucao[index] || 0
         
-        if (total > 0) {
-          bomPercent.push(((bomCount / total) * 100))
-          ruimPercent.push(((ruimCount / total) * 100))
-          mediaTendencia.push(((bomCount / total) * 100)) // Tendência = % de Bom
-        } else {
-          bomPercent.push(0)
-          ruimPercent.push(0)
-          mediaTendencia.push(0)
-        }
+        // Calcular nota média ao invés de porcentagem
+        const notaMedia = (notaAtend + notaSol) / 2
+        
+        bomPercent.push(notaMedia)
+        ruimPercent.push(notaMedia) // Mesmo valor para ambos
+        mediaTendencia.push(notaMedia) // Tendência = nota média
       })
     } else {
       // Para chamadas, manter lógica original
@@ -67,64 +155,94 @@ const CSATChart = ({ data = [], periodo = null }) => {
 
     const datasets = isTicketData ? [
       {
-        label: '😊 Bom',
-        data: bomPercent,
+        label: 'Bom',
+        data: processedData.bom,
         type: 'bar',
-        backgroundColor: (context) => {
-          const ctx = context.chart.ctx
-          return createGradient(ctx, 'rgba(34, 197, 94, 0.95)', 'rgba(22, 163, 74, 0.95)')
-        },
-        borderColor: 'rgba(34, 197, 94, 1)',
-        borderWidth: 0,
-        borderRadius: 12,
-        maxBarThickness: 50,
-        hoverBackgroundColor: (context) => {
-          const ctx = context.chart.ctx
-          return createGradient(ctx, 'rgba(34, 197, 94, 1)', 'rgba(22, 163, 74, 1)')
-        },
-        hoverBorderWidth: 3,
-        hoverBorderColor: 'rgba(255, 255, 255, 0.9)',
+        borderColor: '#10B981',
+        backgroundColor: 'rgba(16, 185, 129, 0.8)',
+        borderWidth: 2,
+        borderRadius: 6,
+        borderSkipped: false,
         order: 1,
-        bomCount: processedData.bom // Guardar contagem para tooltip
+        yAxisID: 'y'
       },
       {
-        label: '😞 Ruim',
-        data: ruimPercent,
+        label: 'Ruim',
+        data: processedData.ruim,
         type: 'bar',
-        backgroundColor: (context) => {
-          const ctx = context.chart.ctx
-          return createGradient(ctx, 'rgba(239, 68, 68, 0.95)', 'rgba(220, 38, 38, 0.95)')
-        },
-        borderColor: 'rgba(239, 68, 68, 1)',
-        borderWidth: 0,
-        borderRadius: 12,
-        maxBarThickness: 50,
-        hoverBackgroundColor: (context) => {
-          const ctx = context.chart.ctx
-          return createGradient(ctx, 'rgba(239, 68, 68, 1)', 'rgba(220, 38, 38, 1)')
-        },
-        hoverBorderWidth: 3,
-        hoverBorderColor: 'rgba(255, 255, 255, 0.9)',
+        borderColor: '#EF4444',
+        backgroundColor: 'rgba(239, 68, 68, 0.8)',
+        borderWidth: 2,
+        borderRadius: 6,
+        borderSkipped: false,
         order: 2,
-        ruimCount: processedData.ruim // Guardar contagem para tooltip
+        yAxisID: 'y'
       },
       {
-        label: '📈 Tendência Geral',
+        label: 'Pesquisa (%)',
         data: mediaTendencia,
         type: 'line',
-        borderColor: 'rgba(249, 115, 22, 1)',
-        backgroundColor: 'rgba(249, 115, 22, 0.15)',
+        borderColor: '#8B5CF6',
+        backgroundColor: 'rgba(139, 92, 246, 0.1)',
         borderWidth: 4,
-        pointRadius: 6,
-        pointHoverRadius: 8,
-        pointBackgroundColor: 'rgba(249, 115, 22, 1)',
-        pointBorderColor: '#fff',
+        pointRadius: 8,
+        pointHoverRadius: 12,
+        pointBackgroundColor: '#8B5CF6',
+        pointBorderColor: '#ffffff',
         pointBorderWidth: 3,
         pointHoverBorderWidth: 4,
-        tension: 0.4,
+        pointHoverBackgroundColor: '#7C3AED',
+        tension: 0.3,
+        fill: false,
+        order: 3,
+        yAxisID: 'y1'
+      }
+    ] : isPhoneData ? [
+      {
+        label: 'Atendimento',
+        data: processedData.notaAtendimento,
+        type: 'line',
+        borderColor: '#3B82F6',
+        backgroundColor: 'rgba(59, 130, 246, 0.05)',
+        borderWidth: 4,
+        pointRadius: 8,
+        pointHoverRadius: 12,
+        pointBackgroundColor: '#3B82F6',
+        pointBorderColor: '#ffffff',
+        pointBorderWidth: 3,
+        pointHoverBorderWidth: 4,
+        pointHoverBackgroundColor: '#1D4ED8',
+        tension: 0.3,
         fill: true,
-        order: 0,
-        yAxisID: 'y'
+        order: 1,
+        yAxisID: 'y',
+        shadowOffsetX: 0,
+        shadowOffsetY: 4,
+        shadowBlur: 12,
+        shadowColor: 'rgba(59, 130, 246, 0.3)'
+      },
+      {
+        label: 'Solução',
+        data: processedData.notaSolucao,
+        type: 'line',
+        borderColor: '#8B5CF6',
+        backgroundColor: 'rgba(139, 92, 246, 0.05)',
+        borderWidth: 4,
+        pointRadius: 8,
+        pointHoverRadius: 12,
+        pointBackgroundColor: '#8B5CF6',
+        pointBorderColor: '#ffffff',
+        pointBorderWidth: 3,
+        pointHoverBorderWidth: 4,
+        pointHoverBackgroundColor: '#7C3AED',
+        tension: 0.3,
+        fill: true,
+        order: 2,
+        yAxisID: 'y',
+        shadowOffsetX: 0,
+        shadowOffsetY: 4,
+        shadowBlur: 12,
+        shadowColor: 'rgba(139, 92, 246, 0.3)'
       }
     ] : [
       {
@@ -200,7 +318,7 @@ const CSATChart = ({ data = [], periodo = null }) => {
       intersect: false
     },
     animation: {
-      duration: 1000,
+      duration: encontrouTickets ? 0 : 1000, // Sem animação para tickets
       easing: 'easeInOutQuart'
     },
     plugins: {
@@ -221,6 +339,58 @@ const CSATChart = ({ data = [], periodo = null }) => {
           boxHeight: 12,
           color: '#1f2937'
         }
+      },
+      datalabels: {
+        display: function(context) {
+          // Mostrar apenas nos pontos de Atendimento e Solução
+          return context.dataset.label === 'Atendimento' || context.dataset.label === 'Solução'
+        },
+        color: '#ffffff',
+        font: {
+          size: 11,
+          weight: '700',
+          family: "'Inter', sans-serif"
+        },
+        backgroundColor: function(context) {
+          // Cor de fundo baseada no dataset
+          if (context.dataset.label === 'Atendimento') {
+            return '#3B82F6'
+          } else if (context.dataset.label === 'Solução') {
+            return '#8B5CF6'
+          }
+          return '#6B7280'
+        },
+        borderColor: '#ffffff',
+        borderWidth: 2,
+        borderRadius: 8,
+        padding: 6,
+        formatter: function(value, context) {
+          // Acessar os dados através do chart
+          const chart = context.chart
+          const datasets = chart.data.datasets
+          const dataIndex = context.dataIndex
+          
+          // Encontrar os datasets de Atendimento e Solução
+          const atendimentoDataset = datasets.find(d => d.label === 'Atendimento')
+          const solucaoDataset = datasets.find(d => d.label === 'Solução')
+          
+          if (atendimentoDataset && solucaoDataset) {
+            const notaAtend = atendimentoDataset.data[dataIndex] || 0
+            const notaSol = solucaoDataset.data[dataIndex] || 0
+            
+            
+            // Se ambas as notas são válidas (entre 1-5), calcular nota média
+            if (notaAtend >= 1 && notaAtend <= 5 && notaSol >= 1 && notaSol <= 5) {
+              const notaMedia = (notaAtend + notaSol) / 2
+              return notaMedia.toFixed(2)
+            }
+          }
+          
+          return '0.00'
+        },
+        anchor: 'center',
+        align: 'center',
+        offset: 0
       },
       tooltip: {
         enabled: true,
@@ -247,92 +417,169 @@ const CSATChart = ({ data = [], periodo = null }) => {
         borderWidth: 1,
         callbacks: {
           title: function(context) {
-            return `📅 ${context[0].label}`
+            return encontrouTickets ? '📊 Contagem de Avaliações' : `📅 ${context[0].label}`
           },
           label: function(context) {
             const label = context.dataset.label
             const value = context.parsed.y
-            const dataIndex = context.dataIndex
             
-            // Se for a linha de tendência
-            if (label.includes('📈')) {
-              const data = context.dataset.data
-              if (dataIndex > 0) {
-                const prev = data[dataIndex - 1]
-                const current = data[dataIndex]
-                const diff = current - prev
-                const arrow = diff > 0 ? '📈 ↗' : diff < 0 ? '📉 ↘' : '➡'
-                const change = Math.abs(diff).toFixed(1)
-                return `Tendência: ${value.toFixed(1)}% ${arrow} (${diff > 0 ? '+' : diff < 0 ? '-' : ''}${change}%)`
+            if (encontrouTickets) {
+              if (label === 'Bom') {
+                return `✅ ${label}: ${value.toLocaleString('pt-BR')}`
+              } else if (label === 'Ruim') {
+                return `❌ ${label}: ${value.toLocaleString('pt-BR')}`
+              } else if (label === 'Satisfação (%)') {
+                return `📊 ${label}: ${value.toFixed(1)}%`
               }
-              return `Tendência: ${value.toFixed(1)}%`
+            } else if (label === 'Atendimento' || label === 'Solução') {
+              return `${label}: ${value.toFixed(2)}/5`
             }
             
-            // Para barras de Bom/Ruim - mostrar porcentagem e contagem
-            const count = label.includes('😊') ? 
-              context.dataset.bomCount?.[dataIndex] : 
-              context.dataset.ruimCount?.[dataIndex]
-            
-            return `${label}: ${value.toFixed(1)}% (${count || 0} avaliações)`
+            return `${label}: ${value.toFixed(2)}`
           },
           afterBody: function(context) {
-            // Calcular total de avaliações
-            const bomItem = context.find(item => item.dataset.label.includes('😊'))
-            const ruimItem = context.find(item => item.dataset.label.includes('😞'))
-            
-            if (bomItem && ruimItem) {
-              const dataIndex = bomItem.dataIndex
-              const bomCount = bomItem.dataset.bomCount?.[dataIndex] || 0
-              const ruimCount = ruimItem.dataset.ruimCount?.[dataIndex] || 0
-              const total = bomCount + ruimCount
+            if (encontrouTickets) {
+              const bomItem = context.find(item => item.dataset.label === 'Bom')
+              const ruimItem = context.find(item => item.dataset.label === 'Ruim')
+              const satisfacaoItem = context.find(item => item.dataset.label === 'Satisfação (%)')
               
-              if (total > 0) {
-                return `\n📊 Total: ${total} avaliações`
+              if (bomItem && ruimItem && satisfacaoItem) {
+                const bom = bomItem.parsed.y
+                const ruim = ruimItem.parsed.y
+                const satisfacao = satisfacaoItem.parsed.y
+                const total = bom + ruim
+                
+                return `\n📊 Total: ${total.toLocaleString('pt-BR')}\n📈 Satisfação: ${satisfacao.toFixed(1)}%`
+              }
+            } else {
+              // Para telefonia, mostrar informações sobre as médias
+              const mediaAtendItem = context.find(item => item.dataset.label === 'Atendimento')
+              const mediaSolItem = context.find(item => item.dataset.label === 'Solução')
+              
+              if (mediaAtendItem && mediaSolItem) {
+                const mediaAtend = mediaAtendItem.parsed.y
+                const mediaSol = mediaSolItem.parsed.y
+                const mediaGeral = (mediaAtend + mediaSol) / 2
+                
+                info.push(`📊 Média Geral: ${mediaGeral.toFixed(2)}/5`)
+                
+                // Classificar qualidade
+                if (mediaGeral >= 4.5) {
+                  info.push(`🏆 Excelente qualidade!`)
+                } else if (mediaGeral >= 4.0) {
+                  info.push(`👍 Muito boa qualidade`)
+                } else if (mediaGeral >= 3.0) {
+                  info.push(`⚠️ Qualidade regular`)
+                } else {
+                  info.push(`❌ Precisa melhorar`)
+                }
               }
             }
-            return ''
+            
+            return info.length > 0 ? `\n${info.join('\n')}` : ''
           }
         }
       }
     },
     scales: {
       x: {
+        title: {
+          display: true,
+          text: 'Período',
+          color: '#374151',
+          font: {
+            size: 14,
+            weight: '700',
+            family: "'Inter', sans-serif"
+          }
+        },
         grid: {
           display: false,
           drawBorder: false
         },
         ticks: {
           font: {
-            size: 12,
+            size: 13,
             family: "'Inter', sans-serif",
-            weight: '500'
+            weight: '600'
           },
-          color: '#6b7280',
-          padding: 8
+          color: '#6B7280',
+          padding: 12,
+          maxRotation: 0,
+          minRotation: 0
         }
       },
       y: {
         beginAtZero: true,
         min: 0,
-        max: 100,
+        position: 'left',
+        title: {
+          display: true,
+          text: encontrouTickets ? 'Quantidade' : 'Nota Média',
+          color: '#374151',
+          font: {
+            size: 14,
+            weight: '700',
+            family: "'Inter', sans-serif"
+          }
+        },
         ticks: {
           font: {
-            size: 12,
+            size: 13,
             family: "'Inter', sans-serif",
             weight: '600'
           },
-          color: '#4b5563',
-          padding: 12,
+          color: '#6B7280',
+          padding: 16,
+          stepSize: 0.5,
           callback: function(value) {
-            return value + '%'
+            return value.toFixed(1)
           }
         },
         grid: {
-          color: 'rgba(0, 0, 0, 0.06)',
+          color: 'rgba(107, 114, 128, 0.1)',
           drawBorder: false,
-          lineWidth: 1.5
+          lineWidth: 1,
+          circular: false
         }
-      }
+      },
+      ...(encontrouTickets || (!encontrouTickets && isPhoneData) ? {
+        y1: {
+          beginAtZero: true,
+          min: 0,
+          max: 100,
+          position: 'right',
+          title: {
+            display: true,
+            text: 'Satisfação (%)',
+            color: '#374151',
+            font: {
+              size: 14,
+              weight: '700',
+              family: "'Inter', sans-serif"
+            }
+          },
+          ticks: {
+            font: {
+              size: 13,
+              family: "'Inter', sans-serif",
+              weight: '600'
+            },
+            color: '#6B7280',
+            padding: 16,
+            stepSize: 20,
+            callback: function(value) {
+              return value + '%'
+            }
+          },
+          grid: {
+            color: 'rgba(107, 114, 128, 0.05)',
+            drawBorder: false,
+            lineWidth: 1,
+            circular: false
+          }
+        }
+      } : {})
     }
   }
 
@@ -368,16 +615,18 @@ const processCSATByGrouping = (data, groupBy) => {
     }
   }
 
+
   // Agrupar dados
   const groupedData = {}
   
-  data.forEach(record => {
+  data.forEach((record, index) => {
     // Tentar diferentes nomes de campo de data
     let dateField
     
-    // Se for array (dados OCTA), pegar posição 28 (coluna AC = "Dia")
+    // Se for array (dados de telefonia), usar campo 'data' (índice 3)
     if (Array.isArray(record)) {
-      dateField = record[28] // Coluna "Dia" no OCTA
+      // Para dados de telefonia: índice 3 = data
+      dateField = record[3] // Campo "data" nos dados de telefonia
     } else {
       // Se for objeto (dados de chamadas)
       dateField = record.calldate || record.Data || record.data || record.date
@@ -404,32 +653,156 @@ const processCSATByGrouping = (data, groupBy) => {
         notasSolucao: [],
         bom: 0,
         ruim: 0,
+        bomComComentario: 0,
+        totalAvaliacoes: 0,
         date: date // guardar data para ordenação
       }
     }
     
-    // Para dados OCTA (array)
+    // Para dados de telefonia (array) - buscar nas colunas AB e AC
     if (Array.isArray(record)) {
-      const tipoAvaliacao = record[14] || '' // Posição 14 = "Tipo de avaliação"
       
-      if (tipoAvaliacao === 'Bom' || tipoAvaliacao === 'Ótimo') {
-        groupedData[key].bom++
-        groupedData[key].notasAtendimento.push(5) // Bom = 5
-      } else if (tipoAvaliacao === 'Ruim') {
-        groupedData[key].ruim++
-        groupedData[key].notasAtendimento.push(1) // Ruim = 1
+      // Buscar nas colunas AB e AC especificamente
+      let notaAtendimento = null
+      let notaSolucao = null
+      
+      // Coluna AB (índice 27) - Nota de Atendimento
+      if (record[27] !== undefined && record[27] !== null && record[27] !== '') {
+        notaAtendimento = parseFloat(record[27])
+      }
+      
+      // Coluna AC (índice 28) - Nota de Solução  
+      if (record[28] !== undefined && record[28] !== null && record[28] !== '') {
+        notaSolucao = parseFloat(record[28])
+      }
+      
+      // Processar notas válidas (escala 1-5)
+      if (notaAtendimento && notaAtendimento >= 1 && notaAtendimento <= 5) {
+        groupedData[key].notasAtendimento.push(notaAtendimento)
+      }
+      
+      if (notaSolucao && notaSolucao >= 1 && notaSolucao <= 5) {
+        groupedData[key].notasSolucao.push(notaSolucao)
+      }
+      
+      // Processar dados de tickets - coluna O: "bom", "bom com comentario", "ruim", "ruim com comentario"
+      let tipoAvaliacao = ''
+      
+      // Por índice (coluna O = índice 14) - buscar texto
+      if (record[14] !== undefined && record[14] !== null && record[14] !== '') {
+        tipoAvaliacao = String(record[14]).trim().toLowerCase()
+      }
+      
+      // Processar tipos de avaliação válidos
+      if (tipoAvaliacao && tipoAvaliacao !== '0' && tipoAvaliacao !== '' && tipoAvaliacao !== 'null' && tipoAvaliacao !== 'undefined') {
+        // Contar como uma avaliação
+        groupedData[key].totalAvaliacoes = (groupedData[key].totalAvaliacoes || 0) + 1
+        
+        // Classificar como bom ou ruim
+        if (tipoAvaliacao.includes('bom')) {
+          groupedData[key].bom = (groupedData[key].bom || 0) + 1
+        } else if (tipoAvaliacao.includes('ruim')) {
+          groupedData[key].ruim = (groupedData[key].ruim || 0) + 1
+        }
       }
     } else {
-      // Para dados de chamadas (objeto)
-      const notaAtendimento = record.notaAtendimento || record.rating_attendance
-      const notaSolucao = record.notaSolucao || record.rating_solution
+      // Para dados de chamadas (objeto) - buscar especificamente nas colunas AB e AC
+      const camposDisponiveis = Object.keys(record)
       
-      if (notaAtendimento && parseFloat(notaAtendimento) > 0) {
+      
+      // Buscar nas colunas AB e AC especificamente
+      let notaAtendimento = null
+      let notaSolucao = null
+      
+      // Coluna AB - Nota de Atendimento
+      if (record['Pergunta2 1 PERGUNTA ATENDENTE']) {
+        notaAtendimento = parseFloat(record['Pergunta2 1 PERGUNTA ATENDENTE'])
+      }
+      
+      // Coluna AC - Nota de Solução  
+      if (record['Pergunta2 2 PERGUNTA SOLUCAO']) {
+        notaSolucao = parseFloat(record['Pergunta2 2 PERGUNTA SOLUCAO'])
+      }
+      
+      // Fallback para campos conhecidos se AB/AC não tiverem dados
+      if (!notaAtendimento) {
+        notaAtendimento = record.notaAtendimento || record.rating_attendance
+      }
+      
+      if (!notaSolucao) {
+        notaSolucao = record.notaSolucao || record.rating_solution
+      }
+      
+      // Processar notas válidas (escala 1-5)
+      if (notaAtendimento && parseFloat(notaAtendimento) >= 1 && parseFloat(notaAtendimento) <= 5) {
         groupedData[key].notasAtendimento.push(parseFloat(notaAtendimento))
       }
       
-      if (notaSolucao && parseFloat(notaSolucao) > 0) {
+      if (notaSolucao && parseFloat(notaSolucao) >= 1 && parseFloat(notaSolucao) <= 5) {
         groupedData[key].notasSolucao.push(parseFloat(notaSolucao))
+      }
+      
+      // Processar dados de tickets (bom/ruim) se existirem
+      if (record['Pergunta2 3 PERGUNTA BOM']) {
+        const bomValue = parseFloat(record['Pergunta2 3 PERGUNTA BOM'])
+        if (!isNaN(bomValue)) {
+          groupedData[key].bom += bomValue
+        }
+      }
+      
+      if (record['Pergunta2 4 PERGUNTA RUIM']) {
+        const ruimValue = parseFloat(record['Pergunta2 4 PERGUNTA RUIM'])
+        if (!isNaN(ruimValue)) {
+          groupedData[key].ruim += ruimValue
+        }
+      }
+      
+      // Processar dados de tickets - coluna O: "bom", "bom com comentario", "ruim", "ruim com comentario"
+      let tipoAvaliacaoObj = ''
+      
+      // Por nome da coluna - buscar texto de avaliação
+      if (record['Tipo de avaliação'] && record['Tipo de avaliação'] !== '' && record['Tipo de avaliação'] !== 0) {
+        tipoAvaliacaoObj = String(record['Tipo de avaliação']).trim().toLowerCase()
+      }
+      
+      // Processar tipos de avaliação válidos para objetos
+      if (tipoAvaliacaoObj && tipoAvaliacaoObj !== '0' && tipoAvaliacaoObj !== '' && tipoAvaliacaoObj !== 'null' && tipoAvaliacaoObj !== 'undefined') {
+        groupedData[key].totalAvaliacoes = (groupedData[key].totalAvaliacoes || 0) + 1
+        
+        if (tipoAvaliacaoObj.includes('bom')) {
+          groupedData[key].bom = (groupedData[key].bom || 0) + 1
+        } else if (tipoAvaliacaoObj.includes('ruim')) {
+          groupedData[key].ruim = (groupedData[key].ruim || 0) + 1
+        }
+      }
+      
+      // Fallback para campos conhecidos se não tiver dados nas colunas específicas
+      if (!groupedData[key].bom && record.bom) {
+        const bomValue = parseFloat(record.bom)
+        if (!isNaN(bomValue)) {
+          groupedData[key].bom += bomValue
+        }
+      }
+      
+      if (!groupedData[key].ruim && record.ruim) {
+        const ruimValue = parseFloat(record.ruim)
+        if (!isNaN(ruimValue)) {
+          groupedData[key].ruim += ruimValue
+        }
+      }
+      
+      if (!groupedData[key].bomComComentario && record.bomComComentario) {
+        const bomComComentarioValue = parseFloat(record.bomComComentario)
+        if (!isNaN(bomComComentarioValue)) {
+          groupedData[key].bomComComentario = (groupedData[key].bomComComentario || 0) + bomComComentarioValue
+        }
+      }
+      
+      if (!groupedData[key].totalAvaliacoes && record.totalAvaliacoes) {
+        const totalAvaliacoesValue = parseFloat(record.totalAvaliacoes)
+        if (!isNaN(totalAvaliacoesValue)) {
+          groupedData[key].totalAvaliacoes = (groupedData[key].totalAvaliacoes || 0) + totalAvaliacoesValue
+        }
       }
     }
   })
@@ -450,8 +823,15 @@ const processCSATByGrouping = (data, groupBy) => {
   })
   const bom = sortedKeys.map(k => groupedData[k].bom)
   const ruim = sortedKeys.map(k => groupedData[k].ruim)
+  const bomComComentario = sortedKeys.map(k => groupedData[k].bomComComentario || 0)
+  const totalAvaliacoes = sortedKeys.map(k => groupedData[k].totalAvaliacoes || 0)
 
-  return { labels, notaAtendimento, notaSolucao, bom, ruim }
+  // Debug: mostrar resumo das notas encontradas
+  const totalNotasAtendimento = notaAtendimento.reduce((sum, media) => sum + (isNaN(media) ? 0 : 1), 0)
+  const totalNotasSolucao = notaSolucao.reduce((sum, media) => sum + (isNaN(media) ? 0 : 1), 0)
+  
+
+  return { labels, notaAtendimento, notaSolucao, bom, ruim, bomComComentario, totalAvaliacoes }
 }
 
 // Parsear data brasileira (DD/MM/YYYY)

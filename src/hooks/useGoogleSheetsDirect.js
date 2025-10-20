@@ -32,7 +32,6 @@ export const useGoogleSheetsDirect = () => {
       try {
         const parsed = JSON.parse(savedDarkList)
         setDarkList(parsed)
-        console.log('📋 Dark List carregada:', parsed.length, 'operadores excluídos')
       } catch (error) {
         console.error('❌ Erro ao carregar Dark List:', error)
         setDarkList([])
@@ -42,7 +41,6 @@ export const useGoogleSheetsDirect = () => {
       const initialDarkList = ['Evelin Medrado']
       setDarkList(initialDarkList)
       localStorage.setItem('veloinsights_darklist', JSON.stringify(initialDarkList))
-      console.log('📋 Dark List inicial criada com Evelin Medrado')
     }
   }, [])
 
@@ -51,7 +49,6 @@ export const useGoogleSheetsDirect = () => {
     if (!CLIENT_ID || CLIENT_ID === 'seu_client_id_aqui') {
       setErrors(prev => [...prev, '❌ Configure o Client ID do Google no arquivo .env!'])
     } else {
-      console.log('✅ Client ID configurado:', CLIENT_ID)
     }
   }, [CLIENT_ID])
 
@@ -86,7 +83,6 @@ export const useGoogleSheetsDirect = () => {
     const storedAuthError = localStorage.getItem('google_auth_error')
     
     if (storedAuthCode) {
-      console.log('🔄 Código de autorização encontrado no localStorage')
       exchangeCodeForTokens(storedAuthCode)
       localStorage.removeItem('google_auth_code')
     }
@@ -106,7 +102,6 @@ export const useGoogleSheetsDirect = () => {
       const redirectUri = `${window.location.origin}/callback.html`
       const clientSecret = import.meta.env.VITE_GOOGLE_CLIENT_SECRET
       
-      console.log('🔑 Client Secret configurado:', clientSecret ? 'SIM' : 'NÃO')
       
       if (!clientSecret || clientSecret === 'seu_client_secret_aqui') {
         throw new Error('Client Secret não configurado no arquivo .env')
@@ -155,7 +150,6 @@ export const useGoogleSheetsDirect = () => {
     setRankings([])
     setOperators([])
     setErrors([])
-    console.log('🔄 Limpando dados antigos para novo login...')
   }, [])
 
   // Buscar dados do usuário
@@ -194,7 +188,6 @@ export const useGoogleSheetsDirect = () => {
         // Buscar dados da planilha
         await fetchSheetData(accessToken)
         
-        console.log('✅ Login realizado com sucesso:', user.name)
         
       } else {
         // Domínio não permitido
@@ -233,7 +226,6 @@ export const useGoogleSheetsDirect = () => {
         `access_type=offline&` +
         `prompt=consent`
 
-      console.log('🚀 Redirecionando para Google OAuth...')
       
       // Redirecionar para Google
       window.location.href = authUrl
@@ -258,7 +250,6 @@ export const useGoogleSheetsDirect = () => {
     setOperators([])
     setErrors([])
     
-    console.log('✅ Logout realizado')
   }, [])
 
   // Função para buscar dados da planilha
@@ -272,7 +263,6 @@ export const useGoogleSheetsDirect = () => {
       })
       
       if (!tokenResponse.ok) {
-        console.log('🔄 Token expirado, fazendo novo login...')
         // Token expirado, limpar dados e pedir novo login
         localStorage.removeItem('veloinsights_user')
         setUserData(null)
@@ -289,7 +279,6 @@ export const useGoogleSheetsDirect = () => {
       
       // Escolher range baseado no período
       const range = period === 'recent' ? SHEET_RANGE_INITIAL : SHEET_RANGE_FULL
-      console.log(`📊 Buscando dados com range: ${range} (período: ${period})`)
       
       const response = await fetch(
         `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${range}`,
@@ -309,7 +298,6 @@ export const useGoogleSheetsDirect = () => {
 
       const result = await response.json()
       
-      console.log('📊 Dados recebidos da planilha:', result.values ? result.values.length : 0, 'linhas')
       
       if (!result.values || result.values.length === 0) {
         throw new Error('Planilha vazia ou sem dados')
@@ -317,29 +305,24 @@ export const useGoogleSheetsDirect = () => {
 
       // Processar dados
       const processedData = processSheetData(result.values)
-      console.log('🔄 Dados processados:', processedData.length, 'registros')
       setData(processedData)
       
       // Calcular métricas
       const calculatedMetrics = calculateMetrics(processedData)
-      console.log('📈 Métricas calculadas:', calculatedMetrics)
       setMetrics(calculatedMetrics)
       
       // Calcular métricas por operador
       const calculatedOperatorMetrics = calculateOperatorMetrics(processedData)
-      console.log('👥 Métricas por operador:', Object.keys(calculatedOperatorMetrics).length, 'operadores')
       setOperatorMetrics(calculatedOperatorMetrics)
       
       // Calcular rankings
       const calculatedRankings = calculateRankings(calculatedOperatorMetrics)
-      console.log('🏆 Rankings calculados:', calculatedRankings.length, 'posições')
       setRankings(calculatedRankings)
       
       // Extrair lista de operadores
       const operatorList = Object.keys(calculatedOperatorMetrics)
       setOperators(operatorList)
       
-      console.log('✅ Dados carregados com sucesso!')
       setIsLoading(false)
       
     } catch (error) {
@@ -356,13 +339,6 @@ export const useGoogleSheetsDirect = () => {
     const headers = values[0]
     const rows = values.slice(1)
     
-    console.log('📋 Cabeçalhos encontrados:', headers)
-    console.log('📊 Primeira linha de dados:', rows[0])
-    console.log('🔍 Procurando campos obrigatórios...')
-    console.log('📅 Campo "Data" existe?', headers.includes('Data'))
-    console.log('👤 Campo "Operador" existe?', headers.includes('Operador'))
-    console.log('📞 Campo "Chamada" existe?', headers.includes('Chamada'))
-    console.log('⏱️ Campo "Tempo Total" existe?', headers.includes('Tempo Total'))
 
     const processedRows = rows.map(row => {
       const processedRow = {}
@@ -372,7 +348,6 @@ export const useGoogleSheetsDirect = () => {
       return processedRow
     })
     
-    console.log('🔄 Total de linhas processadas:', processedRows.length)
     
     // Aplicar filtro básico - apenas linhas com dados válidos (ignorar linhas vazias)
     const filteredRows = processedRows.filter(row => {
@@ -385,54 +360,46 @@ export const useGoogleSheetsDirect = () => {
       return hasAnyData
     })
     
-    console.log('🔄 Linhas após processamento:', filteredRows.length)
     
     // Mostrar algumas linhas de exemplo
     if (filteredRows.length > 0) {
-      console.log('📊 Exemplo de linha processada:', filteredRows[0])
-      console.log('📊 Campos disponíveis:', Object.keys(filteredRows[0]))
       
       // Verificar se os campos que precisamos existem
       const sampleRow = filteredRows[0]
-      console.log('🔍 Verificação de campos:')
-      console.log('  - Chamada:', sampleRow['Chamada'])
-      console.log('  - Tempo Falado:', sampleRow['Tempo Falado'])
-      console.log('  - Tempo De Espera:', sampleRow['Tempo De Espera'])
-      console.log('  - Pergunta2 1 PERGUNTA ATENDENTE:', sampleRow['Pergunta2 1 PERGUNTA ATENDENTE'])
-      console.log('  - Pergunta2 2 PERGUNTA SOLUCAO:', sampleRow['Pergunta2 2 PERGUNTA SOLUCAO'])
+      
+      // Verificar colunas AB e AC especificamente
+      const allKeys = Object.keys(sampleRow)
+      
+      // Procurar por campos que contenham "nota" ou "avaliação"
+      const notaFields = allKeys.filter(key => 
+        key.toLowerCase().includes('nota') || 
+        key.toLowerCase().includes('avaliação') ||
+        key.toLowerCase().includes('rating')
+      )
     }
     
-    console.log('✅ Linhas válidas após filtro:', filteredRows.length)
     
     return filteredRows
   }
 
   // Calcular métricas gerais
   const calculateMetrics = (data) => {
-    console.log('🧮 Calculando métricas para', data.length, 'registros')
     
     if (!data || data.length === 0) {
-      console.log('⚠️ Nenhum dado para calcular métricas')
       return {}
     }
 
     // Verificar se as colunas AB e AC existem
     const totalColumns = Object.keys(data[0]).length
-    console.log('📊 Total de colunas carregadas:', totalColumns)
     
     if (totalColumns < 29) {
-      console.log('⚠️ ATENÇÃO: Colunas AB e AC não foram carregadas!')
-      console.log('📋 Colunas disponíveis:', Object.keys(data[0]))
     } else {
-      console.log('✅ Colunas AB e AC carregadas com sucesso!')
     }
 
     // Total de Chamadas: Contar registros na coluna A (Chamada)
     const totalCalls = data.length
-    console.log('📞 Total de chamadas (registros):', totalCalls)
     
     // Debug detalhado dos status das chamadas
-    console.log('🔍 ANÁLISE DETALHADA DOS STATUS:')
     
     // Analisar algumas linhas para entender os padrões
     const sampleData = data.slice(0, 10)
@@ -441,12 +408,7 @@ export const useGoogleSheetsDirect = () => {
       const tempoFalado = row['Tempo Falado'] || '00:00:00'
       const tempoEspera = row['Tempo De Espera'] || '00:00:00'
       
-      console.log(`📊 Linha ${index + 1}:`, {
-        chamada: chamada,
-        tempoFalado: tempoFalado,
-        tempoEspera: tempoEspera,
-        classificacao: 'A definir'
-      })
+      // Log removido para evitar loop infinito
     })
     
     // Contar por tipo de status na coluna Chamada
@@ -456,9 +418,7 @@ export const useGoogleSheetsDirect = () => {
       statusCounts[status] = (statusCounts[status] || 0) + 1
     })
     
-    console.log('📈 Contagem por status na coluna Chamada:')
     Object.entries(statusCounts).forEach(([status, count]) => {
-      console.log(`  - "${status}": ${count} chamadas`)
     })
     
     // Retida na URA: chamadas com "Retida na URA" na coluna Chamada
@@ -466,7 +426,6 @@ export const useGoogleSheetsDirect = () => {
       const chamada = row['Chamada'] || ''
       return chamada.toLowerCase().includes('retida') || chamada.toLowerCase().includes('ura')
     }).length
-    console.log('🔄 Total Retida na URA:', retidaURA)
     
     // Atendida: chamadas com tempo falado > 0 ou status de atendida
     const atendida = data.filter(row => {
@@ -479,7 +438,6 @@ export const useGoogleSheetsDirect = () => {
       
       return tempoTotalMinutos > 0 || chamada.toLowerCase().includes('atendida')
     }).length
-    console.log('✅ Total Atendida:', atendida)
     
     // Abandonada: chamadas que não foram atendidas mas têm tempo de espera
     const abandonada = data.filter(row => {
@@ -496,17 +454,9 @@ export const useGoogleSheetsDirect = () => {
       
       return tempoEsperaMinutos > 0 && tempoFaladoMinutos === 0 && !chamada.toLowerCase().includes('retida')
     }).length
-    console.log('❌ Total Abandonada:', abandonada)
     
     // Verificar se a soma bate
     const somaStatus = retidaURA + atendida + abandonada
-    console.log('🧮 Verificação da soma:')
-    console.log(`  - Retida URA: ${retidaURA}`)
-    console.log(`  - Atendida: ${atendida}`)
-    console.log(`  - Abandonada: ${abandonada}`)
-    console.log(`  - Soma: ${somaStatus}`)
-    console.log(`  - Total de chamadas: ${totalCalls}`)
-    console.log(`  - Diferença: ${totalCalls - somaStatus}`)
     
     // Função auxiliar para converter tempo HH:MM:SS para minutos
     const tempoParaMinutos = (tempo) => {
@@ -520,29 +470,24 @@ export const useGoogleSheetsDirect = () => {
     const duracaoMediaAtendimento = temposFalado.length > 0 
       ? temposFalado.reduce((sum, tempo) => sum + tempo, 0) / temposFalado.length
       : 0
-    console.log('⏱️ Duração Média de Atendimento:', duracaoMediaAtendimento.toFixed(1), 'minutos')
     
     // Tempo Médio de Espera (Tempo De Espera - Coluna M)
     const temposEspera = data.map(row => tempoParaMinutos(row['Tempo De Espera'])).filter(tempo => tempo > 0)
     const tempoMedioEspera = temposEspera.length > 0 
       ? temposEspera.reduce((sum, tempo) => sum + tempo, 0) / temposEspera.length
       : 0
-    console.log('⏳ Tempo Médio de Espera:', tempoMedioEspera.toFixed(1), 'minutos')
     
     // Tempo Médio na URA (Tempo Na Ura - Coluna L)
     const temposURA = data.map(row => tempoParaMinutos(row['Tempo Na Ura'])).filter(tempo => tempo > 0)
     const tempoMedioURA = temposURA.length > 0 
       ? temposURA.reduce((sum, tempo) => sum + tempo, 0) / temposURA.length
       : 0
-    console.log('🔄 Tempo Médio na URA:', tempoMedioURA.toFixed(1), 'minutos')
     
     // Taxa de Atendimento (% de chamadas atendidas)
     const taxaAtendimento = totalCalls > 0 ? (atendida / totalCalls) * 100 : 0
-    console.log('✅ Taxa de Atendimento:', taxaAtendimento.toFixed(1), '%')
     
     // Taxa de Abandono (% de chamadas abandonadas)
     const taxaAbandono = totalCalls > 0 ? (abandonada / totalCalls) * 100 : 0
-    console.log('❌ Taxa de Abandono:', taxaAbandono.toFixed(1), '%')
     
     // Nota Média de Atendimento: Usar nome do campo correto
     const ratingsAttendance = data.filter(row => {

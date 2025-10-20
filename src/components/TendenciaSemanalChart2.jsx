@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, memo } from 'react'
 import { Line } from 'react-chartjs-2'
 import {
   Chart as ChartJS,
@@ -11,6 +11,8 @@ import {
   Legend,
   Filler
 } from 'chart.js'
+import ChartDataLabels from 'chartjs-plugin-datalabels'
+import { showWarningWithLimit } from '../utils/warningManager'
 
 ChartJS.register(
   CategoryScale,
@@ -20,16 +22,60 @@ ChartJS.register(
   Title,
   Tooltip,
   Legend,
-  Filler
+  Filler,
+  ChartDataLabels
 )
+
+// Função para calcular métricas dos cards
+const calculateMetrics = (processedData) => {
+  const total = processedData.total.reduce((sum, val) => sum + val, 0)
+  const atendidas = processedData.atendidas.reduce((sum, val) => sum + val, 0)
+  const abandonadas = processedData.abandonadas.reduce((sum, val) => sum + val, 0)
+  const avaliados = processedData.avaliados ? processedData.avaliados.reduce((sum, val) => sum + val, 0) : 0
+  const bom = processedData.bom ? processedData.bom.reduce((sum, val) => sum + val, 0) : 0
+  const ruim = processedData.ruim ? processedData.ruim.reduce((sum, val) => sum + val, 0) : 0
+  
+  const taxaAtendimento = total > 0 ? ((atendidas / total) * 100).toFixed(1) : '0.0'
+  const taxaAbandono = total > 0 ? ((abandonadas / total) * 100).toFixed(1) : '0.0'
+  
+  // Calcular nota média
+  let notaMedia = '0.0'
+  if (processedData.notaMedia && processedData.notaMedia.length > 0) {
+    const somaNotas = processedData.notaMedia.reduce((sum, val) => sum + val, 0)
+    const totalNotas = processedData.notaMedia.filter(val => val > 0).length
+    notaMedia = totalNotas > 0 ? (somaNotas / totalNotas).toFixed(1) : '0.0'
+  }
+  
+  // Calcular performance geral para tickets
+  let performanceGeral = '0.0'
+  if (processedData.bom && processedData.ruim) {
+    const totalBom = bom
+    const totalRuim = ruim
+    const totalAvaliacoes = totalBom + totalRuim
+    performanceGeral = totalAvaliacoes > 0 ? ((totalBom / totalAvaliacoes) * 100).toFixed(1) : '0.0'
+  }
+  
+  return {
+    total,
+    atendidas,
+    abandonadas,
+    avaliados,
+    bom,
+    ruim,
+    taxaAtendimento,
+    taxaAbandono,
+    notaMedia,
+    performanceGeral
+  }
+}
 
 const TendenciaSemanalChart = ({ data = [], periodo = null }) => {
   const chartData = useMemo(() => {
-    console.log('📊 TendenciaSemanalChart - Total de registros:', data?.length)
-    console.log('📊 TendenciaSemanalChart - Primeiro registro:', data?.[0])
-    console.log('📊 TendenciaSemanalChart - Período:', periodo)
     
     const processedData = processDataByPeriod(data, periodo)
+    
+    // Calcular métricas para os cards
+    const metrics = calculateMetrics(processedData)
     
     // Paleta de cores
     const azul = 'rgba(58, 91, 255, 1)'
@@ -42,6 +88,22 @@ const TendenciaSemanalChart = ({ data = [], periodo = null }) => {
     // Verificar se é dados de tickets (tem campo avaliados)
     const isTicketData = processedData.avaliados && processedData.avaliados.some(v => v > 0)
     
+    // Calcular porcentagem de performance geral para tickets
+    let performancePercent = []
+    if (isTicketData && processedData.bom && processedData.ruim) {
+      processedData.labels.forEach((_, index) => {
+        const bomCount = processedData.bom[index] || 0
+        const ruimCount = processedData.ruim[index] || 0
+        const total = bomCount + ruimCount
+        
+        if (total > 0) {
+          performancePercent.push(((bomCount / total) * 100).toFixed(1))
+        } else {
+          performancePercent.push(0)
+        }
+      })
+    }
+    
     const datasets = isTicketData ? [
       {
         label: 'Total de Tickets',
@@ -50,9 +112,14 @@ const TendenciaSemanalChart = ({ data = [], periodo = null }) => {
         backgroundColor: azulFill,
         fill: true,
         tension: 0.4,
-        pointRadius: 5,
-        pointHoverRadius: 7,
-        pointBackgroundColor: azul
+        pointRadius: 8,
+        pointHoverRadius: 12,
+        pointBackgroundColor: azul,
+        pointBorderColor: '#ffffff',
+        pointBorderWidth: 3,
+        pointHoverBorderWidth: 4,
+        pointHoverBackgroundColor: '#1d4ed8',
+        yAxisID: 'y'
       },
       {
         label: 'Tickets Avaliados',
@@ -63,29 +130,24 @@ const TendenciaSemanalChart = ({ data = [], periodo = null }) => {
         tension: 0.4,
         pointRadius: 5,
         pointHoverRadius: 7,
-        pointBackgroundColor: amarelo
+        pointBackgroundColor: amarelo,
+        yAxisID: 'y'
       },
       {
-        label: 'Bom',
-        data: processedData.bom,
-        borderColor: verde,
-        backgroundColor: verdeFill,
-        fill: true,
+        label: 'Performance Geral (%)',
+        data: performancePercent,
+        borderColor: '#8B5CF6',
+        backgroundColor: 'rgba(139, 92, 246, 0.10)',
+        fill: false,
         tension: 0.4,
-        pointRadius: 5,
-        pointHoverRadius: 7,
-        pointBackgroundColor: verde
-      },
-      {
-        label: 'Ruim',
-        data: processedData.ruim,
-        borderColor: vermelho,
-        backgroundColor: 'rgba(231, 88, 88, 0.10)',
-        fill: true,
-        tension: 0.4,
-        pointRadius: 5,
-        pointHoverRadius: 7,
-        pointBackgroundColor: vermelho
+        pointRadius: 6,
+        pointHoverRadius: 10,
+        pointBackgroundColor: '#8B5CF6',
+        pointBorderColor: '#ffffff',
+        pointBorderWidth: 2,
+        pointHoverBorderWidth: 3,
+        pointHoverBackgroundColor: '#7C3AED',
+        yAxisID: 'y1'
       }
     ] : [
       {
@@ -96,10 +158,13 @@ const TendenciaSemanalChart = ({ data = [], periodo = null }) => {
         borderWidth: 3,
         tension: 0.35,
         fill: true,
-        pointRadius: 4,
-        pointHoverRadius: 5,
-        pointBackgroundColor: '#fff',
-        pointBorderColor: azul,
+        pointRadius: 8,
+        pointHoverRadius: 12,
+        pointBackgroundColor: azul,
+        pointBorderColor: '#ffffff',
+        pointBorderWidth: 3,
+        pointHoverBorderWidth: 4,
+        pointHoverBackgroundColor: '#1d4ed8',
         yAxisID: 'y',
       },
       {
@@ -110,7 +175,13 @@ const TendenciaSemanalChart = ({ data = [], periodo = null }) => {
         borderWidth: 3,
         tension: 0.35,
         fill: true,
-        pointRadius: 0,
+        pointRadius: 6,
+        pointHoverRadius: 10,
+        pointBackgroundColor: verde,
+        pointBorderColor: '#ffffff',
+        pointBorderWidth: 2,
+        pointHoverBorderWidth: 3,
+        pointHoverBackgroundColor: '#059669',
         yAxisID: 'y',
       },
       {
@@ -121,32 +192,43 @@ const TendenciaSemanalChart = ({ data = [], periodo = null }) => {
         borderWidth: 3,
         tension: 0.35,
         fill: false,
-        pointRadius: 0,
+        pointRadius: 6,
+        pointHoverRadius: 10,
+        pointBackgroundColor: vermelho,
+        pointBorderColor: '#ffffff',
+        pointBorderWidth: 2,
+        pointHoverBorderWidth: 3,
+        pointHoverBackgroundColor: '#dc2626',
         yAxisID: 'y',
       },
-      {
-        label: 'Nota Média',
-        data: processedData.notaMedia,
-        borderColor: amarelo,
-        backgroundColor: 'rgba(0,0,0,0)',
-        borderWidth: 3,
-        borderDash: [6, 6],
-        tension: 0.25,
-        pointRadius: 0,
-        yAxisID: 'y1',
-      }
     ]
 
     return {
       labels: processedData.labels,
-      datasets
+      datasets,
+      metrics: metrics,
+      isTicketData: isTicketData
     }
   }, [data, periodo])
+
+  // Verificar se é dados de tickets para usar nas opções
+  const isTicketData = chartData.isTicketData
 
   const options = {
     responsive: true,
     maintainAspectRatio: false,
-    interaction: { mode: 'index', intersect: false },
+    interaction: { 
+      mode: 'index', 
+      intersect: false,
+      axis: 'x'
+    },
+    animation: {
+      duration: 0 // Desabilitar animação para melhor performance
+    },
+    onHover: (event, activeElements) => {
+      // Mudar cursor para pointer quando hover
+      event.native.target.style.cursor = activeElements.length > 0 ? 'pointer' : 'default'
+    },
     plugins: {
       legend: {
         position: 'top',
@@ -160,43 +242,181 @@ const TendenciaSemanalChart = ({ data = [], periodo = null }) => {
         }
       },
       tooltip: {
-        backgroundColor: '#1f2937',
-        borderColor: '#0f172a',
-        borderWidth: 1,
-        padding: 10,
-        titleFont: { weight: '700' },
-        bodyFont: { weight: '500' },
+        backgroundColor: 'rgba(17, 24, 39, 0.98)',
+        borderColor: '#3B82F6',
+        borderWidth: 3,
+        padding: 20,
+        cornerRadius: 16,
+        titleColor: '#ffffff',
+        bodyColor: '#ffffff',
+        titleFont: { 
+          weight: '800',
+          size: 16,
+          family: "'Inter', sans-serif"
+        },
+        bodyFont: { 
+          weight: '700',
+          size: 15,
+          family: "'Inter', sans-serif"
+        },
+        displayColors: true,
+        boxWidth: 16,
+        boxHeight: 16,
+        caretSize: 8,
+        caretPadding: 8,
         callbacks: {
-          label: (ctx) => {
-            const ds = ctx.dataset.label || ''
-            const val = ctx.parsed.y
-            if (ctx.dataset.yAxisID === 'y1') return `${ds}: ${val.toFixed(2)}`
-            return `${ds}: ${val.toLocaleString('pt-BR')}`
+          title: function(context) {
+            const dataIndex = context[0].dataIndex
+            const labels = context[0].chart.data.labels
+            return `📊 ${labels[dataIndex]}`
+          },
+          label: function(context) {
+            const dataset = context.dataset
+            const value = context.parsed.y
+            const label = dataset.label
+            
+            // Formatação especial para cada tipo de métrica
+            if (label === 'Total de Chamadas' || label === 'Total de Tickets') {
+              return `🔵 ${label}: ${value.toLocaleString('pt-BR')}`
+            } else if (label === 'Chamadas Atendidas' || label === 'Tickets Avaliados') {
+              return `🟢 ${label}: ${value.toLocaleString('pt-BR')}`
+            } else if (label === 'Chamadas Abandonadas') {
+              return `🔴 ${label}: ${value.toLocaleString('pt-BR')}`
+            } else if (label === 'Performance Geral (%)') {
+              return `📊 ${label}: ${value}%`
+            } else if (dataset.yAxisID === 'y1') {
+              return `⭐ ${label}: ${value.toFixed(2)}`
+            }
+            
+            return `${label}: ${value.toLocaleString('pt-BR')}`
+          },
+          afterBody: function(context) {
+            const dataIndex = context[0].dataIndex
+            const datasets = context[0].chart.data.datasets
+            
+            // Calcular percentuais se for dados de chamadas
+            const totalDataset = datasets.find(d => d.label === 'Total de Chamadas' || d.label === 'Total de Tickets')
+            const atendidasDataset = datasets.find(d => d.label === 'Chamadas Atendidas' || d.label === 'Tickets Avaliados')
+            const abandonadasDataset = datasets.find(d => d.label === 'Chamadas Abandonadas')
+            
+            if (totalDataset && atendidasDataset && abandonadasDataset) {
+              const total = totalDataset.data[dataIndex] || 0
+              const atendidas = atendidasDataset.data[dataIndex] || 0
+              const abandonadas = abandonadasDataset.data[dataIndex] || 0
+              
+              if (total > 0) {
+                const taxaAtendimento = ((atendidas / total) * 100).toFixed(1)
+                const taxaAbandono = ((abandonadas / total) * 100).toFixed(1)
+                
+                return [
+                  '',
+                  `📈 Taxa de Atendimento: ${taxaAtendimento}%`,
+                  `📉 Taxa de Abandono: ${taxaAbandono}%`
+                ]
+              }
+            }
+            
+            return []
           }
         }
+      },
+      datalabels: {
+        display: function(context) {
+          // Mostrar apenas nos pontos de Total de Chamadas/Tickets
+          return context.dataset.label === 'Total de Chamadas' || context.dataset.label === 'Total de Tickets'
+        },
+        color: '#1f2937',
+        font: {
+          size: 11,
+          weight: '600',
+          family: "'Inter', sans-serif"
+        },
+        backgroundColor: 'rgba(255, 255, 255, 0.85)',
+        borderColor: '#e5e7eb',
+        borderWidth: 1,
+        borderRadius: 4,
+        padding: 4,
+        formatter: function(value, context) {
+          if (value > 0) {
+            // Formatar números grandes de forma mais compacta
+            if (value >= 1000) {
+              return (value / 1000).toFixed(1) + 'k'
+            }
+            return value.toLocaleString('pt-BR')
+          }
+          return ''
+        },
+        anchor: 'end',
+        align: 'top',
+        offset: 6,
+        rotation: 0
       }
     },
     scales: {
       x: {
         grid: { color: '#eef2fb' },
-        ticks: { color: '#6576aa', font: { size: 11 } }
+        ticks: { 
+          color: '#6B7280', 
+          font: { 
+            size: 13,
+            weight: '600',
+            family: "'Inter', sans-serif"
+          } 
+        }
       },
       y: {
-        title: { display: true, text: 'Volume de Chamadas' },
+        title: { 
+          display: true, 
+          text: 'Volume de Chamadas',
+          color: '#374151',
+          font: {
+            size: 14,
+            weight: '700',
+            family: "'Inter', sans-serif"
+          }
+        },
         min: 0,
         grid: { color: '#e9eef7' },
         ticks: {
-          color: '#6576aa',
+          color: '#6B7280',
+          font: {
+            size: 12,
+            weight: '600',
+            family: "'Inter', sans-serif"
+          },
           callback: (v) => Number(v).toLocaleString('pt-BR')
         }
       },
       y1: {
         position: 'right',
-        title: { display: true, text: 'Nota Média' },
-        min: 0,
-        max: 5,
+        title: { 
+          display: true, 
+          text: isTicketData ? 'Performance (%)' : 'Nota Média (1-5)',
+          color: '#374151',
+          font: {
+            size: 14,
+            weight: '700',
+            family: "'Inter', sans-serif"
+          }
+        },
+        min: isTicketData ? 0 : 1,
+        max: isTicketData ? 100 : 5,
         grid: { drawOnChartArea: false },
-        ticks: { color: '#6576aa' }
+        ticks: { 
+          color: '#6B7280',
+          font: {
+            size: 12,
+            weight: '600',
+            family: "'Inter', sans-serif"
+          },
+          stepSize: isTicketData ? 20 : 1,
+          callback: function(value) {
+            if (isTicketData) {
+              return value + '%'
+            }
+            return value.toFixed(1)
+          }
+        }
       }
     }
   }
@@ -223,10 +443,8 @@ const processDataByPeriod = (data, periodo) => {
 
 // Função auxiliar para processar dados com agrupamento específico
 const processDataByGrouping = (data, groupBy) => {
-  console.log('🔍 processDataByGrouping - Recebeu:', data?.length, 'registros')
   
   if (!data || data.length === 0) {
-    console.log('⚠️ Nenhum dado para processar!')
     return {
       labels: ['Sem 1', 'Sem 2', 'Sem 3', 'Sem 4'],
       total: [0, 0, 0, 0],
@@ -242,19 +460,9 @@ const processDataByGrouping = (data, groupBy) => {
   // Agrupar dados
   const groupedData = {}
   let processedCount = 0
-  let skippedCount = 0
   
   data.forEach((record, index) => {
     if (index < 3) {
-      console.log(`📝 Registro ${index}:`, {
-        calldate: record.calldate,
-        Data: record.Data,
-        data: record.data,
-        date: record.date,
-        'Data de entrada': record['Data de entrada'],
-        dataEntrada: record.dataEntrada,
-        Dia: record.Dia
-      })
     }
     // Tentar diferentes nomes de campo de data (chamadas e tickets)
     let dateField
@@ -278,13 +486,31 @@ const processDataByGrouping = (data, groupBy) => {
     }
     
     if (!dateField) {
-      skippedCount++
+      showWarningWithLimit(
+        'tendencia-semanal-data-vazio',
+        `⚠️ TendenciaSemanalChart2 - Linha ${index} ignorada: campo de data vazio`,
+        {
+          record: record,
+          dateField: dateField,
+          camposDisponiveis: Object.keys(record).slice(0, 10)
+        },
+        3
+      )
       return
     }
     
     const date = parseBrazilianDate(dateField)
     if (!date || isNaN(date.getTime())) {
-      skippedCount++
+      showWarningWithLimit(
+        'tendencia-semanal-data-invalida',
+        `⚠️ TendenciaSemanalChart2 - Linha ${index} ignorada: data inválida`,
+        {
+          dateField: dateField,
+          parsedDate: date,
+          record: record
+        },
+        3
+      )
       return
     }
     
@@ -330,27 +556,48 @@ const processDataByGrouping = (data, groupBy) => {
     // Para tickets (considerar avaliados como "atendidos")
     if (tipoAvaliacao && tipoAvaliacao !== 'VAZIO' && tipoAvaliacao !== '') {
       groupedData[key].avaliados++
-      
-      if (tipoAvaliacao === 'Bom' || tipoAvaliacao === 'Ótimo') {
-        groupedData[key].bom++
-      } else if (tipoAvaliacao === 'Ruim') {
-        groupedData[key].ruim++
+    }
+    
+    // Notas: chamadas ou tickets - considerar todas as notas de 1 a 5
+    let nota = record.notaAtendimento || record.rating_attendance || 0
+    
+    // Se não há nota direta, mapear tipo de avaliação para nota
+    if (!nota && tipoAvaliacao) {
+      switch (tipoAvaliacao.toLowerCase()) {
+        case 'ruim':
+        case 'péssimo':
+          nota = 1
+          break
+        case 'regular':
+          nota = 2
+          break
+        case 'bom':
+          nota = 3
+          break
+        case 'muito bom':
+          nota = 4
+          break
+        case 'ótimo':
+        case 'excelente':
+          nota = 5
+          break
+        default:
+          nota = 0
       }
     }
     
-    // Notas: chamadas ou tickets
-    const nota = record.notaAtendimento || record.rating_attendance || 
-                 (tipoAvaliacao === 'Bom' ? 5 : tipoAvaliacao === 'Ruim' ? 1 : 0)
-    if (nota && parseFloat(nota) > 0) {
-      groupedData[key].notas.push(parseFloat(nota))
+    // Aceitar notas de 1 a 5 e categorizar
+    if (nota && parseFloat(nota) >= 1 && parseFloat(nota) <= 5) {
+      const notaNum = parseFloat(nota)
+      groupedData[key].notas.push(notaNum)
+      
+      // Categorizar baseado na nota: 1-2 = Ruim, 3-5 = Bom
+      if (notaNum >= 1 && notaNum <= 2) {
+        groupedData[key].ruim++
+      } else if (notaNum >= 3 && notaNum <= 5) {
+        groupedData[key].bom++
+      }
     }
-  })
-  
-  console.log('✅ Processamento concluído:', {
-    total: data.length,
-    processados: processedCount,
-    ignorados: skippedCount,
-    grupos: Object.keys(groupedData).length
   })
 
   // Converter para arrays ordenados
@@ -446,4 +693,4 @@ const formatLabel = (key, groupBy) => {
   }
 }
 
-export default TendenciaSemanalChart
+export default memo(TendenciaSemanalChart)

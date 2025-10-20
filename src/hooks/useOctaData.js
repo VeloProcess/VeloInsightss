@@ -87,26 +87,18 @@ export const useOctaData = (filters = {}) => {
   // Função para buscar dados da planilha OCTA (mesma lógica da seção de tickets)
   const fetchSheetData = useCallback(async (accessToken) => {
     try {
-      console.log('🔄 Buscando dados OCTA da planilha...')
       
       // Usar o accessToken passado como parâmetro
       if (!accessToken) {
-        console.log('❌ accessToken não disponível:', {
-          hasAccessToken: !!accessToken,
-          accessTokenLength: accessToken?.length || 0
-        })
         throw new Error('Usuário não está autenticado')
       }
       
-      console.log('🔑 Access token obtido para OCTA:', accessToken.substring(0, 20) + '...')
       
       // Tentar diferentes ranges (mesma lógica da seção de tickets)
       let data = null
-      console.log('🔄 Tentando buscar dados OCTA com ranges:', OCTA_CONFIG.RANGES)
       
       for (const range of OCTA_CONFIG.RANGES) {
         try {
-          console.log(`🧪 Testando range OCTA: ${range}`)
                  const url = `https://sheets.googleapis.com/v4/spreadsheets/${OCTA_CONFIG.SPREADSHEET_ID}/values/${range}?access_token=${accessToken}`
           
           const response = await fetch(url)
@@ -114,31 +106,17 @@ export const useOctaData = (filters = {}) => {
           if (response.ok) {
             const result = await response.json()
             const totalRows = result.values?.length || 0
-            console.log(`✅ Range OCTA ${range} funcionou! Encontrou ${totalRows} linhas`)
-            console.log(`📊 Detalhes do range ${range}:`, {
-              totalRows,
-              firstRow: result.values?.[0] ? `[${result.values[0].length} colunas]` : 'vazio',
-              lastRow: result.values?.[totalRows-1] ? `[${result.values[totalRows-1].length} colunas]` : 'vazio',
-              rangeUsed: range,
-              spreadsheetId: OCTA_CONFIG.SPREADSHEET_ID
-            })
             
             // Log das primeiras 3 linhas para debug
             if (result.values && result.values.length > 0) {
-              console.log(`🔍 Primeiras 3 linhas do range ${range}:`)
-              result.values.slice(0, 3).forEach((row, index) => {
-                console.log(`  Linha ${index + 1}:`, row.slice(0, 5).join(' | '), '...')
-              })
             }
             
             data = result.values
             break
           } else {
             const errorText = await response.text()
-            console.log(`❌ Range OCTA ${range} falhou: ${response.status} - ${errorText}`)
           }
         } catch (err) {
-          console.log(`❌ Range OCTA ${range} erro:`, err.message)
           continue
         }
       }
@@ -147,7 +125,6 @@ export const useOctaData = (filters = {}) => {
         throw new Error('Nenhum dado encontrado na planilha OCTA')
       }
       
-      console.log(`📊 Dados OCTA obtidos: ${data.length} linhas`)
       return data
       
     } catch (err) {
@@ -234,7 +211,6 @@ export const useOctaData = (filters = {}) => {
     setError(null)
 
     try {
-      console.log('🔄 Buscando dados OCTA diretamente da planilha...')
       
       // Passar o accessToken diretamente para evitar race condition
       if (!userData?.accessToken) {
@@ -244,7 +220,6 @@ export const useOctaData = (filters = {}) => {
       // Buscar dados diretamente da planilha
       const data = await fetchSheetData(userData.accessToken)
       
-      console.log('📊 Dados OCTA encontrados! Processando...')
       // Processar dados
       const headers = data[0]
       const dataRows = data.slice(1)
@@ -252,22 +227,7 @@ export const useOctaData = (filters = {}) => {
       // Aplicar filtro de período ANTES de processar os dados
       const filteredDataRows = filterOctaDataByPeriod(dataRows, period, customStartDate, customEndDate)
       
-      console.log('📊 Dados OCTA filtrados:', {
-        totalOriginal: dataRows.length,
-        totalFiltrado: filteredDataRows.length,
-        periodo: period,
-        diferenca: dataRows.length - filteredDataRows.length
-      })
       
-      console.log(`📋 Cabeçalhos OCTA:`, headers)
-      console.log(`📊 Linhas de dados OCTA: ${filteredDataRows.length}`)
-      console.log(`🎯 RESUMO FINAL OCTA:`, {
-        totalLinhasRecebidas: data.length,
-        totalLinhasProcessadas: filteredDataRows.length,
-        colunasEncontradas: headers.length,
-        esperado: '97.768 linhas',
-        diferenca: `${filteredDataRows.length - 97768} linhas`
-      })
 
       // Mapear colunas
       const columnMapping = {
@@ -296,7 +256,6 @@ export const useOctaData = (filters = {}) => {
       let linhasSemAvaliacao = 0
       let ticketsNaoDesignados = 0
       
-      console.log('🔄 Iniciando processamento linha por linha...')
       
       // Usar dados filtrados em vez de todos os dados
       filteredDataRows.forEach((row, index) => {
@@ -311,12 +270,6 @@ export const useOctaData = (filters = {}) => {
 
         // Log das primeiras 10 linhas para debug
         if (index < 10) {
-          console.log(`🔍 Linha ${index + 1}:`, {
-            numeroTicket: numeroTicket || 'VAZIO',
-            responsavelOriginal: responsavelOriginal || 'VAZIO',
-            tipoAvaliacao: tipoAvaliacao || 'VAZIO',
-            comentarioAvaliacao: comentarioAvaliacao || 'VAZIO'
-          })
         }
 
         if (!responsavelOriginal.trim()) {
@@ -425,16 +378,6 @@ export const useOctaData = (filters = {}) => {
         }
       })
       
-      console.log('📊 RESUMO DO PROCESSAMENTO:', {
-        linhasProcessadas,
-        linhasComOperador,
-        linhasSemOperador,
-        linhasComAvaliacao,
-        linhasSemAvaliacao,
-        ticketsNaoDesignados,
-        operadoresUnicos: operadoresMap.size,
-        diferencaEsperada: `${linhasProcessadas - 97767} linhas`
-      })
 
       // Converter Map para Array
       const operadoresArray = Array.from(operadoresMap.values())
@@ -465,10 +408,8 @@ export const useOctaData = (filters = {}) => {
         avaliacoes
       }
 
-      console.log('✅ Métricas OCTA calculadas:', metrics)
       setOctaData(filteredDataRows) // Usar dados filtrados
       setOctaMetrics(metrics)
-      console.log('🎉 Dados OCTA carregados com sucesso!')
 
     } catch (err) {
       console.error('❌ Erro ao buscar dados OCTA:', err)
@@ -485,36 +426,20 @@ export const useOctaData = (filters = {}) => {
 
   // Efeito para carregar dados automaticamente quando autenticado E quando filtros mudarem
   useEffect(() => {
-    console.log('🔍 OCTA useEffect executado:', {
-      isAuthenticated,
-      hasUserData: !!userData,
-      hasAccessToken: !!userData?.accessToken,
-      userDataKeys: userData ? Object.keys(userData) : 'null',
-      accessTokenLength: userData?.accessToken?.length || 0,
-      filters: filters,
-      filtersPeriod: filters?.period,
-      filtersCustomStartDate: filters?.customStartDate,
-      filtersCustomEndDate: filters?.customEndDate,
-      filtersKeys: filters ? Object.keys(filters) : 'null'
-    })
     
     if (isAuthenticated && userData?.accessToken && userData.accessToken.length > 10) {
-      console.log('🔄 Carregando dados OCTA com filtros:', filters)
       // Usar os filtros do sistema principal
       const period = filters.period || 'allRecords'
       const customStartDate = filters.customStartDate || null
       const customEndDate = filters.customEndDate || null
       
-      console.log('🎯 OCTA chamando fetchOctaData com:', { period, customStartDate, customEndDate })
       fetchOctaData(period, customStartDate, customEndDate)
     } else {
-      console.log('⏳ OCTA aguardando autenticação ou accessToken válido...')
     }
   }, [isAuthenticated, userData?.accessToken, fetchOctaData, filters.period, filters.customStartDate, filters.customEndDate])
 
   // Função para tentar carregar dados manualmente
   const retryLoad = useCallback(async () => {
-    console.log('🔄 Tentativa manual de carregar dados OCTA...')
     setIsLoading(true)
     setError(null)
     await fetchOctaData('allRecords')

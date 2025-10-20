@@ -146,7 +146,7 @@ const MetricsDashboard = memo(({ metrics, operatorMetrics, rankings, darkList, a
         <div className="indicator-card">
           <i className='bx bx-check-circle indicator-icon'></i>
           <div className="indicator-label">Taxa de Atendimento</div>
-          <div className="indicator-value">{((metrics.atendida / metrics.totalCalls * 100) || 0).toFixed(0)}%</div>
+          <div className="indicator-value">{((metrics.atendida / metrics.totalCalls * 100) || 0).toFixed(1)}%</div>
         </div>
         <div className="indicator-card">
           <i className='bx bx-star indicator-icon'></i>
@@ -351,7 +351,7 @@ const MetricsDashboard = memo(({ metrics, operatorMetrics, rankings, darkList, a
                   </tr>
                 </thead>
                 <tbody>
-                  {prioritizedRankings.slice(0, 10).map((operator, index) => (
+                  {prioritizedRankings.slice(0, 3).map((operator, index) => (
                     <tr key={`${operator.operator}-${index}`} className={`${index < 3 ? 'top-3' : ''} ${operator.isExcluded ? 'excluded-row' : ''} ${operator.isDesligado ? 'desligado-row' : ''}`}>
                       <td className="position">
                         {operator.isExcluded ? '🚫' : operator.isDesligado ? '👤' : (

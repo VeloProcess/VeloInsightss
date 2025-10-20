@@ -132,20 +132,20 @@ export function calculateMetrics(data) {
 
   return {
     totalCalls,
-    avgDuration: Math.round(avgDuration * 100) / 100,
-    avgRatingAttendance: Math.round(avgRatingAttendance * 100) / 100,
-    avgRatingSolution: Math.round(avgRatingSolution * 100) / 100,
-    avgPauseTime: Math.round(avgPauseTime * 100) / 100,
+    avgDuration: parseFloat(avgDuration.toFixed(2)),
+    avgRatingAttendance: parseFloat(avgRatingAttendance.toFixed(2)),
+    avgRatingSolution: parseFloat(avgRatingSolution.toFixed(2)),
+    avgPauseTime: parseFloat(avgPauseTime.toFixed(2)),
     totalOperators,
     dataPeriod,
     totalRecords: validData.length,
     // Métricas avançadas
-    abandonmentRate: Math.round(abandonmentRate * 100) / 100,
-    serviceLevel: Math.round(serviceLevel * 100) / 100,
-    firstCallResolution: Math.round(firstCallResolution * 100) / 100,
-    customerSatisfaction: Math.round(customerSatisfaction * 100) / 100,
-    avgCallsPerOperator: Math.round(avgCallsPerOperator * 100) / 100,
-    efficiencyScore: Math.round(efficiencyScore * 100) / 100,
+    abandonmentRate: parseFloat(abandonmentRate.toFixed(2)),
+    serviceLevel: parseFloat(serviceLevel.toFixed(2)),
+    firstCallResolution: parseFloat(firstCallResolution.toFixed(2)),
+    customerSatisfaction: parseFloat(customerSatisfaction.toFixed(2)),
+    avgCallsPerOperator: parseFloat(avgCallsPerOperator.toFixed(2)),
+    efficiencyScore: parseFloat(efficiencyScore.toFixed(2)),
     hourlyDistribution,
     callStatuses
   }
@@ -219,10 +219,10 @@ export function calculateOperatorMetrics(data) {
     return {
       operator,
       totalCalls,
-      avgDuration: Math.round(avgDuration * 100) / 100,
-      avgRatingAttendance: Math.round(avgRatingAttendance * 100) / 100,
-      avgRatingSolution: Math.round(avgRatingSolution * 100) / 100,
-      avgPauseTime: Math.round(avgPauseTime * 100) / 100,
+      avgDuration: parseFloat(avgDuration.toFixed(2)),
+      avgRatingAttendance: parseFloat(avgRatingAttendance.toFixed(2)),
+      avgRatingSolution: parseFloat(avgRatingSolution.toFixed(2)),
+      avgPauseTime: parseFloat(avgPauseTime.toFixed(2)),
       totalRecords: validRecords.length
     }
   })
@@ -264,7 +264,7 @@ export function calculateRankings(operatorMetrics) {
 
     return {
       ...operator,
-      score: Math.round(score * 100) / 100,
+      score: parseFloat(score.toFixed(2)),
       rank: 0 // Será definido após ordenação
     }
   })

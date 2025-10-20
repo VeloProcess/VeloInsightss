@@ -21,7 +21,6 @@ export async function parseVelotaxData(rawData, onProgress = null) {
     // Verificar se pelo menos as colunas essenciais foram detectadas
     if (!columnMapping.date || !columnMapping.operator) {
       console.warn('⚠️ Colunas essenciais não detectadas:', columnMapping)
-      console.log('📋 Colunas disponíveis:', Object.keys(rawData[0]))
     }
 
     const processedData = []
@@ -104,7 +103,6 @@ function detectColumns(firstRecord) {
   const headers = Object.keys(firstRecord)
   const mapping = {}
 
-  console.log('📋 Headers encontrados:', headers.length, 'campos')
 
   // Mapear colunas por nome (case-insensitive e mais flexível)
   headers.forEach(header => {
@@ -113,12 +111,10 @@ function detectColumns(firstRecord) {
     // Data - mais flexível
     if (lowerHeader.includes('data') && !lowerHeader.includes('inicial') && !lowerHeader.includes('pausa')) {
       mapping.date = header
-      console.log('📅 Data mapeada:', header)
     } 
     // Operador - priorizar campo "Operador" exato
     else if (lowerHeader === 'operador') {
       mapping.operator = header
-      console.log('👤 Operador mapeado (exato):', header, 'Valor exemplo:', firstRecord[header])
     }
     // Operador - fallback para outros campos
     else if ((lowerHeader.includes('nome') && lowerHeader.includes('atendente')) ||
@@ -126,7 +122,6 @@ function detectColumns(firstRecord) {
       // Só mapear se ainda não foi mapeado
       if (!mapping.operator) {
         mapping.operator = header
-        console.log('👤 Operador mapeado (fallback):', header, 'Valor exemplo:', firstRecord[header])
       }
     } 
     // Tempo de atendimento
@@ -134,73 +129,59 @@ function detectColumns(firstRecord) {
              lowerHeader.includes('duracao') ||
              lowerHeader.includes('tempo atendimento')) {
       mapping.duration = header
-      console.log('⏱️ Duração mapeada:', header)
     } 
     // Avaliação atendimento - mais específico para evitar conflito com operador
     else if ((lowerHeader.includes('pergunta') && lowerHeader.includes('atendente') && lowerHeader.includes('pergunta2')) ||
              lowerHeader.includes('avaliacao atendimento') ||
              lowerHeader.includes('nota atendimento')) {
       mapping.ratingAttendance = header
-      console.log('⭐ Avaliação atendimento mapeada:', header)
     } 
     // Avaliação solução - mais específico
     else if ((lowerHeader.includes('pergunta') && lowerHeader.includes('solucao') && lowerHeader.includes('pergunta2')) ||
              lowerHeader.includes('avaliacao solucao') ||
              lowerHeader.includes('nota solucao')) {
       mapping.ratingSolution = header
-      console.log('⭐ Avaliação solução mapeada:', header)
     } 
     // Chamadas
     else if (lowerHeader.includes('chamada')) {
       mapping.callCount = header
-      console.log('📞 Chamada mapeada:', header)
     } 
     // Desconexão
     else if (lowerHeader.includes('desconexao')) {
       mapping.disconnection = header
-      console.log('📴 Desconexão mapeada:', header)
     } 
     // Tempo de pausa
     else if (lowerHeader.includes('duracao') && !lowerHeader.includes('logado')) {
       mapping.pauseDuration = header
-      console.log('⏸️ Pausa mapeada:', header)
     } 
     // Motivo da pausa
     else if (lowerHeader.includes('motivo') && lowerHeader.includes('pausa')) {
       mapping.pauseReason = header
-      console.log('📝 Motivo pausa mapeado:', header)
     } 
     // Data da pausa
     else if (lowerHeader.includes('data') && lowerHeader.includes('inicial')) {
       mapping.pauseDate = header
-      console.log('📅 Data pausa mapeada:', header)
     } 
     // Tempo logado
     else if (lowerHeader.includes('logado') && lowerHeader.includes('dia')) {
       mapping.avgLoggedTime = header
-      console.log('🟢 Tempo logado mapeado:', header)
     } 
     // Tempo pausado
     else if (lowerHeader.includes('pausado')) {
       mapping.avgPauseTime = header
-      console.log('🔴 Tempo pausado mapeado:', header)
     }
     // Tipo de chamada (ativa/receptiva)
     else if (lowerHeader.includes('tipo') && lowerHeader.includes('chamada')) {
       mapping.callType = header
-      console.log('📞 Tipo de chamada mapeado:', header)
     }
     else if (lowerHeader.includes('direção') || lowerHeader.includes('direction')) {
       mapping.callType = header
-      console.log('📞 Direção da chamada mapeada:', header)
     }
     else if (lowerHeader.includes('inbound') || lowerHeader.includes('outbound')) {
       mapping.callType = header
-      console.log('📞 Tipo inbound/outbound mapeado:', header)
     }
   })
 
-  console.log('🎯 Mapeamento final:', mapping)
   return mapping
 }
 
@@ -212,12 +193,10 @@ function shouldFilterRecord(record, columnMapping) {
   
   // Se não tem campo de operador mapeado, não filtrar (aceitar todos)
   if (!operatorField) {
-    console.log('⚠️ Campo operador não mapeado, aceitando registro')
     return false
   }
   
   if (!record[operatorField]) {
-    console.log('⚠️ Campo operador vazio:', operatorField)
     return true // Ignorar se não tem operador
   }
 
@@ -269,11 +248,6 @@ function mapVelotaxRecord(record, columnMapping, lineNumber) {
                               record['Operador'] ||
                               record['operador'] ||
                               'Não informado'
-        
-                 // Debug apenas para os primeiros 3 registros
-                 if (lineNumber <= 3) {
-                   console.log(`🔍 Operador ${lineNumber}:`, operatorValue)
-                 }
         
         return operatorValue
       })(),
@@ -350,13 +324,11 @@ function mapVelotaxRecord(record, columnMapping, lineNumber) {
 
            // Log apenas a cada 1000 registros para melhor performance
            if (lineNumber % 1000 === 0) {
-             console.log(`✅ ${lineNumber} registros processados`)
            }
 
     return mappedRecord
 
   } catch (error) {
-    console.log(`❌ Erro no registro ${lineNumber}:`, error.message)
     throw new Error(`Erro no mapeamento: ${error.message}`)
   }
 }

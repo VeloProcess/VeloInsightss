@@ -287,8 +287,8 @@ const ChartsSection = memo(({ data, operatorMetrics, rankings, userData }) => {
     
     // Priorizar usuário logado no meio se necessário
     const topOperators = shouldHideNames && userData?.email
-      ? prioritizeCurrentUserInMiddle(filteredOperators, userData, 'totalCalls').slice(0, 10)
-      : filteredOperators.sort((a, b) => b.totalCalls - a.totalCalls).slice(0, 10)
+      ? prioritizeCurrentUserInMiddle(filteredOperators, userData, 'totalCalls').slice(0, 3)
+      : filteredOperators.sort((a, b) => b.totalCalls - a.totalCalls).slice(0, 3)
     
     const labels = topOperators.map((op, index) => 
       getOperatorDisplayName(op.operator, index, userData, shouldHideNames)
@@ -582,8 +582,8 @@ const ChartsSection = memo(({ data, operatorMetrics, rankings, userData }) => {
     
     // Priorizar usuário logado no meio se necessário
     const topOperators = shouldHideNames && userData?.email
-      ? prioritizeCurrentUserInMiddle(filteredOperators, userData, 'totalCalls').slice(0, 6)
-      : filteredOperators.sort((a, b) => b.totalCalls - a.totalCalls).slice(0, 6)
+      ? prioritizeCurrentUserInMiddle(filteredOperators, userData, 'totalCalls').slice(0, 3)
+      : filteredOperators.sort((a, b) => b.totalCalls - a.totalCalls).slice(0, 3)
     
     // Preparar dados para gráfico de barras agrupadas
     const labels = topOperators.map((op, index) => 
@@ -763,7 +763,7 @@ const ChartsSection = memo(({ data, operatorMetrics, rankings, userData }) => {
     // Pegar top 10 operadores do ranking (excluindo "Sem Operador")
     const topRankings = rankings
       .filter(r => r.operator && !r.operator.toLowerCase().includes('sem operador'))
-      .slice(0, 10)
+      .slice(0, 3)
 
     chartInstances.current.rankingChart = new Chart(chartRefs.rankingChart.current, {
       type: 'bar',

@@ -14,7 +14,6 @@ const ModernChartsDashboard = ({ data, operatorMetrics, rankings, selectedPeriod
 
   // Função para scroll suave até os gráficos
   const scrollToCharts = () => {
-    console.log('🔄 [ModernChartsDashboard] Tentando fazer scroll para os gráficos...')
     
     // Procurar pela seção de gráficos - diferentes seletores para diferentes contextos
     const chartsSection = document.querySelector('.main-content-grid') || 
@@ -23,16 +22,13 @@ const ModernChartsDashboard = ({ data, operatorMetrics, rankings, selectedPeriod
                          document.querySelector('.metrics-dashboard') ||
                          document.querySelector('.dashboard-content')
     
-    console.log('🎯 [ModernChartsDashboard] Seção encontrada:', chartsSection)
     
     if (chartsSection) {
-      console.log('✅ [ModernChartsDashboard] Fazendo scroll para:', chartsSection.className)
       chartsSection.scrollIntoView({ 
         behavior: 'smooth', 
         block: 'start' 
       })
     } else {
-      console.log('⚠️ [ModernChartsDashboard] Nenhuma seção encontrada, fazendo scroll para o topo')
       // Fallback: scroll para o topo da página
       window.scrollTo({
         top: 0,
@@ -43,7 +39,6 @@ const ModernChartsDashboard = ({ data, operatorMetrics, rankings, selectedPeriod
 
   // Função para aplicar período e ir direto aos gráficos
   const handlePeriodChange = async (period) => {
-    console.log('🚀 [ModernChartsDashboard] Aplicando período:', period)
     
     if (!onFiltersChange) {
       console.warn('⚠️ [ModernChartsDashboard] onFiltersChange não foi fornecido')
@@ -60,7 +55,6 @@ const ModernChartsDashboard = ({ data, operatorMetrics, rankings, selectedPeriod
     await new Promise(resolve => setTimeout(resolve, 400))
     
     // Após carregar, fazer scroll para os gráficos
-    console.log('⏰ [ModernChartsDashboard] Executando scroll após delay...')
     scrollToCharts()
     
     // Finalizar carregamento
@@ -277,14 +271,14 @@ const ModernChartsDashboard = ({ data, operatorMetrics, rankings, selectedPeriod
         item.notaAtendimento && item.notaAtendimento > 0
       )
       const satisfiedCalls = operatorRatings.filter(item => item.notaAtendimento >= 4).length
-      satisfactionRate = operatorRatings.length > 0 ? Math.round((satisfiedCalls / operatorRatings.length) * 100) : 0
+      satisfactionRate = operatorRatings.length > 0 ? (satisfiedCalls / operatorRatings.length) * 100 : 0
     } else {
       const attendedWithRatings = getFilteredData.filter(item => 
         (item.status === 'Atendida' || item.chamada === 'Atendida' || (item.operador && item.operador !== 'Sem Operador' && item.operador !== '')) &&
         item.notaAtendimento && item.notaAtendimento > 0
       )
       const satisfiedCalls = attendedWithRatings.filter(item => item.notaAtendimento >= 4).length
-      satisfactionRate = attendedWithRatings.length > 0 ? Math.round((satisfiedCalls / attendedWithRatings.length) * 100) : 0
+      satisfactionRate = attendedWithRatings.length > 0 ? (satisfiedCalls / attendedWithRatings.length) * 100 : 0
     }
 
     // Score de qualidade (média das notas de solução) - apenas para o operador logado usando coluna AC
@@ -417,7 +411,6 @@ const ModernChartsDashboard = ({ data, operatorMetrics, rankings, selectedPeriod
 
     // Se não encontrar dados pessoais, retornar dados básicos para evitar erro
     if (personalCalls.length === 0) {
-      console.log('⚠️ Nenhum dado pessoal encontrado para:', userData.email)
       return {
         totalCalls: 0,
         avgDuration: 0,
@@ -427,7 +420,6 @@ const ModernChartsDashboard = ({ data, operatorMetrics, rankings, selectedPeriod
       }
     }
 
-    console.log('✅ Dados pessoais encontrados:', personalCalls.length, 'registros para', userData.email)
 
     // Calcular tempo médio em minutos usando tempoFalado
     const totalDuration = personalCalls.reduce((sum, item) => {
@@ -464,7 +456,6 @@ const ModernChartsDashboard = ({ data, operatorMetrics, rankings, selectedPeriod
       hasData: true
     }
 
-    console.log('📊 Métricas pessoais calculadas:', personalMetrics)
     return personalMetrics
   }, [shouldShowPersonalData, getFilteredData, userData, operatorData])
 
@@ -710,7 +701,7 @@ const ModernChartsDashboard = ({ data, operatorMetrics, rankings, selectedPeriod
               const totalExcellent = excellentAttendance + excellentSolution
               const totalRatings = attendanceRatings.length + solutionRatings.length
               
-              const excellentRate = totalRatings > 0 ? Math.round((totalExcellent / totalRatings) * 100) : 0
+              const excellentRate = totalRatings > 0 ? (totalExcellent / totalRatings) * 100 : 0
               const otherRate = 100 - excellentRate
               
               // Calcular médias para exibição
@@ -949,7 +940,7 @@ const ModernChartsDashboard = ({ data, operatorMetrics, rankings, selectedPeriod
                   <>
                     <div className="summary-item">
                       <span className="summary-label">Taxa de Satisfação:</span>
-                      <span className="summary-value">{metrics.satisfactionRate}%</span>
+                      <span className="summary-value">{metrics.satisfactionRate.toFixed(1)}%</span>
                     </div>
                     <div className="summary-item">
                       <span className="summary-label">Baseado em:</span>

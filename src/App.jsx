@@ -14,7 +14,6 @@ import CargoSelection from './components/CargoSelection'
 import ProcessingLoader from './components/ProcessingLoader'
 import NewSheetAnalyzer from './components/NewSheetAnalyzer'
 import PeriodModal from './components/PeriodModal'
-import ExportFAB from './components/ExportFAB'
 import { CargoProvider, useCargo } from './contexts/CargoContext'
 import { useGoogleSheetsDirectSimple } from './hooks/useGoogleSheetsDirectSimple'
 import { useDataFilters } from './hooks/useDataFilters'
@@ -137,7 +136,7 @@ function AppContent() {
 
       // Se o filtro for "allRecords", usar todos os dados disponíveis
       if (filters.period === 'allRecords') {
-        console.log('🔍 Filtro allRecords: usando todos os dados disponíveis')
+        // Debug removido para melhor performance
         setFilteredData(data)
         
         // Garantir que metrics tenha totalCalls para compatibilidade com MetricsDashboard
@@ -254,10 +253,10 @@ function AppContent() {
       }
 
       // Debug das datas de filtro
-      console.log(`🔍 Filtro ${filters.period}:`)
-      console.log(`🔍 Data início: ${startDate.toLocaleDateString('pt-BR')}`)
-      console.log(`🔍 Data fim: ${endDate.toLocaleDateString('pt-BR')}`)
-      console.log(`🔍 Total de dados para filtrar: ${data.length}`)
+      // Debug removido para melhor performance
+      // Debug removido para melhor performance
+      // Debug removido para melhor performance
+      // Debug removido para melhor performance
       
       // Verificar algumas datas dos dados
       if (data.length > 0) {
@@ -293,19 +292,19 @@ function AppContent() {
         
         // Debug específico para último mês
         if (filters.period === 'ultimoMes' && data.indexOf(item) < 10) {
-          console.log(`🔍 Item ${data.indexOf(item)}: ${item.data} -> ${itemDate.toLocaleDateString('pt-BR')} -> ${isValid ? 'VÁLIDO' : 'INVÁLIDO'}`)
+          // Debug removido para melhor performance
         }
         
         return isValid
       })
 
       // Aplicar filtro de funcionários desligados se ativo
-      console.log('🔧 Estado do filtro hideDesligados:', filters.hideDesligados)
-      console.log('🔧 Tipo do filtro:', typeof filters.hideDesligados)
+      // Debug removido para melhor performance
+      // Debug removido para melhor performance
       
       if (filters.hideDesligados) {
         const beforeCount = filtered.length
-        console.log('🔧 Aplicando filtro - registros antes:', beforeCount)
+        // Debug removido para melhor performance
         
         filtered = filtered.filter(item => {
           if (!item.operador) return true
@@ -317,18 +316,18 @@ function AppContent() {
                              nomeOperador.includes('inativo')
           
           if (isDesligado) {
-            console.log('🔧 REMOVENDO operador desligado:', item.operador)
+            // Debug removido para melhor performance
           }
           
           return !isDesligado
         })
         
-        console.log(`👥 Filtro funcionários desligados: ${beforeCount} -> ${filtered.length} registros`)
+        // Debug removido para melhor performance
       } else {
-        console.log('🔧 Filtro hideDesligados NÃO está ativo')
+        // Debug removido para melhor performance
       }
 
-      console.log(`📊 Dados filtrados: ${filtered.length} de ${data.length} registros`)
+      // Debug removido para melhor performance
 
       // Usar dados filtrados diretamente (já são objetos processados)
       if (filtered.length > 0) {
@@ -337,7 +336,7 @@ function AppContent() {
         // Recalcular métricas apenas com dados filtrados
         const totalChamadas = filtered.length
         
-        console.log(`🔍 Filtro ${filters.period}: ${filtered.length} registros encontrados`)
+        // Debug removido para melhor performance
         
         const retidaURA = filtered.filter(item => item.chamada === 'Retida na URA').length
         const atendida = filtered.filter(item => item.chamada === 'Atendida').length
@@ -562,12 +561,12 @@ function AppContent() {
   // Login automático baseado no email do usuário
   useEffect(() => {
     if (isAuthenticated && userData?.email && showCargoSelection) {
-      console.log('🚀 Tentando login automático para:', userData.email)
+      // Debug removido para melhor performance
       const success = autoLogin(userData.email)
       if (success) {
-        console.log('✅ Login automático realizado com sucesso!')
+        // Debug removido para melhor performance
       } else {
-        console.log('❌ Usuário não encontrado na base de dados')
+        // Debug removido para melhor performance
       }
     }
   }, [isAuthenticated, userData?.email, showCargoSelection, autoLogin])
@@ -575,11 +574,11 @@ function AppContent() {
   // Autenticação: navegar automaticamente para dashboard quando logado
   useEffect(() => {
     if (isAuthenticated && currentView === 'fetch') {
-      console.log('🎯 Usuário autenticado, navegando automaticamente para dashboard...')
+      // Debug removido para melhor performance
       setCurrentView('dashboard')
       // Carregar dados automaticamente se não houver dados
       if (loadDataOnDemand && (!data || data.length === 0)) {
-        console.log('📊 Carregando dados automaticamente após login...')
+        // Debug removido para melhor performance
         loadDataOnDemand('all')
       }
     }
@@ -598,10 +597,10 @@ function AppContent() {
     if (userData?.email) {
       const success = selectCargo(cargo, userData.email)
       if (success) {
-        console.log('🎯 Cargo selecionado:', cargo)
+        // Debug removido para melhor performance
         // Carregar dados automaticamente após seleção de cargo
         if (loadDataOnDemand && (!data || data.length === 0)) {
-          console.log('📊 Carregando dados automaticamente após seleção de cargo...')
+          // Debug removido para melhor performance
           loadDataOnDemand('all')
         }
       } else {
@@ -654,11 +653,11 @@ function AppContent() {
         onOpenPeriodModal={() => setShowPeriodModal(true)}
         currentPeriod={currentPeriodLabel}
         onSyncData={async () => {
-          console.log('🔄 Sincronização manual iniciada...')
+          // Debug removido para melhor performance
           setIsLoading(true)
           try {
             await fetchData()
-            console.log('✅ Sincronização manual concluída!')
+            // Debug removido para melhor performance
           } catch (error) {
             console.error('❌ Erro na sincronização manual:', error)
           } finally {
@@ -703,7 +702,7 @@ function AppContent() {
           {(currentView === 'fetch' || showNewLogin) && (
             <LoginTest
               onContinue={() => {
-                console.log('🚀 Continuando para dashboard...')
+                // Debug removido para melhor performance
                 setShowNewLogin(false)
                 setCurrentView('dashboard')
               }}
@@ -1081,14 +1080,7 @@ function AppContent() {
         data={data}
       />
 
-      {/* Export FAB */}
-      <ExportFAB 
-        hasData={data && data.length > 0}
-        onExport={(format) => {
-          console.log('Exportar como:', format)
-          // Aqui você pode adicionar a lógica de exportação real
-        }}
-      />
+      {/* Export FAB removido */}
       
     </div>
   )

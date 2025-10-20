@@ -1,12 +1,18 @@
-import React, { memo, useState } from 'react'
+import React, { memo, useState, useMemo } from 'react'
 import './MetricsDashboard.css'
 import TendenciaSemanalChart from './TendenciaSemanalChart2'
 import CSATChart from './CSATChart'
 import VolumeProdutoURAChart from './VolumeProdutoURAChart'
 import VolumeHoraChart from './VolumeHoraChart'
 
-const MetricsDashboard = memo(({ metrics = {}, rankings = [], octaData = null, data = [], periodo = null }) => {
+const MetricsDashboard = memo(({ metrics = {}, rankings = [], octaData = null, data = [], periodo = null, fullDataset = [] }) => {
   const [activeView, setActiveView] = useState('55pbx')
+
+  // Preparar dados para os gráficos - usar dados processados
+  const chartData = useMemo(() => {
+    // Sempre usar dados processados (objetos) em vez de dados brutos (arrays)
+    return data.length > 0 ? data : []
+  }, [data])
 
   return (
     <div className="container">
@@ -17,14 +23,14 @@ const MetricsDashboard = memo(({ metrics = {}, rankings = [], octaData = null, d
           onClick={() => setActiveView('55pbx')}
         >
           <i className='bx bx-phone'></i>
-          55pbx - Telefonia
+          Telefonia
         </button>
         <button 
           className={`nav-tab ${activeView === 'octadesk' ? 'active' : ''}`}
           onClick={() => setActiveView('octadesk')}
         >
           <i className='bx bx-support'></i>
-          Octadesk - Tickets
+          Tickets
         </button>
       </div>
 
@@ -34,7 +40,7 @@ const MetricsDashboard = memo(({ metrics = {}, rankings = [], octaData = null, d
           {/* Section Title */}
           <div className="section-title">
             <i className='bx bxs-phone'></i>
-            <h2>55pbx - Sistema de Telefonia</h2>
+            <h2>Telefonia</h2>
           </div>
 
       {/* Indicadores */}
@@ -52,12 +58,7 @@ const MetricsDashboard = memo(({ metrics = {}, rankings = [], octaData = null, d
         <div className="indicator-card">
           <i className='bx bx-check-circle indicator-icon'></i>
           <div className="indicator-label">Taxa de Atendimento</div>
-          <div className="indicator-value">{((metrics.atendida / metrics.totalCalls * 100) || 0).toFixed(0)}%</div>
-        </div>
-        <div className="indicator-card">
-          <i className='bx bx-coffee indicator-icon'></i>
-          <div className="indicator-label">Tempo em Pausa</div>
-          <div className="indicator-value">2:15</div>
+          <div className="indicator-value">{((metrics.atendida / metrics.totalCalls * 100) || 0).toFixed(1)}%</div>
         </div>
       </div>
 
@@ -68,7 +69,7 @@ const MetricsDashboard = memo(({ metrics = {}, rankings = [], octaData = null, d
           <i className='bx bx-trending-up card-icon'></i>
         </div>
         <div className="chart-container">
-          <TendenciaSemanalChart data={data} periodo={periodo} />
+          <TendenciaSemanalChart data={chartData} periodo={periodo} />
         </div>
       </div>
 
@@ -78,7 +79,7 @@ const MetricsDashboard = memo(({ metrics = {}, rankings = [], octaData = null, d
           <i className='bx bx-star card-icon'></i>
         </div>
         <div className="chart-container">
-          <CSATChart data={data} periodo={periodo} />
+          <CSATChart data={chartData} periodo={periodo} />
         </div>
       </div>
 
@@ -122,7 +123,7 @@ const MetricsDashboard = memo(({ metrics = {}, rankings = [], octaData = null, d
                 </tr>
               </thead>
               <tbody>
-                {rankings.slice(0, 10).map((operator, index) => (
+                {rankings.slice(0, 3).map((operator, index) => (
                   <tr key={index}>
                     <td className="position">
                       {index === 0 && '🥇'}
@@ -148,7 +149,7 @@ const MetricsDashboard = memo(({ metrics = {}, rankings = [], octaData = null, d
         <div className="view active">
           <div className="section-title">
             <i className='bx bxs-message-square-detail'></i>
-            <h2>Octadesk - Sistema de Tickets</h2>
+            <h2>Tickets</h2>
           </div>
 
           <div className="indicators-grid">
@@ -235,7 +236,7 @@ const MetricsDashboard = memo(({ metrics = {}, rankings = [], octaData = null, d
                     </tr>
                   </thead>
                   <tbody>
-                    {octaData.octaRankings.slice(0, 10).map((atendente, index) => (
+                    {octaData.octaRankings.slice(0, 3).map((atendente, index) => (
                       <tr key={index}>
                         <td className="position">
                           {index === 0 && '🥇'}

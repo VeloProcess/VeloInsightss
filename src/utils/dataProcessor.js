@@ -2,6 +2,8 @@
 // PROCESSAMENTO DE DADOS - VELOINSIGHTS
 // ========================================
 
+import { showWarningWithLimit } from './warningManager'
+
 // ========================================
 // COMPARATIVOS TEMPORAIS - FASE 1
 // ========================================
@@ -430,7 +432,6 @@ export const processarDados = (dados, processAllRecords = false) => {
   const filtrarUltimos60Dias = (linhas) => {
     // Se processAllRecords for true, retornar todos os dados sem filtro
     if (processAllRecords) {
-      console.log(`✅ processAllRecords=true: retornando todos os ${linhas.length} registros sem filtro`)
       return linhas
     }
     const hoje = new Date()
@@ -497,6 +498,11 @@ export const processarDados = (dados, processAllRecords = false) => {
     notaAtendimento: 27, // Coluna AB - Pergunta2 1 PERGUNTA ATENDENTE
     notaSolucao: 28     // Coluna AC - Pergunta2 2 PERGUNTA SOLUCAO
   }
+  
+  // Debug: verificar se os índices estão corretos
+  if (linhasDados.length > 0) {
+    const primeiraLinha = linhasDados[0]
+  }
 
 
   // Processar dados linha por linha - VERSÃO PERFEITA
@@ -505,16 +511,35 @@ export const processarDados = (dados, processAllRecords = false) => {
 
   let linhasProcessadas = 0
   let linhasIgnoradas = 0
+  let linhasVazias = 0
 
   linhasFiltradas.forEach((linha, index) => {
     try {
       // Verificar se a linha tem dados suficientes - CORRIGIDO PARA PERMITIR LINHAS COM PELO MENOS 1 ELEMENTO
-      if (!linha || !Array.isArray(linha) || linha.length < 1) {
-        console.warn(`⚠️ Linha ${index + 2} ignorada: linha vazia ou sem dados`)
-        console.warn(`⚠️ Conteúdo da linha:`, linha)
-        console.warn(`⚠️ Tipo da linha:`, typeof linha, Array.isArray(linha))
+      if (!linha || !Array.isArray(linha)) {
+        showWarningWithLimit(
+          'data-processor-linha-invalida',
+          `⚠️ Linha ${index + 2} ignorada: linha não é um array válido`,
+          {
+            conteudo: linha,
+            tipo: typeof linha,
+            isArray: Array.isArray(linha)
+          },
+          3
+        )
         linhasIgnoradas++
         return
+      }
+
+      // Se a linha é um array vazio, ainda assim processar com valores padrão
+      if (linha.length === 0) {
+        linhasVazias++
+        showWarningWithLimit(
+          'data-processor-linha-vazia',
+          `⚠️ Linha ${index + 2}: array vazio, processando com valores padrão`,
+          null,
+          3
+        )
       }
 
       const operador = linha[indices.operador] || 'Sem Operador'
@@ -546,6 +571,11 @@ export const processarDados = (dados, processAllRecords = false) => {
         status = 'abandonada'
       }
       
+      // Debug: verificar dados das colunas AB e AC para os primeiros registros
+      if (index < 3) {
+        // Debug removido para melhor performance
+      }
+      
       const dadosLinha = {
         linha: index + 2,
         chamada: chamada,
@@ -558,9 +588,18 @@ export const processarDados = (dados, processAllRecords = false) => {
         tempoTotal: linha[indices.tempoTotal] || '00:00:00',
         tempoLogado: indices.tempoLogado >= 0 ? (linha[indices.tempoLogado] || '00:00:00') : '00:00:00',
         tempoPausado: indices.tempoPausado >= 0 ? (linha[indices.tempoPausado] || '00:00:00') : '00:00:00',
-        notaAtendimento: parseFloat(linha[indices.notaAtendimento]) || null,
-        notaSolucao: parseFloat(linha[indices.notaSolucao]) || null,
-        status: status
+        notaAtendimento: (() => {
+          const nota = parseFloat(linha[indices.notaAtendimento])
+          return (nota >= 1 && nota <= 5) ? nota : null
+        })(),
+        notaSolucao: (() => {
+          const nota = parseFloat(linha[indices.notaSolucao])
+          return (nota >= 1 && nota <= 5) ? nota : null
+        })(),
+        status: status,
+        // Adicionar campos específicos para CSAT
+        'Pergunta2 1 PERGUNTA ATENDENTE': linha[indices.notaAtendimento] || null,
+        'Pergunta2 2 PERGUNTA SOLUCAO': linha[indices.notaSolucao] || null
       }
 
       dadosProcessados.push(dadosLinha)
@@ -568,49 +607,17 @@ export const processarDados = (dados, processAllRecords = false) => {
       linhasProcessadas++
 
     } catch (error) {
-      console.error(`❌ Erro ao processar linha ${index + 2}:`, error)
-      console.error(`❌ Dados da linha problemática:`, linha)
+      // Debug removido para melhor performance
       linhasIgnoradas++
     }
   })
 
-  // Debug do processamento
-  console.log(`📊 Debug do processamento:`)
-  console.log(`📊 Total de linhas de dados: ${linhasDados.length}`)
-  console.log(`📊 Linhas filtradas: ${linhasFiltradas.length}`)
-  console.log(`📊 Linhas processadas: ${linhasProcessadas}`)
-  console.log(`📊 Linhas ignoradas: ${linhasIgnoradas}`)
-  console.log(`📊 processAllRecords: ${processAllRecords}`)
-  console.log(`📊 Diferença: ${linhasFiltradas.length - linhasProcessadas} linhas perdidas no processamento`)
   
-  // Verificar se há diferença no processamento
-  if (linhasFiltradas.length !== linhasProcessadas) {
-    console.warn(`⚠️ Diferença no processamento: Esperado ${linhasFiltradas.length}, processado ${linhasProcessadas}`)
-    console.warn(`⚠️ ${linhasFiltradas.length - linhasProcessadas} linhas foram perdidas durante o processamento`)
-    
-    // Debug adicional: mostrar algumas linhas que podem estar causando problema
-    console.log(`🔍 Debug das primeiras 5 linhas filtradas:`)
-    for (let i = 0; i < Math.min(5, linhasFiltradas.length); i++) {
-      const linha = linhasFiltradas[i]
-      console.log(`  Linha ${i + 1}:`, {
-        length: linha?.length,
-        tipo: typeof linha,
-        isArray: Array.isArray(linha),
-        primeiroElemento: linha?.[0],
-        segundoElemento: linha?.[1],
-        terceiroElemento: linha?.[2]
-      })
-    }
-  } else {
-    console.log(`✅ Todos os ${linhasFiltradas.length} registros foram processados com sucesso!`)
-  }
+  // Verificar se há diferença no processamento - removido para melhor performance
   
-  // Verificar se há diferença no processamento
-  if (linhasDados.length !== linhasProcessadas) {
-    console.warn(`⚠️ Diferença no processamento: Esperado ${linhasDados.length}, processado ${linhasProcessadas}`)
-  } else {
-    console.log(`✅ Todos os ${linhasDados.length} registros foram processados com sucesso!`)
-  }
+  // Resumo dos warnings tratados removido para melhor performance
+  
+  // Verificar se há diferença no processamento - removido para melhor performance
 
   // Calcular métricas gerais - VERSÃO PERFEITA IMPLEMENTADA
   // Usar a função calcularMetricas para obter métricas reais
@@ -712,16 +719,7 @@ const calcularMetricas = (dados) => {
       abandonada++
     } else {
       naoClassificada++
-      // Log das primeiras 5 linhas não classificadas para debug
-      if (naoClassificada <= 5) {
-        console.log(`🔍 Linha não classificada ${naoClassificada}:`, {
-          chamada,
-          tempoFalado,
-          tempoEspera,
-          tempoMinutos,
-          tempoEsperaMinutos
-        })
-      }
+      // Debug removido para melhor performance
     }
   })
   
@@ -784,11 +782,6 @@ const calcularMetricas = (dados) => {
   const taxaAbandono = totalChamadas > 0 ? (abandonada / totalChamadas) * 100 : 0
 
 
-  // Debug das métricas calculadas
-  console.log('🔍 DEBUG - calcularMetricas - totalChamadas:', totalChamadas)
-  console.log('🔍 DEBUG - calcularMetricas - retidaURA:', retidaURA)
-  console.log('🔍 DEBUG - calcularMetricas - atendida:', atendida)
-  console.log('🔍 DEBUG - calcularMetricas - abandonada:', abandonada)
   
   const resultado = {
     totalCalls: totalChamadas, // Corrigido para compatibilidade com MetricsDashboard
@@ -811,8 +804,6 @@ const calcularMetricas = (dados) => {
     chamadasAvaliadas // NOVA MÉTRICA
   }
   
-  console.log('🔍 DEBUG - calcularMetricas - resultado:', resultado)
-  console.log('🔍 DEBUG - calcularMetricas - resultado.totalCalls:', resultado.totalCalls)
   
   return resultado
 }
@@ -1012,10 +1003,10 @@ const normalizar = (valor, min, max) => {
  * @returns {Object} Dataset Chart.js para linha.
  */
 export const calcEvolucaoAtendimentos = (dados) => {
-  console.log('🔍 calcEvolucaoAtendimentos - Dados recebidos:', dados?.length)
+  // Debug removido para melhor performance
   
   if (!dados || dados.length === 0) {
-    console.log('❌ Nenhum dado disponível para evolução')
+    // Debug removido para melhor performance
     return {
       labels: [],
       datasets: [{
@@ -1063,7 +1054,7 @@ export const calcEvolucaoAtendimentos = (dados) => {
   const labels = Object.keys(atendimentosPorData).sort()
   const data = labels.map((label) => atendimentosPorData[label])
   
-  console.log('🔍 calcEvolucaoAtendimentos - Resultado:', { labels: labels.length, data: data.length })
+  // Debug removido para melhor performance
 
   return {
     labels,
@@ -1269,10 +1260,10 @@ export const calcEvolucaoAtendimentos = (dados) => {
  * @returns {Object} Dataset Chart.js para barra.
  */
 export const calcTopOperadores = (opMetrics, topN = 5) => {
-  console.log('🔍 calcTopOperadores - OperatorMetrics recebidos:', Object.keys(opMetrics).length)
+  // Debug removido para melhor performance
   
   if (!opMetrics || Object.keys(opMetrics).length === 0) {
-    console.log('❌ Nenhum operador disponível')
+    // Debug removido para melhor performance
     return {
       labels: [],
       datasets: [{
@@ -1312,7 +1303,7 @@ export const calcTopOperadores = (opMetrics, topN = 5) => {
   const labels = validos.map((op) => op.operador || op.operator || 'Não informado')
   const data = validos.map((op) => op.totalAtendimentos || op.totalCalls || 0)
   
-  console.log('🔍 calcTopOperadores - Resultado:', { labels: labels.length, data: data.length })
+  // Debug removido para melhor performance
 
   return {
     labels,
@@ -1513,7 +1504,7 @@ export const calcTopOperadores = (opMetrics, topN = 5) => {
  * @returns {Object} Dataset Chart.js para barra agrupada.
  */
 export const calcPerformanceMelhores = (opMetrics, topN = 5) => {
-  console.log('🔍 calcPerformanceMelhores - OperatorMetrics recebidos:', Object.keys(opMetrics).length)
+  // Debug removido para melhor performance
   
   const validos = Object.values(opMetrics)
     .filter((op) => {
@@ -1531,7 +1522,7 @@ export const calcPerformanceMelhores = (opMetrics, topN = 5) => {
   const notaAtendData = validos.map((op) => op.notaMediaAtendimento || op.avgRatingAttendance || 0)
   const notaSoluData = validos.map((op) => op.notaMediaSolucao || op.avgRatingSolution || 0)
   
-  console.log('🔍 calcPerformanceMelhores - Resultado:', { labels: labels.length, tmaData: tmaData.length })
+  // Debug removido para melhor performance
 
   return {
     labels,
@@ -1755,7 +1746,7 @@ export const calcPerformanceMelhores = (opMetrics, topN = 5) => {
  * @returns {Object} Dataset Chart.js para barra.
  */
 export const calcRankingQualidade = (opMetrics) => {
-  console.log('🔍 calcRankingQualidade - OperatorMetrics recebidos:', Object.keys(opMetrics).length)
+  // Debug removido para melhor performance
   
   // Calcula scores usando fórmula oficial
   const totals = Object.values(opMetrics).map((op) => op.totalAtendimentos || op.totalCalls || 0)
@@ -1797,7 +1788,7 @@ export const calcRankingQualidade = (opMetrics) => {
   const labels = ranking.map((r) => r.operador)
   const data = ranking.map((r) => r.score)
   
-  console.log('🔍 calcRankingQualidade - Resultado:', { labels: labels.length, data: data.length })
+  // Debug removido para melhor performance
 
   return {
     labels,

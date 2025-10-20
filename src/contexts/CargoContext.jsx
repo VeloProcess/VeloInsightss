@@ -23,7 +23,7 @@ export const CargoProvider = ({ children }) => {
   const autoLogin = (email) => {
     const user = getUserByEmail(email)
     if (user) {
-      console.log('🚀 Login automático para:', user.nome, 'como', user.cargo)
+      // Debug removido para melhor performance
       setSelectedCargo(user.cargo)
       setUserEmail(email)
       setUserInfo(user)

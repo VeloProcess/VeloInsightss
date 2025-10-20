@@ -341,14 +341,14 @@ export const useGoogleSheets = () => {
 
     return {
       totalCalls,
-      avgDuration: Math.round(avgDuration * 100) / 100,
-      avgRatingAttendance: Math.round(avgRatingAttendance * 100) / 100,
-      avgRatingSolution: Math.round(avgRatingSolution * 100) / 100,
-      avgPauseTime: Math.round(avgPauseTime * 100) / 100,
+      avgDuration: parseFloat(avgDuration.toFixed(2)),
+      avgRatingAttendance: parseFloat(avgRatingAttendance.toFixed(2)),
+      avgRatingSolution: parseFloat(avgRatingSolution.toFixed(2)),
+      avgPauseTime: parseFloat(avgPauseTime.toFixed(2)),
       totalOperators,
       dataPeriod,
       totalRecords: validData.length,
-      abandonmentRate: Math.round(abandonmentRate * 100) / 100,
+      abandonmentRate: parseFloat(abandonmentRate.toFixed(2)),
       callStatuses
     }
   }
@@ -416,10 +416,10 @@ export const useGoogleSheets = () => {
       return {
         operator,
         totalCalls,
-        avgDuration: Math.round(avgDuration * 100) / 100,
-        avgRatingAttendance: Math.round(avgRatingAttendance * 100) / 100,
-        avgRatingSolution: Math.round(avgRatingSolution * 100) / 100,
-        avgPauseTime: Math.round(avgPauseTime * 100) / 100,
+        avgDuration: parseFloat(avgDuration.toFixed(2)),
+        avgRatingAttendance: parseFloat(avgRatingAttendance.toFixed(2)),
+        avgRatingSolution: parseFloat(avgRatingSolution.toFixed(2)),
+        avgPauseTime: parseFloat(avgPauseTime.toFixed(2)),
         totalRecords: validRecords.length
       }
     })
@@ -453,7 +453,7 @@ export const useGoogleSheets = () => {
 
       return {
         ...operator,
-        score: Math.round(score * 100) / 100,
+        score: parseFloat(score.toFixed(2)),
         rank: 0
       }
     })

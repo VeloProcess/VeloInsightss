@@ -160,7 +160,7 @@ const OperatorAnalysis = ({ data, operatorMetrics, selectedOperator }) => {
               </tr>
             </thead>
             <tbody>
-              {operatorMetrics.slice(0, 15).map((operator, index) => (
+              {operatorMetrics.slice(0, 3).map((operator, index) => (
                 <tr 
                   key={operator.operator}
                   className={selectedOperator === operator.operator ? 'selected-operator' : ''}
