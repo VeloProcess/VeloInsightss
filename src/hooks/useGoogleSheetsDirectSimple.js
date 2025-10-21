@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { processarDados } from '../utils/dataProcessor'
+import { fetchGoogleSheets } from '../utils/apiRateLimiter'
+
 
 // Função para processamento assíncrono otimizado
 const processarDadosAssincrono = async (dados, processAllRecords = false) => {
@@ -126,6 +128,12 @@ const filterDataByPeriod = (data, selectedPeriod, offsetDays = 0) => {
           // Usar o ano detectado nos dados
           const fifteenDaysAgo = new Date(dataYear, today.getMonth(), today.getDate() - 15)
           shouldInclude = rowDateOnly >= fifteenDaysAgo && rowDateOnly.getFullYear() === dataYear
+          break
+          
+        case 'last90Days':
+          // Usar o ano detectado nos dados
+          const ninetyDaysAgo = new Date(dataYear, today.getMonth(), today.getDate() - 90)
+          shouldInclude = rowDateOnly >= ninetyDaysAgo && rowDateOnly.getFullYear() === dataYear
           break
           
         case 'lastMonth':
@@ -453,7 +461,7 @@ export const useGoogleSheetsDirectSimple = () => {
   }
 
   // Função para carregar dados sob demanda (quando período é selecionado)
-  const loadDataOnDemand = async (selectedPeriod = 'all') => {
+  const loadDataOnDemand = async (selectedPeriod = 'last90Days') => {
     if (!userData?.accessToken) {
       console.error('❌ Usuário não autenticado')
       return
@@ -495,6 +503,10 @@ export const useGoogleSheetsDirectSimple = () => {
           // Comparar com os 15 dias anteriores aos últimos 15 dias
           previousPeriodData = filterDataByPeriod(fullDataset, 'last15Days', -15) // -15 dias de offset
           break
+        case 'last90Days':
+          // Comparar com os 90 dias anteriores aos últimos 90 dias
+          previousPeriodData = filterDataByPeriod(fullDataset, 'last90Days', -90) // -90 dias de offset
+          break
         case 'last30Days':
           // Comparar com os 30 dias anteriores aos últimos 30 dias
           previousPeriodData = filterDataByPeriod(fullDataset, 'last30Days', -30) // -30 dias de offset
@@ -524,7 +536,7 @@ export const useGoogleSheetsDirectSimple = () => {
       
       const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${SHEET_RANGE_FULL}?access_token=${accessToken}`
       
-      const response = await fetch(url)
+      const response = await fetchGoogleSheets(url)
       
       if (!response.ok) {
         throw new Error(`Erro ao buscar dados: ${response.statusText}`)
@@ -538,7 +550,9 @@ export const useGoogleSheetsDirectSimple = () => {
         setFullDataset(result.values)
         
         // FILTRAGEM POR PERÍODO: aplicar filtro baseado no período selecionado
-        const filteredData = filterDataByPeriod(result.values, selectedPeriod)
+        // Se não há período selecionado, usar período padrão (últimos 90 dias)
+        const periodToUse = selectedPeriod === 'all' ? 'last90Days' : selectedPeriod
+        const filteredData = filterDataByPeriod(result.values, periodToUse)
         
         
         // Processamento assíncrono com progresso
@@ -591,7 +605,7 @@ export const useGoogleSheetsDirectSimple = () => {
       
       const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${SHEET_RANGE_FULL}?access_token=${accessToken}`
       
-      const response = await fetch(url)
+      const response = await fetchGoogleSheets(url)
       
       if (!response.ok) {
         throw new Error(`Erro ao buscar dados: ${response.statusText}`)
@@ -867,7 +881,7 @@ export const useGoogleSheetsDirectSimple = () => {
       
       console.log('🔗 URL da API:', url.replace(tokenToUse, '***'))
       
-      const response = await fetch(url)
+      const response = await fetchGoogleSheets(url)
       
       if (!response.ok) {
         throw new Error(`Erro ao buscar dados: ${response.statusText}`)
@@ -878,9 +892,10 @@ export const useGoogleSheetsDirectSimple = () => {
       if (result.values && result.values.length > 0) {
         // Debug removido para melhor performance
         
-        // Processar dados (já filtra os últimos 60 dias) - OTIMIZADO
+        // Processar dados com período padrão (últimos 90 dias) - OTIMIZADO
         // Debug removido para melhor performance
-        const dadosProcessados = await processarDadosAssincrono(result.values, true) // processAllRecords = true
+        const filteredData = filterDataByPeriod(result.values, 'last90Days')
+        const dadosProcessados = await processarDadosAssincrono(filteredData, true) // processAllRecords = true
         
         // console.log('📊 Debug - Dados processados (últimos 60 dias):', {
         //   dadosFiltrados: dadosProcessados.dadosFiltrados.length,

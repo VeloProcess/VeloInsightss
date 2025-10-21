@@ -1,23 +1,29 @@
-import React, { useMemo } from 'react'
-import { Bar } from 'react-chartjs-2'
+import React, { useMemo, memo } from 'react'
+import { Line, Bar } from 'react-chartjs-2'
 import {
   Chart as ChartJS,
   CategoryScale,
   LinearScale,
+  PointElement,
+  LineElement,
   BarElement,
   Title,
   Tooltip,
-  Legend
+  Legend,
+  Filler
 } from 'chart.js'
 import ChartDataLabels from 'chartjs-plugin-datalabels'
 
 ChartJS.register(
   CategoryScale,
   LinearScale,
+  PointElement,
+  LineElement,
   BarElement,
   Title,
   Tooltip,
   Legend,
+  Filler,
   ChartDataLabels
 )
 
@@ -58,11 +64,7 @@ const CSATChart = ({ data = [], periodo = null }) => {
     }
   }
   
-  console.log('🎫 Verificação linha 15+:', {
-    encontrouTickets,
-    exemploTicket,
-    totalRegistros: data.length
-  })
+  // Log removido para evitar spam no console
 
   const chartData = useMemo(() => {
     if (encontrouTickets) {
@@ -79,7 +81,7 @@ const CSATChart = ({ data = [], periodo = null }) => {
         return acc
       }, { bom: 0, ruim: 0 })
       
-      console.log('🎫 Contagem tickets:', ticketCounts)
+      // Log removido para evitar spam no console
       
       const total = ticketCounts.bom + ticketCounts.ruim
       const percentualSatisfacao = total > 0 ? (ticketCounts.bom / total) * 100 : 0
@@ -203,17 +205,18 @@ const CSATChart = ({ data = [], periodo = null }) => {
         data: processedData.notaAtendimento,
         type: 'line',
         borderColor: '#3B82F6',
-        backgroundColor: 'rgba(59, 130, 246, 0.05)',
-        borderWidth: 4,
-        pointRadius: 8,
-        pointHoverRadius: 12,
+        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+        borderWidth: 5, // Linha mais grossa
+        borderDash: [], // Linha sólida
+        pointRadius: 12, // Pontos ainda maiores
+        pointHoverRadius: 16,
         pointBackgroundColor: '#3B82F6',
         pointBorderColor: '#ffffff',
         pointBorderWidth: 3,
         pointHoverBorderWidth: 4,
         pointHoverBackgroundColor: '#1D4ED8',
         tension: 0.3,
-        fill: true,
+        fill: false,
         order: 1,
         yAxisID: 'y',
         shadowOffsetX: 0,
@@ -223,20 +226,21 @@ const CSATChart = ({ data = [], periodo = null }) => {
       },
       {
         label: 'Solução',
-        data: processedData.notaSolucao,
+        data: processedData.notaSolucao.map(valor => valor - 0.0), // Subtrair 0.3 para ficar abaixo
         type: 'line',
         borderColor: '#8B5CF6',
-        backgroundColor: 'rgba(139, 92, 246, 0.05)',
-        borderWidth: 4,
-        pointRadius: 8,
-        pointHoverRadius: 12,
+        backgroundColor: 'rgba(139, 92, 246, 0.1)',
+        borderWidth: 5, // Linha mais grossa
+        borderDash: [10, 5], // Linha tracejada mais visível
+        pointRadius: 12, // Pontos ainda maiores
+        pointHoverRadius: 16,
         pointBackgroundColor: '#8B5CF6',
         pointBorderColor: '#ffffff',
         pointBorderWidth: 3,
         pointHoverBorderWidth: 4,
         pointHoverBackgroundColor: '#7C3AED',
         tension: 0.3,
-        fill: true,
+        fill: false,
         order: 2,
         yAxisID: 'y',
         shadowOffsetX: 0,
@@ -313,6 +317,14 @@ const CSATChart = ({ data = [], periodo = null }) => {
   const options = {
     responsive: true,
     maintainAspectRatio: false,
+    layout: {
+      padding: {
+        top: 50, // Espaço máximo no topo para separação total
+        bottom: 50, // Espaço máximo embaixo para separação total
+        left: 20,
+        right: 20
+      }
+    },
     interaction: {
       mode: 'index',
       intersect: false
@@ -342,55 +354,61 @@ const CSATChart = ({ data = [], periodo = null }) => {
       },
       datalabels: {
         display: function(context) {
-          // Mostrar apenas nos pontos de Atendimento e Solução
-          return context.dataset.label === 'Atendimento' || context.dataset.label === 'Solução'
+          // Mostrar labels apenas para Atendimento e Solução
+          const label = context.dataset.label
+          return label === 'Atendimento' || label === 'Solução'
         },
         color: '#ffffff',
         font: {
-          size: 11,
-          weight: '700',
+          size: 14,
+          weight: 'bold',
           family: "'Inter', sans-serif"
         },
         backgroundColor: function(context) {
-          // Cor de fundo baseada no dataset
-          if (context.dataset.label === 'Atendimento') {
+          const label = context.dataset.label
+          if (label === 'Atendimento') {
             return '#3B82F6'
-          } else if (context.dataset.label === 'Solução') {
+          } else if (label === 'Solução') {
             return '#8B5CF6'
           }
           return '#6B7280'
         },
         borderColor: '#ffffff',
-        borderWidth: 2,
-        borderRadius: 8,
-        padding: 6,
+        borderWidth: 1,
+        borderRadius: 4,
+        padding: {
+          top: 6,
+          bottom: 6,
+          left: 8,
+          right: 8
+        },
         formatter: function(value, context) {
-          // Acessar os dados através do chart
-          const chart = context.chart
-          const datasets = chart.data.datasets
-          const dataIndex = context.dataIndex
-          
-          // Encontrar os datasets de Atendimento e Solução
-          const atendimentoDataset = datasets.find(d => d.label === 'Atendimento')
-          const solucaoDataset = datasets.find(d => d.label === 'Solução')
-          
-          if (atendimentoDataset && solucaoDataset) {
-            const notaAtend = atendimentoDataset.data[dataIndex] || 0
-            const notaSol = solucaoDataset.data[dataIndex] || 0
-            
-            
-            // Se ambas as notas são válidas (entre 1-5), calcular nota média
-            if (notaAtend >= 1 && notaAtend <= 5 && notaSol >= 1 && notaSol <= 5) {
-              const notaMedia = (notaAtend + notaSol) / 2
-              return notaMedia.toFixed(2)
-            }
+          // Mostrar valor formatado
+          const datasetLabel = context.dataset.label
+          if (datasetLabel === 'Solução') {
+            // Mostrar valor real (sem o offset de -0.3)
+            const valorReal = value + 0.3
+            return valorReal.toFixed(2)
+          } else if (datasetLabel === 'Atendimento') {
+            return value.toFixed(2)
           }
-          
           return '0.00'
         },
         anchor: 'center',
         align: 'center',
-        offset: 0
+        offset: function(context) {
+          const label = context.dataset.label
+          if (label === 'Atendimento') {
+            return -30 // Acima do ponto - separação máxima
+          } else if (label === 'Solução') {
+            return 30 // Abaixo do ponto - separação máxima
+          }
+          return 0
+        },
+        // Configurações para garantir que sempre apareçam
+        clamp: false,
+        clip: false,
+        rotation: 0
       },
       tooltip: {
         enabled: true,
@@ -431,8 +449,12 @@ const CSATChart = ({ data = [], periodo = null }) => {
               } else if (label === 'Satisfação (%)') {
                 return `📊 ${label}: ${value.toFixed(1)}%`
               }
-            } else if (label === 'Atendimento' || label === 'Solução') {
-              return `${label}: ${value.toFixed(2)}/5`
+            } else if (label === 'Atendimento') {
+              return `📞 ${label}: ${value.toFixed(2)}/5`
+            } else if (label === 'Solução') {
+              // Mostrar valor real (sem o offset de -0.3)
+              const valorReal = value + 0.3
+              return `🎯 ${label}: ${valorReal.toFixed(2)}/5`
             }
             
             return `${label}: ${value.toFixed(2)}`
@@ -461,6 +483,7 @@ const CSATChart = ({ data = [], periodo = null }) => {
                 const mediaSol = mediaSolItem.parsed.y
                 const mediaGeral = (mediaAtend + mediaSol) / 2
                 
+                let info = []
                 info.push(`📊 Média Geral: ${mediaGeral.toFixed(2)}/5`)
                 
                 // Classificar qualidade
@@ -473,10 +496,10 @@ const CSATChart = ({ data = [], periodo = null }) => {
                 } else {
                   info.push(`❌ Precisa melhorar`)
                 }
+                
+                return info.length > 0 ? `\n${info.join('\n')}` : ''
               }
             }
-            
-            return info.length > 0 ? `\n${info.join('\n')}` : ''
           }
         }
       }
@@ -543,8 +566,7 @@ const CSATChart = ({ data = [], periodo = null }) => {
           circular: false
         }
       },
-      ...(encontrouTickets || (!encontrouTickets && isPhoneData) ? {
-        y1: {
+      y1: {
           beginAtZero: true,
           min: 0,
           max: 100,
@@ -567,7 +589,7 @@ const CSATChart = ({ data = [], periodo = null }) => {
             },
             color: '#6B7280',
             padding: 16,
-            stepSize: 20,
+            stepSize: 10, // Marcações de 10 em 10
             callback: function(value) {
               return value + '%'
             }
@@ -579,9 +601,8 @@ const CSATChart = ({ data = [], periodo = null }) => {
             circular: false
           }
         }
-      } : {})
+      }
     }
-  }
 
   return <Bar data={chartData} options={options} />
 }

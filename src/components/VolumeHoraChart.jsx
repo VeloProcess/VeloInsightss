@@ -9,6 +9,7 @@ import {
   Tooltip,
   Legend
 } from 'chart.js'
+import ChartDataLabels from 'chartjs-plugin-datalabels'
 
 ChartJS.register(
   CategoryScale,
@@ -16,12 +17,13 @@ ChartJS.register(
   BarElement,
   Title,
   Tooltip,
-  Legend
+  Legend,
+  ChartDataLabels
 )
 
 const VolumeHoraChart = ({ data = [], periodo = null }) => {
   const chartData = useMemo(() => {
-    const processedData = processVolumeHora(data)
+    const processedData = processVolumeHora(data, periodo)
     
     // Criar gradiente para as barras
     const createGradient = (ctx, color1, color2) => {
@@ -35,31 +37,50 @@ const VolumeHoraChart = ({ data = [], periodo = null }) => {
       labels: processedData.labels,
       datasets: [
         {
-          label: '📞 Chamadas por Hora',
+          label: '📊 Histograma de Chamadas por Hora',
           data: processedData.volumes,
           backgroundColor: (context) => {
             const ctx = context.chart.ctx
             const value = context.parsed.y
             const max = Math.max(...processedData.volumes)
             
-            // Cores diferentes baseadas no volume (horário de pico)
-            if (value > max * 0.8) {
-              return createGradient(ctx, 'rgba(239, 68, 68, 0.9)', 'rgba(220, 38, 38, 0.9)') // Vermelho (pico)
-            } else if (value > max * 0.5) {
-              return createGradient(ctx, 'rgba(249, 115, 22, 0.9)', 'rgba(234, 88, 12, 0.9)') // Laranja (alto)
-            } else if (value > max * 0.3) {
-              return createGradient(ctx, 'rgba(59, 130, 246, 0.9)', 'rgba(37, 99, 235, 0.9)') // Azul (médio)
+            // Cores de histograma baseadas na intensidade
+            const intensity = value / max
+            if (intensity > 0.8) {
+              return createGradient(ctx, 'rgba(59, 130, 246, 0.9)', 'rgba(37, 99, 235, 0.9)') // Azul intenso
+            } else if (intensity > 0.5) {
+              return createGradient(ctx, 'rgba(99, 102, 241, 0.8)', 'rgba(79, 70, 229, 0.8)') // Índigo
+            } else if (intensity > 0.2) {
+              return createGradient(ctx, 'rgba(139, 92, 246, 0.7)', 'rgba(124, 58, 237, 0.7)') // Roxo
             } else {
-              return createGradient(ctx, 'rgba(16, 185, 129, 0.9)', 'rgba(5, 150, 105, 0.9)') // Verde (baixo)
+              return createGradient(ctx, 'rgba(168, 85, 247, 0.6)', 'rgba(147, 51, 234, 0.6)') // Violeta claro
             }
           },
           borderWidth: 0,
-          borderRadius: 6,
-          maxBarThickness: 40,
-          hoverBorderWidth: 2,
-          hoverBorderColor: 'rgba(255, 255, 255, 0.8)'
+          borderRadius: 0, // Histograma sem bordas arredondadas
+          maxBarThickness: 80, // Barras mais largas para histograma
+          hoverBorderWidth: 3,
+          hoverBorderColor: 'rgba(255, 255, 255, 1)',
+          hoverBackgroundColor: (context) => {
+            const ctx = context.chart.ctx
+            const value = context.parsed.y
+            const max = Math.max(...processedData.volumes)
+            
+            // Cores de hover mais intensas para histograma
+            const intensity = value / max
+            if (intensity > 0.8) {
+              return createGradient(ctx, 'rgba(59, 130, 246, 1)', 'rgba(37, 99, 235, 1)')
+            } else if (intensity > 0.5) {
+              return createGradient(ctx, 'rgba(99, 102, 241, 1)', 'rgba(79, 70, 229, 1)')
+            } else if (intensity > 0.2) {
+              return createGradient(ctx, 'rgba(139, 92, 246, 1)', 'rgba(124, 58, 237, 1)')
+            } else {
+              return createGradient(ctx, 'rgba(168, 85, 247, 1)', 'rgba(147, 51, 234, 1)')
+            }
+          }
         }
-      ]
+      ],
+      peakInfo: processedData.peakInfo // Adicionar informações de pico
     }
   }, [data, periodo])
 
@@ -77,40 +98,67 @@ const VolumeHoraChart = ({ data = [], periodo = null }) => {
         align: 'end',
         labels: {
           font: {
-            size: 13,
+            size: 14,
             family: "'Inter', sans-serif",
-            weight: '600'
+            weight: '700'
           },
-          padding: 20,
+          padding: 25,
           usePointStyle: true,
           pointStyle: 'rectRounded',
-          boxWidth: 12,
-          boxHeight: 12,
+          boxWidth: 16,
+          boxHeight: 16,
           color: '#1f2937'
         }
       },
+      datalabels: {
+        display: false, // Desabilitar labels nas barras
+        color: '#ffffff',
+        font: {
+          size: 12,
+          family: "'Inter', sans-serif",
+          weight: '700'
+        },
+        anchor: 'end',
+        align: 'top',
+        offset: 4,
+        formatter: function(value, context) {
+          // Mostrar apenas valores maiores que 0
+          if (value > 0) {
+            return value.toLocaleString('pt-BR')
+          }
+          return ''
+        },
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+        borderRadius: 6,
+        padding: {
+          top: 4,
+          bottom: 4,
+          left: 8,
+          right: 8
+        }
+      },
       tooltip: {
-        backgroundColor: 'rgba(17, 24, 39, 0.95)',
+        backgroundColor: 'rgba(17, 24, 39, 0.98)',
         titleColor: '#fff',
         bodyColor: '#fff',
-        padding: 16,
-        cornerRadius: 12,
+        padding: 20,
+        cornerRadius: 16,
         titleFont: {
-          size: 14,
+          size: 16,
           family: "'Inter', sans-serif",
           weight: '700'
         },
         bodyFont: {
-          size: 13,
+          size: 14,
           family: "'Inter', sans-serif",
-          weight: '500'
+          weight: '600'
         },
         displayColors: true,
-        boxWidth: 12,
-        boxHeight: 12,
-        boxPadding: 6,
-        borderColor: 'rgba(255, 255, 255, 0.1)',
-        borderWidth: 1,
+        boxWidth: 16,
+        boxHeight: 16,
+        boxPadding: 8,
+        borderColor: 'rgba(255, 255, 255, 0.2)',
+        borderWidth: 2,
         callbacks: {
           title: function(context) {
             return `🕐 ${context[0].label}`
@@ -124,15 +172,32 @@ const VolumeHoraChart = ({ data = [], periodo = null }) => {
           afterLabel: function(context) {
             const value = context.parsed.y
             const max = Math.max(...context.dataset.data)
+            const peakInfo = chartData.peakInfo
             
             if (value > max * 0.8) {
-              return '🔥 Horário de PICO'
+              return [
+                '🔥 Horário de PICO',
+                `📊 Pico principal: ${peakInfo.primaryPeak}`,
+                `📈 Volume médio: ${peakInfo.averageVolume.toFixed(1)}`
+              ]
             } else if (value > max * 0.5) {
-              return '⚠️ Volume ALTO'
+              return [
+                '⚠️ Volume ALTO',
+                `📊 Pico principal: ${peakInfo.primaryPeak}`,
+                `📈 Volume médio: ${peakInfo.averageVolume.toFixed(1)}`
+              ]
             } else if (value > max * 0.3) {
-              return '📊 Volume MÉDIO'
+              return [
+                '📊 Volume MÉDIO',
+                `📊 Pico principal: ${peakInfo.primaryPeak}`,
+                `📈 Volume médio: ${peakInfo.averageVolume.toFixed(1)}`
+              ]
             } else {
-              return '✅ Volume BAIXO'
+              return [
+                '✅ Volume BAIXO',
+                `📊 Pico principal: ${peakInfo.primaryPeak}`,
+                `📈 Volume médio: ${peakInfo.averageVolume.toFixed(1)}`
+              ]
             }
           }
         }
@@ -141,33 +206,37 @@ const VolumeHoraChart = ({ data = [], periodo = null }) => {
     scales: {
       x: {
         grid: {
-          display: false,
+          display: false, // Sem grid vertical para histograma
           drawBorder: false
         },
         ticks: {
           font: {
             size: 11,
             family: "'Inter', sans-serif",
-            weight: '500'
+            weight: '600'
           },
-          color: '#6b7280',
-          padding: 8
+          color: '#374151',
+          padding: 8,
+          maxRotation: 0, // Sem rotação para histograma
+          minRotation: 0
         }
       },
       y: {
         beginAtZero: true,
         ticks: {
           font: {
-            size: 11,
+            size: 12,
             family: "'Inter', sans-serif",
-            weight: '500'
+            weight: '600'
           },
-          color: '#6b7280',
-          padding: 12
+          color: '#374151',
+          padding: 15,
+          stepSize: 1
         },
         grid: {
-          color: 'rgba(0, 0, 0, 0.04)',
-          drawBorder: false
+          color: 'rgba(0, 0, 0, 0.1)',
+          drawBorder: false,
+          lineWidth: 1
         }
       }
     }
@@ -176,21 +245,72 @@ const VolumeHoraChart = ({ data = [], periodo = null }) => {
   return <Bar data={chartData} options={options} />
 }
 
-// Processar volume por hora
-const processVolumeHora = (data) => {
+// Processar volume por hora com análise de pico
+const processVolumeHora = (data, periodo = null) => {
+  console.log('🔍 DEBUG VolumeHoraChart - Dados recebidos:', {
+    dataLength: data?.length || 0,
+    dataType: Array.isArray(data) ? 'array' : typeof data,
+    periodo: periodo,
+    firstRecord: data?.[0],
+    sampleRecords: data?.slice(0, 3),
+    colunaE_samples: data?.slice(0, 5).map(record => Array.isArray(record) ? record[4] : 'N/A')
+  })
+
   if (!data || data.length === 0) {
+    console.log('❌ VolumeHoraChart - Sem dados')
     return {
       labels: Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`),
-      volumes: Array(24).fill(0)
+      volumes: Array(24).fill(0),
+      peakInfo: {
+        primaryPeak: 'N/A',
+        secondaryPeaks: [],
+        averageVolume: 0,
+        peakHours: [],
+        lowHours: []
+      }
     }
   }
 
   const volumePorHora = Array(24).fill(0)
   
+  // Função para verificar se uma data está dentro do período selecionado
+  const isDateInPeriod = (record) => {
+    if (!periodo) return true
+    
+    try {
+      // Tentar diferentes campos de data
+      const dateField = record.data || record.date || record['Data de entrada'] || record.dataEntrada
+      if (!dateField) return true
+      
+      const recordDate = parseBrazilianDate(dateField)
+      if (!recordDate) return true
+      
+      const startDate = new Date(periodo.startDate)
+      const endDate = new Date(periodo.endDate)
+      
+      return recordDate >= startDate && recordDate <= endDate
+    } catch (error) {
+      return true
+    }
+  }
+  
+  let processedRecords = 0
+  
   data.forEach(record => {
-    // Pegar o campo de hora (coluna 'hora' ou 'time' para chamadas, 'Data de entrada' para tickets)
-    let horaField = record.hora || record.time || record.calltime || 
-                    record['Data de entrada'] || record.dataEntrada || ''
+    // Verificar se está no período selecionado
+    if (!isDateInPeriod(record)) return
+    
+    // Pegar o campo de hora da coluna E (índice 4)
+    let horaField = ''
+    
+    // Se os dados são arrays (formato de planilha), usar índice 4 (coluna E)
+    if (Array.isArray(record)) {
+      horaField = record[4] || ''
+    } else {
+      // Se são objetos, tentar diferentes campos
+      horaField = record.hora || record.time || record.calltime || 
+                  record['Data de entrada'] || record.dataEntrada || record.Hora || ''
+    }
     
     if (horaField) {
       // Se for timestamp completo (ex: "2025-01-01 18:10:21.272000"), extrair apenas a hora
@@ -204,10 +324,50 @@ const processVolumeHora = (data) => {
         const hora = parseInt(horaParts[0])
         if (hora >= 0 && hora < 24) {
           volumePorHora[hora]++
+          processedRecords++
+          
+          // Log das primeiras horas encontradas
+          if (processedRecords <= 5) {
+            console.log('✅ VolumeHoraChart - Hora encontrada:', hora, 'Campo original:', record[4], 'Processado:', horaField, 'Total:', volumePorHora[hora])
+          }
         }
       }
     }
   })
+  
+  console.log('📊 VolumeHoraChart - Resumo do processamento:', {
+    processedRecords,
+    totalRecords: data.length,
+    volumePorHora: volumePorHora.filter(vol => vol > 0),
+    maxVolume: Math.max(...volumePorHora)
+  })
+
+  // Calcular informações de pico
+  const maxVolume = Math.max(...volumePorHora)
+  const averageVolume = volumePorHora.reduce((sum, vol) => sum + vol, 0) / 24
+  
+  // Encontrar horários de pico (acima de 80% do máximo)
+  const peakThreshold = maxVolume * 0.8
+  const peakHours = volumePorHora
+    .map((vol, index) => ({ hour: index, volume: vol }))
+    .filter(item => item.volume >= peakThreshold)
+    .sort((a, b) => b.volume - a.volume)
+  
+  // Encontrar horários de baixo volume (abaixo de 30% do máximo)
+  const lowThreshold = maxVolume * 0.3
+  const lowHours = volumePorHora
+    .map((vol, index) => ({ hour: index, volume: vol }))
+    .filter(item => item.volume <= lowThreshold)
+    .sort((a, b) => a.volume - b.volume)
+  
+  // Pico principal (maior volume)
+  const primaryPeak = peakHours.length > 0 ? 
+    `${String(peakHours[0].hour).padStart(2, '0')}:00` : 'N/A'
+  
+  // Picos secundários (outros horários de alto volume)
+  const secondaryPeaks = peakHours.slice(1, 4).map(item => 
+    `${String(item.hour).padStart(2, '0')}:00`
+  )
 
   const labels = Array.from({ length: 24 }, (_, i) => {
     const hora = String(i).padStart(2, '0')
@@ -216,8 +376,31 @@ const processVolumeHora = (data) => {
 
   return {
     labels,
-    volumes: volumePorHora
+    volumes: volumePorHora,
+    peakInfo: {
+      primaryPeak,
+      secondaryPeaks,
+      averageVolume,
+      peakHours: peakHours.map(item => `${String(item.hour).padStart(2, '0')}:00`),
+      lowHours: lowHours.map(item => `${String(item.hour).padStart(2, '0')}:00`)
+    }
   }
+}
+
+// Função auxiliar para parse de data brasileira
+const parseBrazilianDate = (dateStr) => {
+  if (!dateStr) return null
+  if (dateStr instanceof Date) return dateStr
+  
+  const parts = dateStr.split('/')
+  if (parts.length === 3) {
+    const day = parseInt(parts[0])
+    const month = parseInt(parts[1]) - 1
+    const year = parseInt(parts[2])
+    return new Date(year, month, day)
+  }
+  
+  return new Date(dateStr)
 }
 
 export default VolumeHoraChart

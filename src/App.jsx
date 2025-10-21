@@ -576,10 +576,10 @@ function AppContent() {
     if (isAuthenticated && currentView === 'fetch') {
       // Debug removido para melhor performance
       setCurrentView('dashboard')
-      // Carregar dados automaticamente se não houver dados
+      // Carregar dados automaticamente se não houver dados - período padrão de 90 dias
       if (loadDataOnDemand && (!data || data.length === 0)) {
         // Debug removido para melhor performance
-        loadDataOnDemand('all')
+        loadDataOnDemand('last90Days')
       }
     }
   }, [isAuthenticated, currentView, loadDataOnDemand, data])
@@ -598,10 +598,10 @@ function AppContent() {
       const success = selectCargo(cargo, userData.email)
       if (success) {
         // Debug removido para melhor performance
-        // Carregar dados automaticamente após seleção de cargo
+        // Carregar dados automaticamente após seleção de cargo - período padrão de 90 dias
         if (loadDataOnDemand && (!data || data.length === 0)) {
           // Debug removido para melhor performance
-          loadDataOnDemand('all')
+          loadDataOnDemand('last90Days')
         }
       } else {
         console.error('❌ Erro ao selecionar cargo')
@@ -714,7 +714,7 @@ function AppContent() {
           
           {currentView === 'dashboard' && (
             <>
-              {!isLoading && data && data.length > 0 ? (
+              {!isLoading ? (
                 <>
                   {/* Dashboard Principal - Métricas Gerais com OCTA integrado */}
                   <div className="main-dashboard-container">
@@ -966,22 +966,11 @@ function AppContent() {
                     </div>
                   )}
                 </>
-              ) : isLoading ? (
+              ) : (
                 <div className="loading-container">
                   <h2>🔄 Carregando dados da planilha...</h2>
                   <p>Por favor, aguarde enquanto os dados são processados.</p>
                   <div className="loading-spinner"></div>
-                </div>
-              ) : (
-                <div className="loading-container">
-                  <h2>🔄 Preparando dashboard...</h2>
-                  <p>Aguarde enquanto carregamos os dados para você.</p>
-                  <div className="loading-spinner"></div>
-                  <div className="loading-info">
-                    <p>📊 Processando dados da planilha...</p>
-                    <p>📅 Detectando período dos dados...</p>
-                    <p>⚡ Preparando métricas e gráficos...</p>
-                  </div>
                 </div>
               )}
             </>

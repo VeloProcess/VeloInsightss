@@ -150,6 +150,10 @@ export const useOctaData = (filters = {}) => {
         startDate = new Date(now.getTime() - 15 * 24 * 60 * 60 * 1000)
         endDate = now
         break
+      case 'last90Days':
+        startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000)
+        endDate = now
+        break
       case 'lastMonth':
         startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1)
         endDate = new Date(now.getFullYear(), now.getMonth(), 0)

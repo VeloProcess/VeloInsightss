@@ -35,18 +35,22 @@ const Header = ({ onToggleSidebar, sidebarOpen, theme, onToggleTheme, currentVie
             Dashboard
           </button>
           <button
-            className={`nav-tab ${currentView === 'charts' ? 'active' : ''}`}
+            className={`nav-tab disabled ${currentView === 'charts' ? 'active' : ''}`}
             onClick={() => onViewChange('charts')}
+            disabled
+            title="Funcionalidade em desenvolvimento"
           >
             <i className='bx bxs-bar-chart-alt-2'></i>
-            Gráficos
+            Gráficos - FUTURO
           </button>
           <button
-            className={`nav-tab ${currentView === 'agents' ? 'active' : ''}`}
+            className={`nav-tab disabled ${currentView === 'agents' ? 'active' : ''}`}
             onClick={() => onViewChange('agents')}
+            disabled
+            title="Funcionalidade em desenvolvimento"
           >
             <i className='bx bxs-user-account'></i>
-            Operadores
+            Operadores - FUTURO
           </button>
         </nav>
       )}

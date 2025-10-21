@@ -45,6 +45,11 @@ const PeriodSelectorV2 = ({ onPeriodSelect, isLoading }) => {
         startDate: new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000),
         endDate: now
       },
+      last90Days: {
+        label: 'Últimos 90 dias',
+        startDate: new Date(now.getTime() - 89 * 24 * 60 * 60 * 1000),
+        endDate: now
+      },
       custom: {
         label: 'Período personalizado',
         startDate: null,

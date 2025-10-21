@@ -107,6 +107,11 @@ const AdvancedFilters = memo(({
         endDate = ultimaDataDisponivel
         break
       
+      case 'last90Days':
+        startDate = new Date(ultimaDataDisponivel.getTime() - (90 * 24 * 60 * 60 * 1000))
+        endDate = ultimaDataDisponivel
+        break
+      
       case 'penultimoMes':
         startDate = new Date(now.getFullYear(), now.getMonth() - 2, 1)
         endDate = new Date(now.getFullYear(), now.getMonth() - 1, 0)

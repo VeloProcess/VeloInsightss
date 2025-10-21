@@ -1,0 +1,575 @@
+/* ========================================
+   SISTEMA DE TEMAS - VELOINSIGHTS
+   ======================================== */
+
+/* === TEMA CLARO (PADRÃO) === */
+.theme-light {
+  --color-bg-primary: #F3F7FC;
+  --color-bg-secondary: #FFFFFF;
+  --color-bg-tertiary: #F8FAFC;
+  --color-bg-dark: #272A30;
+  --color-bg-header: linear-gradient(135deg, #272A30 0%, #1a1d23 100%);
+  --color-bg-sidebar: linear-gradient(180deg, #272A30 0%, #1a1d23 100%);
+  
+  --color-text-primary: #272A30;
+  --color-text-secondary: #6B7280;
+  --color-text-light: #F3F7FC;
+  --color-text-muted: #9CA3AF;
+  
+  --color-border-primary: rgba(22, 148, 255, 0.2);
+  --color-border-secondary: rgba(22, 148, 255, 0.1);
+  --color-border-strong: rgba(22, 148, 255, 0.3);
+  
+  --color-blue-primary: #1634FF;
+  --color-blue-light: #1694FF;
+  --color-blue-dark: #000058;
+  
+  --color-shadow: rgba(0, 0, 0, 0.1);
+  --color-shadow-strong: rgba(0, 0, 0, 0.2);
+  
+  --color-card-bg: #FFFFFF;
+  --color-card-hover: rgba(22, 148, 255, 0.05);
+  --color-card-border: rgba(22, 148, 255, 0.2);
+}
+
+/* === TEMA ESCURO === */
+.theme-dark {
+  --color-bg-primary: #1a1d23;
+  --color-bg-secondary: #272A30;
+  --color-bg-tertiary: #2d3138;
+  --color-bg-dark: #1a1d23;
+  --color-bg-header: linear-gradient(135deg, #1a1d23 0%, #0f1115 100%);
+  --color-bg-sidebar: linear-gradient(180deg, #1a1d23 0%, #0f1115 100%);
+  
+  --color-text-primary: #F3F7FC;
+  --color-text-secondary: #B0B8C4;
+  --color-text-light: #F3F7FC;
+  --color-text-muted: #6B7280;
+  
+  --color-border-primary: rgba(22, 148, 255, 0.3);
+  --color-border-secondary: rgba(22, 148, 255, 0.2);
+  --color-border-strong: rgba(22, 148, 255, 0.4);
+  
+  --color-blue-primary: #1694FF;
+  --color-blue-light: #4A9EFF;
+  --color-blue-dark: #0066CC;
+  
+  --color-shadow: rgba(0, 0, 0, 0.3);
+  --color-shadow-strong: rgba(0, 0, 0, 0.5);
+  
+  --color-card-bg: #272A30;
+  --color-card-hover: rgba(22, 148, 255, 0.1);
+  --color-card-border: rgba(22, 148, 255, 0.3);
+}
+
+/* === APLICAÇÃO DOS TEMAS === */
+
+/* Body e App */
+.theme-light body,
+.theme-light .app {
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+}
+
+.theme-dark body,
+.theme-dark .app {
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+}
+
+/* Header */
+.theme-light .header {
+  background: var(--color-bg-header);
+  color: var(--color-text-light);
+}
+
+.theme-dark .header {
+  background: var(--color-bg-header);
+  color: var(--color-text-light);
+}
+
+/* Sidebar */
+.theme-light .sidebar {
+  background: var(--color-bg-sidebar);
+  color: var(--color-text-light);
+}
+
+.theme-dark .sidebar {
+  background: var(--color-bg-sidebar);
+  color: var(--color-text-light);
+}
+
+/* Conteúdo Principal */
+.theme-light .app-content {
+  background-color: var(--color-bg-primary);
+}
+
+.theme-dark .app-content {
+  background-color: var(--color-bg-primary);
+}
+
+/* Cards */
+.theme-light .card {
+  background: var(--color-card-bg);
+  border-color: var(--color-card-border);
+  box-shadow: 0 4px 20px var(--color-shadow);
+}
+
+.theme-dark .card {
+  background: var(--color-card-bg);
+  border-color: var(--color-card-border);
+  box-shadow: 0 4px 20px var(--color-shadow-strong);
+}
+
+.theme-light .card:hover {
+  box-shadow: 0 8px 30px var(--color-shadow-strong);
+}
+
+.theme-dark .card:hover {
+  box-shadow: 0 8px 30px var(--color-shadow-strong);
+}
+
+/* Métricas */
+.theme-light .metric-card {
+  background: linear-gradient(135deg, var(--color-card-bg) 0%, var(--color-bg-tertiary) 100%);
+  border-color: var(--color-border-primary);
+}
+
+.theme-dark .metric-card {
+  background: linear-gradient(135deg, var(--color-card-bg) 0%, var(--color-bg-tertiary) 100%);
+  border-color: var(--color-border-primary);
+}
+
+.theme-light .metric-value {
+  color: var(--color-blue-primary);
+}
+
+.theme-dark .metric-value {
+  color: var(--color-blue-light);
+}
+
+.theme-light .metric-label {
+  color: var(--color-text-secondary);
+}
+
+.theme-dark .metric-label {
+  color: var(--color-text-secondary);
+}
+
+/* Tabelas */
+.theme-light .table {
+  background: var(--color-card-bg);
+}
+
+.theme-dark .table {
+  background: var(--color-card-bg);
+}
+
+.theme-light .table td {
+  color: var(--color-text-primary);
+  border-bottom-color: var(--color-border-secondary);
+}
+
+.theme-dark .table td {
+  color: var(--color-text-primary);
+  border-bottom-color: var(--color-border-secondary);
+}
+
+.theme-light .table tbody tr:hover {
+  background-color: var(--color-card-hover);
+}
+
+.theme-dark .table tbody tr:hover {
+  background-color: var(--color-card-hover);
+}
+
+/* Tabela de Rankings - Correção específica */
+.theme-light .rankings-table {
+  background: var(--color-card-bg);
+}
+
+.theme-dark .rankings-table {
+  background: var(--color-card-bg);
+}
+
+.theme-light .rankings-table td {
+  color: var(--color-text-primary) !important;
+  background: var(--color-card-bg) !important;
+}
+
+.theme-dark .rankings-table td {
+  color: var(--color-text-primary) !important;
+  background: var(--color-card-bg) !important;
+}
+
+.theme-light .rankings-table tbody td {
+  color: var(--color-text-primary) !important;
+  background: var(--color-card-bg) !important;
+}
+
+.theme-dark .rankings-table tbody td {
+  color: var(--color-text-primary) !important;
+  background: var(--color-card-bg) !important;
+}
+
+.theme-light .rankings-table tbody tr td:nth-child(1) {
+  color: var(--color-blue-primary) !important;
+}
+
+.theme-dark .rankings-table tbody tr td:nth-child(1) {
+  color: var(--color-blue-light) !important;
+}
+
+.theme-light .rankings-table tbody tr td:nth-child(2) {
+  color: var(--color-text-primary) !important;
+}
+
+.theme-dark .rankings-table tbody tr td:nth-child(2) {
+  color: var(--color-text-primary) !important;
+}
+
+.theme-light .rankings-table tbody tr td:nth-child(3) {
+  color: var(--color-blue-primary) !important;
+}
+
+.theme-dark .rankings-table tbody tr td:nth-child(3) {
+  color: var(--color-blue-light) !important;
+}
+
+.theme-light .rankings-table tbody tr td:nth-child(4),
+.theme-light .rankings-table tbody tr td:nth-child(5),
+.theme-light .rankings-table tbody tr td:nth-child(6),
+.theme-light .rankings-table tbody tr td:nth-child(7) {
+  color: var(--color-text-primary) !important;
+}
+
+.theme-dark .rankings-table tbody tr td:nth-child(4),
+.theme-dark .rankings-table tbody tr td:nth-child(5),
+.theme-dark .rankings-table tbody tr td:nth-child(6),
+.theme-dark .rankings-table tbody tr td:nth-child(7) {
+  color: var(--color-text-primary) !important;
+}
+
+/* Formulários */
+.theme-light .form-control {
+  background: var(--color-card-bg);
+  color: var(--color-text-primary);
+  border-color: var(--color-border-primary);
+}
+
+.theme-dark .form-control {
+  background: var(--color-card-bg);
+  color: var(--color-text-primary);
+  border-color: var(--color-border-primary);
+}
+
+.theme-light .form-label {
+  color: var(--color-text-primary);
+}
+
+.theme-dark .form-label {
+  color: var(--color-text-primary);
+}
+
+/* Botões */
+.theme-light .btn-secondary {
+  background: var(--color-card-bg);
+  color: var(--color-blue-primary);
+  border-color: var(--color-blue-primary);
+}
+
+.theme-dark .btn-secondary {
+  background: var(--color-card-bg);
+  color: var(--color-blue-light);
+  border-color: var(--color-blue-light);
+}
+
+/* Filtros Avançados */
+.theme-light .advanced-filters {
+  background: var(--color-card-bg);
+  border-color: var(--color-card-border);
+}
+
+.theme-dark .advanced-filters {
+  background: var(--color-card-bg);
+  border-color: var(--color-card-border);
+}
+
+.theme-light .advanced-filters * {
+  color: var(--color-text-primary);
+}
+
+.theme-dark .advanced-filters * {
+  color: var(--color-text-primary);
+}
+
+/* Correção específica para filtros avançados */
+.theme-light .advanced-filters h3,
+.theme-light .advanced-filters h4,
+.theme-light .advanced-filters h5 {
+  color: var(--color-blue-primary);
+}
+
+.theme-dark .advanced-filters h3,
+.theme-dark .advanced-filters h4,
+.theme-dark .advanced-filters h5 {
+  color: var(--color-blue-light);
+}
+
+.theme-light .advanced-filters .filter-label {
+  color: var(--color-text-primary);
+}
+
+.theme-dark .advanced-filters .filter-label {
+  color: var(--color-text-primary);
+}
+
+.theme-light .advanced-filters .filter-group label {
+  color: var(--color-text-primary);
+}
+
+.theme-dark .advanced-filters .filter-group label {
+  color: var(--color-text-primary);
+}
+
+.theme-light .advanced-filters .filter-group select,
+.theme-light .advanced-filters .filter-group input {
+  color: var(--color-text-primary);
+  background: var(--color-card-bg);
+  border-color: var(--color-border-primary);
+}
+
+.theme-dark .advanced-filters .filter-group select,
+.theme-dark .advanced-filters .filter-group input {
+  color: var(--color-text-primary);
+  background: var(--color-card-bg);
+  border-color: var(--color-border-primary);
+}
+
+.theme-light .advanced-filters .filter-tag {
+  color: var(--color-blue-primary);
+  background: var(--color-card-hover);
+}
+
+.theme-dark .advanced-filters .filter-tag {
+  color: var(--color-blue-light);
+  background: var(--color-card-hover);
+}
+
+.theme-light .advanced-filters .btn-secondary {
+  color: var(--color-blue-primary);
+  background: var(--color-card-bg);
+  border-color: var(--color-blue-primary);
+}
+
+.theme-dark .advanced-filters .btn-secondary {
+  color: var(--color-blue-light);
+  background: var(--color-card-bg);
+  border-color: var(--color-blue-light);
+}
+
+.theme-light .advanced-filters .btn-danger {
+  color: #DC2626;
+  background: rgba(220, 38, 38, 0.1);
+  border-color: rgba(220, 38, 38, 0.3);
+}
+
+.theme-dark .advanced-filters .btn-danger {
+  color: #F87171;
+  background: rgba(248, 113, 113, 0.1);
+  border-color: rgba(248, 113, 113, 0.3);
+}
+
+/* Correção específica para filtros rápidos */
+.theme-light .quick-filters {
+  background: var(--color-card-bg);
+}
+
+.theme-dark .quick-filters {
+  background: var(--color-card-bg);
+}
+
+.theme-light .quick-filters h4 {
+  color: var(--color-blue-primary);
+}
+
+.theme-dark .quick-filters h4 {
+  color: var(--color-blue-light);
+}
+
+.theme-light .quick-filter-item {
+  color: var(--color-text-primary);
+}
+
+.theme-dark .quick-filter-item {
+  color: var(--color-text-primary);
+}
+
+.theme-light .quick-filter-item .filter-label {
+  color: var(--color-text-primary) !important;
+}
+
+.theme-dark .quick-filter-item .filter-label {
+  color: var(--color-text-primary) !important;
+}
+
+.theme-light .quick-filter-item input[type="checkbox"] {
+  accent-color: var(--color-blue-primary);
+}
+
+.theme-dark .quick-filter-item input[type="checkbox"] {
+  accent-color: var(--color-blue-light);
+}
+
+/* Correção para todos os elementos de filtro */
+.theme-light .advanced-filters .quick-filters-grid * {
+  color: var(--color-text-primary) !important;
+}
+
+.theme-dark .advanced-filters .quick-filters-grid * {
+  color: var(--color-text-primary) !important;
+}
+
+.theme-light .advanced-filters .quick-filters-grid label {
+  color: var(--color-text-primary) !important;
+}
+
+.theme-dark .advanced-filters .quick-filters-grid label {
+  color: var(--color-text-primary) !important;
+}
+
+.theme-light .advanced-filters .quick-filters-grid span {
+  color: var(--color-text-primary) !important;
+}
+
+.theme-dark .advanced-filters .quick-filters-grid span {
+  color: var(--color-text-primary) !important;
+}
+
+/* Progress Indicator */
+.theme-light .progress-indicator {
+  background: var(--color-card-bg);
+  border-color: var(--color-card-border);
+}
+
+.theme-dark .progress-indicator {
+  background: var(--color-card-bg);
+  border-color: var(--color-card-border);
+}
+
+/* Correção adicional para seções de filtros */
+.theme-light .filters-section * {
+  color: var(--color-text-primary) !important;
+}
+
+.theme-dark .filters-section * {
+  color: var(--color-text-primary) !important;
+}
+
+.theme-light .filters-section .form-label {
+  color: var(--color-text-primary) !important;
+  font-weight: 600;
+}
+
+.theme-dark .filters-section .form-label {
+  color: var(--color-text-primary) !important;
+  font-weight: 600;
+}
+
+.theme-light .filters-section .form-control {
+  color: var(--color-text-primary) !important;
+  background: var(--color-card-bg) !important;
+  border-color: var(--color-border-primary) !important;
+}
+
+.theme-dark .filters-section .form-control {
+  color: var(--color-text-primary) !important;
+  background: var(--color-card-bg) !important;
+  border-color: var(--color-border-primary) !important;
+}
+
+.theme-light .filters-section select {
+  color: var(--color-text-primary) !important;
+  background: var(--color-card-bg) !important;
+}
+
+.theme-dark .filters-section select {
+  color: var(--color-text-primary) !important;
+  background: var(--color-card-bg) !important;
+}
+
+.theme-light .filters-section option {
+  color: var(--color-text-primary) !important;
+  background: var(--color-card-bg) !important;
+}
+
+.theme-dark .filters-section option {
+  color: var(--color-text-primary) !important;
+  background: var(--color-card-bg) !important;
+}
+
+/* Forçar legibilidade em todas as tabelas */
+.theme-dark .rankings-table * {
+  color: var(--color-text-primary) !important;
+}
+
+.theme-dark .rankings-table tbody tr td:nth-child(1) {
+  color: var(--color-blue-light) !important;
+}
+
+.theme-dark .rankings-table tbody tr td:nth-child(2) {
+  color: var(--color-text-primary) !important;
+}
+
+.theme-dark .rankings-table tbody tr td:nth-child(3) {
+  color: var(--color-blue-light) !important;
+}
+
+/* CORREÇÃO CRÍTICA: Forçar legibilidade em TODOS os elementos dos filtros */
+.theme-dark .advanced-filters * {
+  color: var(--color-text-primary) !important;
+}
+
+.theme-dark .advanced-filters .quick-filters * {
+  color: var(--color-text-primary) !important;
+}
+
+.theme-dark .advanced-filters .quick-filters-grid * {
+  color: var(--color-text-primary) !important;
+}
+
+.theme-dark .advanced-filters .quick-filter-item * {
+  color: var(--color-text-primary) !important;
+}
+
+.theme-dark .advanced-filters .filter-label {
+  color: var(--color-text-primary) !important;
+}
+
+.theme-dark .advanced-filters label {
+  color: var(--color-text-primary) !important;
+}
+
+.theme-dark .advanced-filters span {
+  color: var(--color-text-primary) !important;
+}
+
+.theme-dark .advanced-filters .quick-filter-item span {
+  color: var(--color-text-primary) !important;
+}
+
+/* Correção específica para os textos dos filtros rápidos */
+.theme-dark .advanced-filters .quick-filter-item .filter-label {
+  color: var(--color-text-primary) !important;
+  font-weight: 500 !important;
+}
+
+.theme-light .advanced-filters .quick-filter-item .filter-label {
+  color: var(--color-text-primary) !important;
+  font-weight: 500 !important;
+}
+
+/* Transições suaves entre temas */
+* {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}

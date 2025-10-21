@@ -39,6 +39,10 @@ const PeriodModal = ({ isOpen, onClose, onApply, currentFilters, data = [] }) =>
         startDate = new Date(now.getTime() - (14 * 24 * 60 * 60 * 1000));
         endDate = now;
         break;
+      case 'last90':
+        startDate = new Date(now.getTime() - (89 * 24 * 60 * 60 * 1000));
+        endDate = now;
+        break;
       case 'penultimate':
         startDate = new Date(now.getFullYear(), now.getMonth() - 2, 1);
         endDate = new Date(now.getFullYear(), now.getMonth() - 1, 0);
@@ -80,6 +84,14 @@ const PeriodModal = ({ isOpen, onClose, onApply, currentFilters, data = [] }) =>
       records: calculateRecords('last15'),
       icon: 'bx-calendar',
       filterKey: 'last15Days'
+    },
+    {
+      id: 'last90',
+      title: 'Últimos 90 dias',
+      subtitle: 'Últimos 3 meses',
+      records: calculateRecords('last90'),
+      icon: 'bx-calendar',
+      filterKey: 'last90Days'
     },
     {
       id: 'penultimate',
