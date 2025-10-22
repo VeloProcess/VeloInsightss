@@ -4,7 +4,7 @@
 .metrics-dashboard {
   width: 100%;
   margin: 0;
-  padding: 20px;
+  padding: 10px;
   background: var(--color-bg-primary);
   min-height: 100vh;
 }
@@ -107,6 +107,7 @@
   border: 1px solid var(--border-color, rgba(22, 52, 255, 0.1)) !important;
   box-shadow: 0 2px 8px var(--shadow-color, rgba(39, 42, 48, 0.05)) !important;
   transition: all 0.3s ease !important;
+  margin-bottom: 20px;
 }
 
 .metrics-dashboard .card:hover {
@@ -210,7 +211,7 @@
 
 .rankings-header {
   text-align: center;
-  margin-bottom: 30px;
+  margin-bottom: 20px;
 }
 
 .rankings-header h2 {
@@ -303,7 +304,7 @@
   color: white;
   border: none;
   border-radius: 8px;
-  padding: 10px 20px;
+  padding: 8px 16px;
   font-weight: 600;
   font-size: 0.9rem;
   cursor: pointer;
@@ -1097,11 +1098,31 @@
 .chart-container {
   background: var(--color-card-bg);
   border-radius: 12px;
-  padding: 24px;
+  padding: 16px;
   border: 1px solid var(--color-border-secondary);
   box-shadow: 0 4px 20px var(--color-shadow);
-  margin-bottom: 24px;
+  margin-bottom: 16px;
   min-height: 400px;
+}
+
+/* Container de Gráficos Grande */
+.chart-container-large {
+  background: var(--color-card-bg);
+  border-radius: 12px;
+  padding: 20px;
+  border: 1px solid var(--color-border-secondary);
+  box-shadow: 0 4px 20px var(--color-shadow);
+  margin-bottom: 16px;
+  min-height: 1000px;
+  width: 100%;
+}
+
+/* Forçar tamanho grande para gráficos de tickets */
+.chart-container-large canvas {
+  max-width: none !important;
+  max-height: none !important;
+  width: 100% !important;
+  height: 100% !important;
 }
 
 .chart-wrapper {
@@ -1205,4 +1226,50 @@
   .chart-button .button-label {
     font-size: 0.8rem;
   }
+}
+
+/* Loading Indicator Styles */
+.loading-indicator {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 10px;
+  background: rgba(59, 130, 246, 0.1);
+  border-radius: 8px;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.loading-indicator .spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(59, 130, 246, 0.3);
+  border-top: 2px solid #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.loading-indicator span {
+  color: #3b82f6;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.error-message {
+  margin-top: 10px;
+  padding: 10px;
+  background: rgba(239, 68, 68, 0.1);
+  border-radius: 8px;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.error-message span {
+  color: #ef4444;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }

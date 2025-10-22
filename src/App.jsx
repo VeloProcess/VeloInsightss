@@ -576,10 +576,10 @@ function AppContent() {
     if (isAuthenticated && currentView === 'fetch') {
       // Debug removido para melhor performance
       setCurrentView('dashboard')
-      // Carregar dados automaticamente se não houver dados - período padrão de 90 dias
+      // Carregar dados automaticamente se não houver dados - período padrão: todos os registros
       if (loadDataOnDemand && (!data || data.length === 0)) {
         // Debug removido para melhor performance
-        loadDataOnDemand('last90Days')
+        loadDataOnDemand('allRecords')
       }
     }
   }, [isAuthenticated, currentView, loadDataOnDemand, data])

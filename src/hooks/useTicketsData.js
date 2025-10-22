@@ -2,10 +2,10 @@ import { useState, useEffect, useCallback } from 'react'
 import { useGoogleSheetsDirectSimple } from './useGoogleSheetsDirectSimple'
 import { fetchGoogleSheets } from '../utils/apiRateLimiter'
 
-// Configuração da planilha de Tickets (Telefonia)
+// Configuração da planilha de Tickets (Telefonia) - usando a mesma planilha principal
 const TICKETS_CONFIG = {
-  SPREADSHEET_ID: '1QkDmUTGAQQ7uF4ZBnHHcdrCyvjN76I_TN-RwTgvyn0o',
-  SHEET_NAMES: ['Tickets', 'tickets', 'TICKETS', 'Página1', 'Sheet1'], // Diferentes nomes possíveis
+  SPREADSHEET_ID: '1F1VJrAzGage7YyX1tLCUCaIgB2GhvHSqJRVnmwwYhkA', // Mesma planilha principal
+  SHEET_NAMES: ['Tickets', 'tickets', 'TICKETS', 'Telefonia', 'telefonia', 'Página1', 'Sheet1'], // Diferentes nomes possíveis
   RANGES: [
     'A1:B1000',    // Range médio para teste - começar com range menor
     'A1:B100',     // Range pequeno para teste
@@ -29,7 +29,114 @@ export const useTicketsData = (filters = {}) => {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
 
-  // Função para buscar dados da planilha de Tickets
+  // Função para buscar TODOS os dados da planilha de Tickets (planilha completa - otimizada para grandes volumes)
+  const fetchAllTicketsData = useCallback(async () => {
+    console.log('🔍 Verificando autenticação...', { 
+      hasUserData: !!userData, 
+      hasAccessToken: !!userData?.accessToken,
+      isAuthenticated,
+      userEmail: userData?.email
+    })
+    
+    if (!userData?.accessToken) {
+      console.error('❌ Access token não disponível para buscar todos os dados de tickets')
+      setError('Token de acesso não disponível. Faça login novamente.')
+      return []
+    }
+
+    console.log('✅ Token de acesso disponível, iniciando carregamento...')
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      console.log('🔄 Carregando TODOS os dados da planilha de Tickets (Telefonia) - ~142K linhas...')
+      console.log('📋 Spreadsheet ID:', TICKETS_CONFIG.SPREADSHEET_ID)
+      
+      // Estratégia otimizada para grandes volumes:
+      // 1. Primeiro tentar range completo
+      // 2. Se falhar, usar paginação
+      let allData = []
+      let currentRow = 1
+      const batchSize = 10000 // Processar em lotes de 10K linhas
+      
+      while (true) {
+        const endRow = Math.min(currentRow + batchSize - 1, 150000) // Limite máximo
+        const range = `Base!A${currentRow}:Z${endRow}` // Usar aba 'Base' da planilha principal
+        
+        console.log(`📊 Carregando lote: linhas ${currentRow} a ${endRow}`)
+        
+        const url = `https://sheets.googleapis.com/v4/spreadsheets/${TICKETS_CONFIG.SPREADSHEET_ID}/values/${range}?access_token=${userData.accessToken}`
+        
+        const response = await fetch(url)
+        
+        if (!response.ok) {
+          console.error(`❌ Erro na requisição: ${response.status} ${response.statusText}`)
+          if (response.status === 400 && currentRow === 1) {
+            // Se falhar no primeiro lote, tentar range completo
+            console.log('🔄 Tentando carregamento completo...')
+            const fullUrl = `https://sheets.googleapis.com/v4/spreadsheets/${TICKETS_CONFIG.SPREADSHEET_ID}/values/Base!A:Z?access_token=${userData.accessToken}`
+            const fullResponse = await fetch(fullUrl)
+            
+            if (fullResponse.ok) {
+              const fullData = await fullResponse.json()
+              if (fullData.values && fullData.values.length > 0) {
+                console.log(`✅ Dados completos carregados: ${fullData.values.length} linhas`)
+                setTicketsData(fullData.values)
+                ticketsCache = fullData.values
+                cacheTimestamp = Date.now()
+                return fullData.values
+              }
+            }
+          }
+          throw new Error(`Erro ao buscar dados completos: ${response.status} ${response.statusText}`)
+        }
+        
+        const data = await response.json()
+        
+        if (data.values && data.values.length > 0) {
+          allData = [...allData, ...data.values]
+          console.log(`✅ Lote carregado: ${data.values.length} linhas (Total: ${allData.length})`)
+          
+          // Se retornou menos que o batchSize, chegamos ao fim
+          if (data.values.length < batchSize) {
+            break
+          }
+          
+          currentRow = endRow + 1
+          
+          // Pequena pausa para evitar rate limiting
+          await new Promise(resolve => setTimeout(resolve, 100))
+        } else {
+          break
+        }
+      }
+      
+      if (allData.length > 0) {
+        console.log(`✅ Dados completos carregados: ${allData.length} linhas`)
+        setTicketsData(allData)
+        
+        // Atualizar cache com dados completos
+        ticketsCache = allData
+        cacheTimestamp = Date.now()
+        
+        return allData
+      } else {
+        console.log('⚠️ Nenhum dado encontrado na planilha completa')
+        setTicketsData([])
+        return []
+      }
+      
+    } catch (error) {
+      console.error('❌ Erro ao carregar dados completos:', error)
+      setError(error.message)
+      setTicketsData([])
+      return []
+    } finally {
+      setIsLoading(false)
+    }
+  }, [userData?.accessToken, isAuthenticated])
+
+  // Função para buscar dados da planilha de Tickets (versão otimizada)
   const fetchTicketsData = useCallback(async () => {
     if (!userData?.accessToken) {
       console.error('❌ Access token não disponível para buscar dados de tickets')
@@ -170,6 +277,7 @@ export const useTicketsData = (filters = {}) => {
     isLoading,
     error,
     fetchTicketsData,
+    fetchAllTicketsData,
     processQueueData,
     isAuthenticated
   }

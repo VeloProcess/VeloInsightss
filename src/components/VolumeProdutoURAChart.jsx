@@ -1,27 +1,25 @@
-import React, { useMemo } from 'react'
-import { PolarArea } from 'react-chartjs-2'
+import React, { useMemo, useState } from 'react'
+import { Bar } from 'react-chartjs-2'
 import {
   Chart as ChartJS,
-  RadialLinearScale,
-  PointElement,
-  LineElement,
+  CategoryScale,
+  LinearScale,
+  BarElement,
   Title,
   Tooltip,
   Legend,
-  Filler,
-  ArcElement
+  Filler
 } from 'chart.js'
 import { useTicketsData } from '../hooks/useTicketsData'
 
 ChartJS.register(
-  RadialLinearScale,
-  PointElement,
-  LineElement,
+  CategoryScale,
+  LinearScale,
+  BarElement,
   Title,
   Tooltip,
   Legend,
-  Filler,
-  ArcElement
+  Filler
 )
 
 // Componente para mostrar distribuição de volume por fila da URA
@@ -30,6 +28,8 @@ const VolumeProdutoURAChart = ({ data = [], periodo = null, isTicketsTab = false
   // Hook para buscar dados específicos de tickets (apenas para aba Tickets)
   const { ticketsData, isLoading: isLoadingTickets, error: ticketsError, processQueueData } = useTicketsData()
   
+  
+  
   const chartData = useMemo(() => {
     let processedData
     
@@ -37,11 +37,10 @@ const VolumeProdutoURAChart = ({ data = [], periodo = null, isTicketsTab = false
     const shouldUseTicketsData = isTicketsTab || (ticketsData && ticketsData.length > 0 && (!data || data.length === 0))
     
     if (shouldUseTicketsData) {
-      console.log('🎫 Usando dados de tickets da aba Tickets')
+      
       const ticketsProcessedData = processQueueData(ticketsData)
       processedData = processTicketsData(ticketsProcessedData)
     } else {
-      console.log('📞 Usando dados da planilha principal (Telefonia)')
       processedData = processVolumeProdutoRadar(data, periodo)
     }
     
@@ -69,7 +68,6 @@ const VolumeProdutoURAChart = ({ data = [], periodo = null, isTicketsTab = false
     
     // Garantir que processedData seja válido
     if (!processedData || !processedData.labels || !processedData.values) {
-      console.warn('⚠️ Dados processados inválidos, usando dados padrão')
       processedData = {
         labels: ['Sem dados'],
         values: [0]
@@ -93,54 +91,59 @@ const VolumeProdutoURAChart = ({ data = [], periodo = null, isTicketsTab = false
     }
   }, [data, periodo, ticketsData, processQueueData])
 
+  // Aplicar tamanho grande para aba Tickets ou quando há dados de tickets
+  const shouldUseLargeSize = isTicketsTab || (ticketsData && ticketsData.length > 0)
+
   const options = {
     responsive: true,
     maintainAspectRatio: false,
-    aspectRatio: 1.2,
+    aspectRatio: shouldUseLargeSize ? 1.5 : 1,
+    indexAxis: 'y',
+    layout: {
+      padding: {
+        top: shouldUseLargeSize ? 20 : 10,
+        bottom: shouldUseLargeSize ? 20 : 10,
+        left: shouldUseLargeSize ? 20 : 10,
+        right: shouldUseLargeSize ? 20 : 10
+      }
+    },
     scales: {
-      r: {
+      x: {
         beginAtZero: true,
-        pointLabels: {
-          display: true,
-          centerPointLabels: true,
+        grid: {
+          color: 'rgba(0, 0, 0, 0.1)',
+          drawBorder: false
+        },
+        ticks: {
           font: {
-            size: 12,
+            size: shouldUseLargeSize ? 14 : 12,
             family: "'Inter', sans-serif",
             weight: '600'
           },
           color: '#1f2937',
-          padding: 12,
-          callback: function(label) {
-            // Quebrar linhas longas para melhor legibilidade
-            if (label.length > 15) {
-              const words = label.split(' ')
-              if (words.length > 1) {
-                const mid = Math.ceil(words.length / 2)
-                return [words.slice(0, mid).join(' '), words.slice(mid).join(' ')]
-              }
-            }
-            return label
+          callback: function(value) {
+            return value + '%'
           }
-        },
-        angleLines: {
-          color: 'rgba(0, 0, 0, 0.1)',
-          lineWidth: 1.5
-        },
+        }
+      },
+      y: {
+        beginAtZero: true,
         grid: {
-          color: 'rgba(0, 0, 0, 0.08)',
-          lineWidth: 1.5
+          display: false
         },
         ticks: {
-          display: false, // Remove os números da sequência
           font: {
-            size: 10,
+            size: shouldUseLargeSize ? 14 : 12,
             family: "'Inter', sans-serif",
-            weight: '500'
+            weight: '600'
           },
-          color: '#6b7280',
-          backdropColor: 'rgba(255, 255, 255, 0.9)',
-          backdropPadding: 4,
-          showLabelBackdrop: true
+          color: '#1f2937',
+          maxRotation: 0,
+          minRotation: 0,
+          callback: function(value, index) {
+            const queueName = chartData.labels[index]
+            return queueName
+          }
         }
       }
     },
@@ -150,15 +153,15 @@ const VolumeProdutoURAChart = ({ data = [], periodo = null, isTicketsTab = false
         position: 'top',
         labels: {
           font: {
-            size: 13,
+            size: shouldUseLargeSize ? 16 : 14,
             family: "'Inter', sans-serif",
-            weight: '600'
+            weight: '700'
           },
-          padding: 20,
+          padding: shouldUseLargeSize ? 20 : 15,
           usePointStyle: true,
-          pointStyle: 'circle',
-          boxWidth: 10,
-          boxHeight: 10,
+          pointStyle: 'rect',
+          boxWidth: shouldUseLargeSize ? 16 : 12,
+          boxHeight: shouldUseLargeSize ? 16 : 12,
           color: '#1f2937',
           generateLabels: function(chart) {
             const data = chart.data;
@@ -166,11 +169,11 @@ const VolumeProdutoURAChart = ({ data = [], periodo = null, isTicketsTab = false
               return data.labels.map((label, index) => {
                 const value = data.datasets[0].data[index];
                 return {
-                  text: `${label} - ${value}%`,
+                  text: `${label} (${value}%)`,
                   fillStyle: data.datasets[0].backgroundColor[index],
                   strokeStyle: data.datasets[0].borderColor[index],
                   lineWidth: data.datasets[0].borderWidth,
-                  pointStyle: 'circle',
+                  pointStyle: 'rect',
                   hidden: false,
                   index: index
                 };
@@ -232,7 +235,7 @@ const VolumeProdutoURAChart = ({ data = [], periodo = null, isTicketsTab = false
         display: 'flex', 
         justifyContent: 'center', 
         alignItems: 'center', 
-        height: '300px',
+        height: '700px',
         flexDirection: 'column',
         gap: '10px'
       }}>
@@ -249,7 +252,7 @@ const VolumeProdutoURAChart = ({ data = [], periodo = null, isTicketsTab = false
         display: 'flex', 
         justifyContent: 'center', 
         alignItems: 'center', 
-        height: '300px',
+        height: '700px',
         flexDirection: 'column',
         gap: '10px',
         color: '#ef4444'
@@ -260,13 +263,34 @@ const VolumeProdutoURAChart = ({ data = [], periodo = null, isTicketsTab = false
     )
   }
 
-  return <PolarArea data={chartData} options={options} />
+  return (
+    <div style={{ 
+      width: '100%', 
+      height: shouldUseLargeSize ? '900px' : '400px',
+      minHeight: shouldUseLargeSize ? '900px' : '400px',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '10px'
+    }}>
+      {/* Header com filtros */}
+
+      {/* Gráfico */}
+      <div style={{ 
+        width: '100%', 
+        height: '100%',
+        maxWidth: '100%',
+        maxHeight: '100%'
+      }}>
+        <Bar data={chartData} options={options} />
+      </div>
+    </div>
+  )
 }
 
 // Processar dados para gráfico de radar (filas da coluna K)
 // Função para processar dados de tickets da aba Tickets
 const processTicketsData = (processedData) => {
-  console.log('🎫 Processando dados de tickets:', processedData)
+  
   
   const { queueCounts, totalTickets } = processedData
   
@@ -291,21 +315,12 @@ const processTicketsData = (processedData) => {
     })
   }
   
-  console.log('📊 Resultado processamento tickets:', result)
+  
   return result
 }
 
 const processVolumeProdutoRadar = (data, periodo) => {
-  console.log('🔍 DEBUG VolumeProdutoURAChart - Dados recebidos:', {
-    dataLength: data?.length || 0,
-    dataType: Array.isArray(data) ? 'array' : typeof data,
-    periodo: periodo,
-    firstRow: data?.[0],
-    sampleRows: data?.slice(0, 3)
-  })
-
   if (!data || data.length === 0) {
-    console.log('❌ VolumeProdutoURAChart - Sem dados')
     return {
       labels: ['Sem dados'],
       values: [0]
@@ -345,13 +360,13 @@ const processVolumeProdutoRadar = (data, periodo) => {
       
       // Debug: verificar o que está sendo lido
       if (processedRows < 10) {
-        console.log('🔍 VolumeProdutoURAChart - Linha', index + 14, 'Coluna K:', fila, 'Tipo:', typeof fila)
+        
       }
       
       if (fila && fila !== '0' && fila !== '' && fila !== 'null' && fila !== 'undefined') {
         // Desconsiderar "Cobrança"
         if (fila.toLowerCase().includes('cobrança') || fila.toLowerCase().includes('cobranca')) {
-          console.log('🚫 VolumeProdutoURAChart - Descartando fila de cobrança:', fila)
+          
           return
         }
         
@@ -369,17 +384,12 @@ const processVolumeProdutoRadar = (data, periodo) => {
         
         // Log das primeiras filas encontradas
         if (processedRows <= 5) {
-          console.log('✅ VolumeProdutoURAChart - Fila encontrada:', filaNormalizada, 'Total:', filaCounts[filaNormalizada])
+          
         }
       }
     }
   })
   
-  console.log('📊 VolumeProdutoURAChart - Resumo do processamento:', {
-    processedRows,
-    filaCounts,
-    totalFilas: Object.keys(filaCounts).length
-  })
   
   
   // Filtrar filas que não têm dados no período selecionado
@@ -406,7 +416,7 @@ const processVolumeProdutoRadar = (data, periodo) => {
     })
   }
   
-  console.log('✅ Resultado final Volume por Fila:', result)
+  
   return result
 }
 

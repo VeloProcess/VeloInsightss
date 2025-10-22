@@ -1,10 +1,13 @@
-import React, { memo, useState, useMemo } from 'react'
+import React, { memo, useState, useMemo, useEffect } from 'react'
 import './MetricsDashboard.css'
+import './LoadingScreen.css'
 import TendenciaSemanalChart from './TendenciaSemanalChart2'
 import CSATChart from './CSATChart'
 import VolumeProdutoURAChart from './VolumeProdutoURAChart'
 import VolumeHoraChart from './VolumeHoraChart'
 import PausasChart from './PausasChart'
+import TMAChart from './TMAChart'
+import TMLChart from './TMLChart'
 import { usePausasData } from '../hooks/usePausasData'
 
 const MetricsDashboard = memo(({ metrics = {}, rankings = [], octaData = null, data = [], periodo = null, fullDataset = [] }) => {
@@ -12,6 +15,7 @@ const MetricsDashboard = memo(({ metrics = {}, rankings = [], octaData = null, d
   
   // Hook para carregar dados específicos de pausas
   const { pausasData, isLoading: isLoadingPausas, error: pausasError } = usePausasData()
+  
 
   // Preparar dados para os gráficos - usar dados processados
   const chartData = useMemo(() => {
@@ -198,6 +202,7 @@ const MetricsDashboard = memo(({ metrics = {}, rankings = [], octaData = null, d
 
   return (
     <div className="container">
+
       {/* Navigation Tabs */}
       <div className="nav-tabs">
         <button 
@@ -227,27 +232,19 @@ const MetricsDashboard = memo(({ metrics = {}, rankings = [], octaData = null, d
       {activeView === '55pbx' && (
         <div className="view active">
           {/* Section Title */}
-          <div className="section-title">
-            <i className='bx bxs-phone'></i>
-            <h2>Telefonia</h2>
+          <div className="section-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <i className='bx bxs-phone'></i>
+              <h2>Telefonia</h2>
+            </div>
           </div>
 
       {/* Indicadores */}
       <div className="indicators-grid">
         <div className="indicator-card">
-          <i className='bx bx-phone-call indicator-icon'></i>
-          <div className="indicator-label">Total de Chamadas</div>
-          <div className="indicator-value">{(metrics.totalCalls || 0).toLocaleString('pt-BR')}</div>
-        </div>
-        <div className="indicator-card">
           <i className='bx bx-time-five indicator-icon'></i>
           <div className="indicator-label">TMA Geral</div>
           <div className="indicator-value">{metrics.duracaoMediaAtendimento || '0.0'} min</div>
-        </div>
-        <div className="indicator-card">
-          <i className='bx bx-check-circle indicator-icon'></i>
-          <div className="indicator-label">Taxa de Atendimento</div>
-          <div className="indicator-value">{((metrics.atendida / metrics.totalCalls * 100) || 0).toFixed(1)}%</div>
         </div>
       </div>
 
@@ -272,26 +269,36 @@ const MetricsDashboard = memo(({ metrics = {}, rankings = [], octaData = null, d
         </div>
       </div>
 
-      {/* Gráficos em Grid */}
-      <div className="charts-grid">
+      {/* Volume por Produto URA - Card Individual Maior */}
         <div className="card">
           <div className="card-header">
             <h3 className="card-title">Volume por Produto URA</h3>
             <i className='bx bx-line-chart card-icon'></i>
           </div>
-          <div className="chart-container">
+        <div className="chart-container-large">
             <VolumeProdutoURAChart data={rawData} periodo={periodo} />
           </div>
         </div>
 
-        <div className="card">
-          <div className="card-header">
-            <h3 className="card-title">Volume por Hora</h3>
-            <i className='bx bx-bar-chart-alt-2 card-icon'></i>
-          </div>
-          <div className="chart-container">
-            <VolumeHoraChart data={rawData} periodo={periodo} />
-          </div>
+      {/* Volume por Hora - Card Individual Maior */}
+      <div className="card">
+        <div className="card-header">
+          <h3 className="card-title">Volume por Hora</h3>
+          <i className='bx bx-bar-chart-alt-2 card-icon'></i>
+        </div>
+        <div className="chart-container-large">
+          <VolumeHoraChart data={rawData} periodo={periodo} />
+        </div>
+      </div>
+
+      {/* Gráficos de TMA */}
+      <div className="card">
+        <div className="card-header">
+          <h3 className="card-title">TMA - Tempo Médio de Atendimento por Produto URA</h3>
+          <i className='bx bx-time-five card-icon'></i>
+        </div>
+        <div className="chart-container-large">
+          <TMAChart data={rawData} periodo={periodo} groupBy="produto" />
         </div>
       </div>
 
@@ -385,26 +392,36 @@ const MetricsDashboard = memo(({ metrics = {}, rankings = [], octaData = null, d
             </div>
           </div>
 
-          {/* Gráficos em Grid - Tickets */}
-          <div className="charts-grid">
+          {/* Volume por Fila (Tickets) - Card Individual Maior */}
             <div className="card">
               <div className="card-header">
                 <h3 className="card-title">Volume por Fila (Tickets)</h3>
                 <i className='bx bx-line-chart card-icon'></i>
               </div>
-              <div className="chart-container">
-                <VolumeProdutoURAChart data={[]} periodo={periodo} isTicketsTab={true} />
+            <div className="chart-container-large">
+                <VolumeProdutoURAChart data={octaData?.octaRawData || []} periodo={periodo} isTicketsTab={true} />
               </div>
             </div>
 
-            <div className="card">
-              <div className="card-header">
-                <h3 className="card-title">Volume por Hora (Tickets)</h3>
-                <i className='bx bx-bar-chart-alt-2 card-icon'></i>
-              </div>
-              <div className="chart-container">
-                <VolumeHoraChart data={octaData?.octaRawData || []} periodo={periodo} />
-              </div>
+          {/* Volume por Hora (Tickets) - Card Individual Maior */}
+          <div className="card">
+            <div className="card-header">
+              <h3 className="card-title">Volume por Hora (Tickets)</h3>
+              <i className='bx bx-bar-chart-alt-2 card-icon'></i>
+            </div>
+            <div className="chart-container-large">
+              <VolumeHoraChart data={octaData?.octaRawData || []} periodo={periodo} />
+            </div>
+          </div>
+
+          {/* TMA de Tickets - Card Individual Maior */}
+          <div className="card">
+            <div className="card-header">
+              <h3 className="card-title">TMA - Tempo Médio de Resolução por Assunto</h3>
+              <i className='bx bx-time-five card-icon'></i>
+            </div>
+            <div className="chart-container-large">
+              <TMATicketsChart data={octaData?.octaRawData || []} periodo={periodo} />
             </div>
           </div>
 
@@ -475,11 +492,11 @@ const MetricsDashboard = memo(({ metrics = {}, rankings = [], octaData = null, d
           {/* Cards de Gráficos - Pausas */}
           <div className="card">
             <div className="card-header">
-              <h3 className="card-title">Pausas por Período</h3>
+              <h3 className="card-title">TML - Tempo Médio Logado</h3>
               <i className='bx bx-bar-chart-alt-2 card-icon'></i>
             </div>
             <div className="chart-container">
-              <PausasChart data={pausasData} periodo={periodo} chartType="bar" />
+              <TMLChart data={pausasData} periodo={periodo} />
             </div>
           </div>
 

@@ -22,6 +22,7 @@ ChartJS.register(
 )
 
 const VolumeHoraChart = ({ data = [], periodo = null }) => {
+  
   const chartData = useMemo(() => {
     const processedData = processVolumeHora(data, periodo)
     
@@ -223,6 +224,7 @@ const VolumeHoraChart = ({ data = [], periodo = null }) => {
       },
       y: {
         beginAtZero: true,
+        max: 150000,
         ticks: {
           font: {
             size: 12,
@@ -231,7 +233,7 @@ const VolumeHoraChart = ({ data = [], periodo = null }) => {
           },
           color: '#374151',
           padding: 15,
-          stepSize: 1
+          stepSize: 15000
         },
         grid: {
           color: 'rgba(0, 0, 0, 0.1)',
@@ -247,17 +249,7 @@ const VolumeHoraChart = ({ data = [], periodo = null }) => {
 
 // Processar volume por hora com análise de pico
 const processVolumeHora = (data, periodo = null) => {
-  console.log('🔍 DEBUG VolumeHoraChart - Dados recebidos:', {
-    dataLength: data?.length || 0,
-    dataType: Array.isArray(data) ? 'array' : typeof data,
-    periodo: periodo,
-    firstRecord: data?.[0],
-    sampleRecords: data?.slice(0, 3),
-    colunaE_samples: data?.slice(0, 5).map(record => Array.isArray(record) ? record[4] : 'N/A')
-  })
-
   if (!data || data.length === 0) {
-    console.log('❌ VolumeHoraChart - Sem dados')
     return {
       labels: Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`),
       volumes: Array(24).fill(0),
@@ -323,24 +315,32 @@ const processVolumeHora = (data, periodo = null) => {
       if (horaParts.length >= 1) {
         const hora = parseInt(horaParts[0])
         if (hora >= 0 && hora < 24) {
-          volumePorHora[hora]++
-          processedRecords++
+          // Verificar se é chamada retida na URA - se for, não contar
+          let tipoChamada = ''
+          if (Array.isArray(record)) {
+            // Assumindo que o tipo de chamada está na coluna K (índice 10) ou próxima
+            tipoChamada = record[10] || record[11] || record[12] || ''
+          } else {
+            tipoChamada = record.tipoChamada || record.tipo || record.status || ''
+          }
           
-          // Log das primeiras horas encontradas
-          if (processedRecords <= 5) {
-            console.log('✅ VolumeHoraChart - Hora encontrada:', hora, 'Campo original:', record[4], 'Processado:', horaField, 'Total:', volumePorHora[hora])
+          const isRetidaURA = tipoChamada && (
+            tipoChamada.toLowerCase().includes('retida') ||
+            tipoChamada.toLowerCase().includes('ura') ||
+            tipoChamada.toLowerCase().includes('abandonada')
+          )
+          
+          // Só contar chamadas atendidas (não retidas)
+          if (!isRetidaURA) {
+            volumePorHora[hora]++
+            processedRecords++
           }
         }
       }
     }
   })
   
-  console.log('📊 VolumeHoraChart - Resumo do processamento:', {
-    processedRecords,
-    totalRecords: data.length,
-    volumePorHora: volumePorHora.filter(vol => vol > 0),
-    maxVolume: Math.max(...volumePorHora)
-  })
+  
 
   // Calcular informações de pico
   const maxVolume = Math.max(...volumePorHora)

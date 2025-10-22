@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react'
+import React, { useMemo, useState } from 'react'
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -10,7 +10,7 @@ import {
   Legend,
   Filler
 } from 'chart.js'
-import { Chart } from 'react-chartjs-2'
+import { Line } from 'react-chartjs-2'
 
 ChartJS.register(
   CategoryScale,
@@ -24,144 +24,207 @@ ChartJS.register(
 )
 
 const TendenciaSemanalChart = ({ data = [] }) => {
+  // Estado para controlar quais séries estão visíveis
+  const [visibleSeries, setVisibleSeries] = useState(new Set([
+    'Total de Chamadas',
+    'Chamadas Atendidas',
+    'Chamadas Retidas na URA',
+    'Nota Média'
+  ]))
+
   // Processar dados reais para o gráfico
-  const processedData = processWeeklyData(data)
+  const processedData = useMemo(() => processWeeklyData(data), [data])
 
-    // Paleta de cores
-    const azul = 'rgba(58, 91, 255, 1)'
-    const azulFill = 'rgba(58, 91, 255, 0.12)'
-    const verde = 'rgba(58, 179, 115, 1)'
-    const verdeFill = 'rgba(58, 179, 115, 0.10)'
-    const vermelho = 'rgba(231, 88, 88, 1)'
-    const amarelo = 'rgba(249, 191, 63, 1)'
+  // Função para alternar visibilidade de uma série
+  const toggleSeries = (seriesName) => {
+    setVisibleSeries(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(seriesName)) {
+        newSet.delete(seriesName)
+      } else {
+        newSet.add(seriesName)
+      }
+      return newSet
+    })
+  }
 
-    chartInstance.current = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: processedData.labels,
-        datasets: [
-          {
-            label: 'Total de Chamadas',
-            data: processedData.total,
-            borderColor: azul,
-            backgroundColor: azulFill,
-            borderWidth: 3,
-            tension: 0.35,
-            fill: 'start',
-            pointRadius: 4,
-            pointHoverRadius: 5,
-            pointBackgroundColor: '#fff',
-            pointBorderColor: azul,
-            yAxisID: 'y',
-          },
-          {
-            label: 'Chamadas Atendidas',
-            data: processedData.atendidas,
-            borderColor: verde,
-            backgroundColor: verdeFill,
-            borderWidth: 3,
-            tension: 0.35,
-            fill: 'origin',
-            pointRadius: 0,
-            yAxisID: 'y',
-          },
-          {
-            label: 'Chamadas Abandonadas',
-            data: processedData.abandonadas,
-            borderColor: vermelho,
-            backgroundColor: 'rgba(0,0,0,0)',
-            borderWidth: 3,
-            tension: 0.35,
-            fill: false,
-            pointRadius: 0,
-            yAxisID: 'y',
-          },
-          {
-            label: 'Nota Média',
-            data: processedData.notaMedia,
-            borderColor: amarelo,
-            backgroundColor: 'rgba(0,0,0,0)',
-            borderWidth: 3,
-            borderDash: [6, 6],
-            tension: 0.25,
-            pointRadius: 0,
-            yAxisID: 'y1',
-          }
-        ]
+  // Paleta de cores
+  const azul = 'rgba(58, 91, 255, 1)'
+  const azulFill = 'rgba(58, 91, 255, 0.12)'
+  const verde = 'rgba(58, 179, 115, 1)'
+  const verdeFill = 'rgba(58, 179, 115, 0.10)'
+  const vermelho = 'rgba(231, 88, 88, 1)'
+  const amarelo = 'rgba(249, 191, 63, 1)'
+
+  const chartData = useMemo(() => {
+    const datasets = [
+      {
+        label: 'Total de Chamadas',
+        data: processedData.total,
+        borderColor: azul,
+        backgroundColor: azulFill,
+        borderWidth: 3,
+        tension: 0.35,
+        fill: 'start',
+        pointRadius: 4,
+        pointHoverRadius: 5,
+        pointBackgroundColor: '#fff',
+        pointBorderColor: azul,
+        yAxisID: 'y',
+        hidden: !visibleSeries.has('Total de Chamadas')
       },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: { mode: 'index', intersect: false },
-        plugins: {
-          legend: {
-            position: 'top',
-            labels: {
-              usePointStyle: false,
-              boxWidth: 28,
-              boxHeight: 12,
-              borderRadius: 2,
-              padding: 14,
-              color: '#344054',
-              font: { weight: 600, size: 12 }
+      {
+        label: 'Chamadas Atendidas',
+        data: processedData.atendidas,
+        borderColor: verde,
+        backgroundColor: verdeFill,
+        borderWidth: 3,
+        tension: 0.35,
+        fill: 'origin',
+        pointRadius: 0,
+        yAxisID: 'y',
+        hidden: !visibleSeries.has('Chamadas Atendidas')
+      },
+      {
+        label: 'Chamadas Retidas na URA',
+        data: processedData.abandonadas,
+        borderColor: vermelho,
+        backgroundColor: 'rgba(0,0,0,0)',
+        borderWidth: 3,
+        tension: 0.35,
+        fill: false,
+        pointRadius: 0,
+        yAxisID: 'y',
+        hidden: !visibleSeries.has('Chamadas Retidas na URA')
+      },
+      {
+        label: 'Nota Média',
+        data: processedData.notaMedia,
+        borderColor: amarelo,
+        backgroundColor: 'rgba(0,0,0,0)',
+        borderWidth: 3,
+        borderDash: [6, 6],
+        tension: 0.25,
+        pointRadius: 0,
+        yAxisID: 'y1',
+        hidden: !visibleSeries.has('Nota Média')
+      }
+    ]
+
+    return {
+      labels: processedData.labels,
+      datasets: datasets.filter(dataset => !dataset.hidden)
+    }
+  }, [processedData, visibleSeries])
+
+  const options = {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    onClick: (event, elements) => {
+      // Verificar se o clique foi na legenda
+      if (event.native && event.native.target) {
+        const target = event.native.target
+        if (target.tagName === 'CANVAS') {
+          const chart = event.chart
+          const legend = chart.legend
+          const legendItems = legend.legendItems
+          
+          // Verificar se o clique foi em um item da legenda
+          legendItems.forEach((item, index) => {
+            const legendItem = legend.legendItems[index]
+            if (legendItem && legendItem.x <= event.native.offsetX && 
+                event.native.offsetX <= legendItem.x + legendItem.width &&
+                legendItem.y <= event.native.offsetY && 
+                event.native.offsetY <= legendItem.y + legendItem.height) {
+              
+              // Alternar visibilidade da série
+              toggleSeries(item.text)
             }
-          },
-          tooltip: {
-            backgroundColor: '#1f2937',
-            borderColor: '#0f172a',
-            borderWidth: 1,
-            padding: 10,
-            titleFont: { weight: '700' },
-            bodyFont: { weight: '500' },
-            callbacks: {
-              label: (ctx) => {
-                const ds = ctx.dataset.label || ''
-                const val = ctx.parsed.y
-                if (ctx.dataset.yAxisID === 'y1') return `${ds}: ${val.toFixed(2)}`
-                return `${ds}: ${val.toLocaleString('pt-BR')}`
-              }
-            }
-          },
-          title: { display: false },
-          subtitle: { display: false }
-        },
-        scales: {
-          x: {
-            grid: { color: '#eef2fb' },
-            ticks: { color: '#6576aa', font: { size: 11 } }
-          },
-          y: {
-            title: { display: true, text: 'Volume de Chamadas' },
-            min: 0,
-            grid: { color: '#e9eef7' },
-            ticks: {
-              color: '#6576aa',
-              callback: (v) => Number(v).toLocaleString('pt-BR')
-            }
-          },
-          y1: {
-            position: 'right',
-            title: { display: true, text: 'Nota Média' },
-            min: 0,
-            max: 5,
-            grid: { drawOnChartArea: false },
-            ticks: { color: '#6576aa' }
-          }
-        },
-        elements: {
-          point: { hitRadius: 8, hoverRadius: 6 }
+          })
         }
       }
-    })
-
-    return () => {
-      if (chartInstance.current) {
-        chartInstance.current.destroy()
+    },
+    plugins: {
+      legend: {
+        position: 'top',
+        labels: {
+          usePointStyle: false,
+          boxWidth: 28,
+          boxHeight: 12,
+          borderRadius: 2,
+          padding: 14,
+          color: '#344054',
+          font: { weight: 600, size: 12 },
+          generateLabels: (chart) => {
+            const original = ChartJS.defaults.plugins.legend.labels.generateLabels
+            const labels = original.call(this, chart)
+            
+            // Adicionar estilo visual para séries ocultas
+            labels.forEach((label, index) => {
+              const dataset = chart.data.datasets[index]
+              if (dataset && dataset.hidden) {
+                label.fillStyle = 'rgba(200, 200, 200, 0.3)'
+                label.strokeStyle = 'rgba(200, 200, 200, 0.3)'
+              }
+            })
+            
+            return labels
+          }
+        },
+        onClick: (event, legendItem, legend) => {
+          // Alternar visibilidade da série clicada
+          toggleSeries(legendItem.text)
+        }
+      },
+      tooltip: {
+        backgroundColor: '#1f2937',
+        borderColor: '#0f172a',
+        borderWidth: 1,
+        padding: 10,
+        titleFont: { weight: '700' },
+        bodyFont: { weight: '500' },
+        callbacks: {
+          label: (ctx) => {
+            const ds = ctx.dataset.label || ''
+            const val = ctx.parsed.y
+            if (ctx.dataset.yAxisID === 'y1') return `${ds}: ${val.toFixed(2)}`
+            return `${ds}: ${val.toLocaleString('pt-BR')}`
+          }
+        }
+      },
+      title: { display: false },
+      subtitle: { display: false }
+    },
+    scales: {
+      x: {
+        grid: { color: '#eef2fb' },
+        ticks: { color: '#6576aa', font: { size: 11 } }
+      },
+      y: {
+        title: { display: true, text: 'Volume de Chamadas' },
+        min: 0,
+        grid: { color: '#e9eef7' },
+        ticks: {
+          color: '#6576aa',
+          callback: (v) => Number(v).toLocaleString('pt-BR')
+        }
+      },
+      y1: {
+        position: 'right',
+        title: { display: true, text: 'Nota Média (1-5)' },
+        min: 0,
+        max: 5,
+        grid: { drawOnChartArea: false },
+        ticks: { color: '#6576aa' }
       }
+    },
+    elements: {
+      point: { hitRadius: 8, hoverRadius: 6 }
     }
-  }, [data])
+  }
 
-  return <canvas ref={chartRef}></canvas>
+  return <Line data={chartData} options={options} />
 }
 
 // Função para processar dados reais em semanas
@@ -196,10 +259,30 @@ const processWeeklyData = (data) => {
     
     weeklyData[weekKey].total++
     
-    if (record.disposition === 'ANSWERED') {
+    // Verificar se é chamada retida na URA
+    let tipoChamada = ''
+    if (Array.isArray(record)) {
+      // Assumindo que o tipo de chamada está na coluna K (índice 10) ou próxima
+      tipoChamada = record[10] || record[11] || record[12] || ''
+    } else {
+      tipoChamada = record.tipoChamada || record.tipo || record.status || record.disposition || ''
+    }
+    
+    const isRetidaURA = tipoChamada && (
+      tipoChamada.toLowerCase().includes('retida') ||
+      tipoChamada.toLowerCase().includes('ura') ||
+      tipoChamada.toLowerCase().includes('abandonada')
+    )
+    
+    if (isRetidaURA) {
+      weeklyData[weekKey].abandonadas++
+    } else if (record.disposition === 'ANSWERED') {
       weeklyData[weekKey].atendidas++
     } else if (record.disposition === 'NO ANSWER') {
       weeklyData[weekKey].abandonadas++
+    } else {
+      // Se não tem disposition definido, assumir como atendida se não for retida
+      weeklyData[weekKey].atendidas++
     }
     
     if (record.rating_attendance && record.rating_attendance > 0) {
