@@ -77,13 +77,14 @@ const TendenciaSemanalChart = ({ data = [], periodo = null }) => {
     // Calcular métricas para os cards
     const metrics = calculateMetrics(processedData)
     
-    // Paleta de cores
-    const azul = 'rgba(58, 91, 255, 1)'
-    const azulFill = 'rgba(58, 91, 255, 0.12)'
-    const verde = 'rgba(58, 179, 115, 1)'
-    const verdeFill = 'rgba(58, 179, 115, 0.10)'
-    const vermelho = 'rgba(231, 88, 88, 1)'
-    const amarelo = 'rgba(249, 191, 63, 1)'
+    // Paleta de cores moderna e vibrante
+    const azul = '#3B82F6' // Azul vibrante
+    const azulFill = 'rgba(59, 130, 246, 0.15)'
+    const verde = '#10B981' // Verde esmeralda
+    const verdeFill = 'rgba(16, 185, 129, 0.15)'
+    const vermelho = '#EF4444' // Vermelho vibrante
+    const amarelo = '#F59E0B' // Âmbar vibrante
+    const roxo = '#8B5CF6' // Roxo vibrante
 
     // Verificar se é dados de tickets (tem campo avaliados)
     const isTicketData = processedData.avaliados && processedData.avaliados.some(v => v > 0)
@@ -110,43 +111,62 @@ const TendenciaSemanalChart = ({ data = [], periodo = null }) => {
         data: processedData.total,
         borderColor: azul,
         backgroundColor: azulFill,
+        borderWidth: 6, // Aumentado de 4 para 6
         fill: true,
-        tension: 0.4,
-        pointRadius: 8,
-        pointHoverRadius: 12,
+        tension: 0.3,
+        pointRadius: 12, // Aumentado de 10 para 12
+        pointHoverRadius: 18, // Aumentado de 15 para 18
         pointBackgroundColor: azul,
         pointBorderColor: '#ffffff',
-        pointBorderWidth: 3,
-        pointHoverBorderWidth: 4,
-        pointHoverBackgroundColor: '#1d4ed8',
+        pointBorderWidth: 4,
+        pointHoverBorderWidth: 6,
+        pointHoverBackgroundColor: '#1D4ED8',
+        shadowOffsetX: 2,
+        shadowOffsetY: 2,
+        shadowBlur: 8,
+        shadowColor: 'rgba(59, 130, 246, 0.3)',
         yAxisID: 'y'
       },
       {
         label: 'Tickets Avaliados',
         data: processedData.avaliados,
         borderColor: amarelo,
-        backgroundColor: 'rgba(249, 191, 63, 0.10)',
+        backgroundColor: 'rgba(245, 158, 11, 0.15)',
+        borderWidth: 6, // Aumentado de 4 para 6
         fill: true,
-        tension: 0.4,
-        pointRadius: 5,
-        pointHoverRadius: 7,
+        tension: 0.3,
+        pointRadius: 10, // Aumentado de 8 para 10
+        pointHoverRadius: 15, // Aumentado de 12 para 15
         pointBackgroundColor: amarelo,
+        pointBorderColor: '#ffffff',
+        pointBorderWidth: 3,
+        pointHoverBorderWidth: 5,
+        pointHoverBackgroundColor: '#D97706',
+        shadowOffsetX: 2,
+        shadowOffsetY: 2,
+        shadowBlur: 6,
+        shadowColor: 'rgba(245, 158, 11, 0.3)',
         yAxisID: 'y'
       },
       {
         label: 'Performance Geral (%)',
         data: performancePercent,
-        borderColor: '#8B5CF6',
-        backgroundColor: 'rgba(139, 92, 246, 0.10)',
+        borderColor: roxo,
+        backgroundColor: 'rgba(139, 92, 246, 0.15)',
+        borderWidth: 6, // Aumentado de 4 para 6
         fill: false,
-        tension: 0.4,
-        pointRadius: 6,
-        pointHoverRadius: 10,
-        pointBackgroundColor: '#8B5CF6',
+        tension: 0.3,
+        pointRadius: 10, // Aumentado de 8 para 10
+        pointHoverRadius: 15, // Aumentado de 12 para 15
+        pointBackgroundColor: roxo,
         pointBorderColor: '#ffffff',
-        pointBorderWidth: 2,
-        pointHoverBorderWidth: 3,
+        pointBorderWidth: 3,
+        pointHoverBorderWidth: 5,
         pointHoverBackgroundColor: '#7C3AED',
+        shadowOffsetX: 2,
+        shadowOffsetY: 2,
+        shadowBlur: 6,
+        shadowColor: 'rgba(139, 92, 246, 0.3)',
         yAxisID: 'y1'
       }
     ] : [
@@ -158,8 +178,8 @@ const TendenciaSemanalChart = ({ data = [], periodo = null }) => {
         borderWidth: 3,
         tension: 0.35,
         fill: true,
-        pointRadius: 8,
-        pointHoverRadius: 12,
+        pointRadius: 10, // Aumentado de 8 para 10
+        pointHoverRadius: 15, // Aumentado de 12 para 15
         pointBackgroundColor: azul,
         pointBorderColor: '#ffffff',
         pointBorderWidth: 3,
@@ -238,7 +258,7 @@ const TendenciaSemanalChart = ({ data = [], periodo = null }) => {
           boxHeight: 12,
           padding: 14,
           color: '#344054',
-          font: { weight: 600, size: 12 }
+          font: { weight: '700', size: 16 } // Aumentado de 12 para 16
         }
       },
       tooltip: {
@@ -327,15 +347,15 @@ const TendenciaSemanalChart = ({ data = [], periodo = null }) => {
         },
         color: '#1f2937',
         font: {
-          size: 11,
-          weight: '600',
+          size: 16, // Aumentado de 11 para 16
+          weight: '700', // Aumentado de 600 para 700
           family: "'Inter', sans-serif"
         },
         backgroundColor: 'rgba(255, 255, 255, 0.85)',
         borderColor: '#e5e7eb',
         borderWidth: 1,
         borderRadius: 4,
-        padding: 4,
+        padding: 8, // Aumentado de 4 para 8
         formatter: function(value, context) {
           if (value > 0) {
             // Formatar números grandes de forma mais compacta
@@ -358,8 +378,8 @@ const TendenciaSemanalChart = ({ data = [], periodo = null }) => {
         ticks: { 
           color: '#6B7280', 
           font: { 
-            size: 13,
-            weight: '600',
+            size: 16, // Aumentado de 13 para 16
+            weight: '700', // Aumentado de 600 para 700
             family: "'Inter', sans-serif"
           } 
         }
@@ -380,8 +400,8 @@ const TendenciaSemanalChart = ({ data = [], periodo = null }) => {
         ticks: {
           color: '#6B7280',
           font: {
-            size: 12,
-            weight: '600',
+            size: 16, // Aumentado de 12 para 16
+            weight: '700', // Aumentado de 600 para 700
             family: "'Inter', sans-serif"
           },
           callback: (v) => Number(v).toLocaleString('pt-BR')
@@ -405,8 +425,8 @@ const TendenciaSemanalChart = ({ data = [], periodo = null }) => {
         ticks: { 
           color: '#6B7280',
           font: {
-            size: 12,
-            weight: '600',
+            size: 16, // Aumentado de 12 para 16
+            weight: '700', // Aumentado de 600 para 700
             family: "'Inter', sans-serif"
           },
           stepSize: isTicketData ? 20 : 1,

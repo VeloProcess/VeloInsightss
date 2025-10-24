@@ -1,16 +1,15 @@
 import React, { memo, useState, useMemo, useEffect } from 'react'
 import './MetricsDashboard.css'
-import './LoadingScreen.css'
 import TendenciaSemanalChart from './TendenciaSemanalChart2'
 import CSATChart from './CSATChart'
 import VolumeProdutoURAChart from './VolumeProdutoURAChart'
 import VolumeHoraChart from './VolumeHoraChart'
-import PausasChart from './PausasChart'
+import PausasSection from './PausasSection'
 import TMAChart from './TMAChart'
 import TMLChart from './TMLChart'
 import { usePausasData } from '../hooks/usePausasData'
 
-const MetricsDashboard = memo(({ metrics = {}, rankings = [], octaData = null, data = [], periodo = null, fullDataset = [] }) => {
+const MetricsDashboard = memo(({ metrics = {}, octaData = null, data = [], periodo = null, fullDataset = [] }) => {
   const [activeView, setActiveView] = useState('55pbx')
   
   // Hook para carregar dados específicos de pausas
@@ -83,8 +82,8 @@ const MetricsDashboard = memo(({ metrics = {}, rankings = [], octaData = null, d
         const operador = String(row[0] || '').trim() // Coluna A
         const atividade = String(row[9] || '').trim() // Coluna J
         const dataInicial = String(row[10] || '').trim() // Coluna K
-        const motivoPausa = String(row[15] || '').trim() // Coluna P
-        const duracao = String(row[14] || '').trim() // Coluna O
+        const motivoPausa = String(row[16] || '').trim() // Coluna Q - Motivo Da Pausa
+        const duracao = String(row[15] || '').trim() // Coluna P - DuracaoCalculo
 
         // Verificar se a data está dentro do período selecionado
         if (!isDateInPeriod(dataInicial)) {
@@ -119,9 +118,7 @@ const MetricsDashboard = memo(({ metrics = {}, rankings = [], octaData = null, d
 
     // Debug: mostrar algumas pausas para análise
     if (debugPausas.length > 0) {
-      console.log('🔍 DEBUG PAUSAS - Primeiras 5 pausas:', debugPausas.slice(0, 5))
-      console.log('🔍 DEBUG PAUSAS - Total de pausas:', totalPausas)
-      console.log('🔍 DEBUG PAUSAS - Total segundos:', totalSegundos)
+      // Debug removido para otimização
       
       // Mostrar pausas de almoço especificamente
       const pausasAlmoco = debugPausas.filter(p => 
@@ -129,7 +126,7 @@ const MetricsDashboard = memo(({ metrics = {}, rankings = [], octaData = null, d
         p.motivo.toLowerCase().includes('almoco') ||
         p.motivo.toLowerCase().includes('lunch')
       )
-      console.log('🍽️ PAUSAS DE ALMOÇO:', pausasAlmoco.slice(0, 3))
+      // Debug removido para otimização
     }
 
     // Converter segundos totais para formato HH:MM:SS
@@ -145,9 +142,9 @@ const MetricsDashboard = memo(({ metrics = {}, rankings = [], octaData = null, d
     const duracaoMediaSegundos = totalPausas > 0 ? Math.round(totalSegundos / totalPausas) : 0
     const duracaoMedia = formatarTempo(duracaoMediaSegundos) // Converter para HH:MM:SS
     
-    // Debug adicional: mostrar estatísticas por tipo de pausa
+    // Calcular estatísticas por tipo de pausa
+    const estatisticasPorMotivo = {}
     if (debugPausas.length > 0) {
-      const estatisticasPorMotivo = {}
       debugPausas.forEach(pausa => {
         const motivo = pausa.motivo.toLowerCase()
         if (!estatisticasPorMotivo[motivo]) {
@@ -162,48 +159,134 @@ const MetricsDashboard = memo(({ metrics = {}, rankings = [], octaData = null, d
         estatisticasPorMotivo[motivo].duracoes.push(pausa.duracao)
       })
       
-      console.log('📊 ESTATÍSTICAS POR MOTIVO:', estatisticasPorMotivo)
+      // Debug removido para otimização
       
       // Calcular média por tipo de pausa
       Object.keys(estatisticasPorMotivo).forEach(motivo => {
         const stats = estatisticasPorMotivo[motivo]
         const mediaSegundos = Math.round(stats.totalSegundos / stats.count)
         const mediaFormatada = formatarTempo(mediaSegundos)
-        console.log(`📈 ${motivo}: ${stats.count} pausas, média ${mediaFormatada}`)
+        // Debug removido para otimização
       })
     }
     
-    // Contar quantidade única de atendentes que fizeram pausas
-    const atendentesComPausas = new Set()
+    // Calcular duração média por tipo de pausa
+    const duracaoMediaPorTipo = {}
+    Object.keys(estatisticasPorMotivo).forEach(motivo => {
+      const stats = estatisticasPorMotivo[motivo]
+      const mediaSegundos = Math.round(stats.totalSegundos / stats.count)
+      duracaoMediaPorTipo[motivo] = formatarTempo(mediaSegundos)
+    })
+    
+    // Função para normalizar nome do operador (remover prefixos e sufixos)
+    const normalizarNomeOperador = (nome) => {
+      if (!nome) return ''
+      
+      let nomeNormalizado = nome.trim()
+      
+      // Remover prefixos
+      if (nomeNormalizado.toLowerCase().startsWith('desl ')) {
+        nomeNormalizado = nomeNormalizado.substring(5).trim()
+      }
+      
+      // Remover sufixos de exclusão
+      if (nomeNormalizado.includes(' - Excluído')) {
+        nomeNormalizado = nomeNormalizado.split(' - Excluído')[0].trim()
+      }
+      if (nomeNormalizado.includes(' - Excluido')) {
+        nomeNormalizado = nomeNormalizado.split(' - Excluido')[0].trim()
+      }
+      
+      return nomeNormalizado
+    }
+    
+    // Contar quantidade única de atendentes que trabalharam (online ou em pausa)
+    const atendentesQueTrabalharam = new Set()
+    const atendentesDetalhes = []
+    const operadoresNormalizados = new Map() // Mapear nome normalizado para nome original
+    
     pausasData.slice(1).forEach((row) => {
       if (Array.isArray(row) && row.length > 15) {
         const operador = String(row[0] || '').trim()
         const atividade = String(row[9] || '').trim()
         const dataInicial = String(row[10] || '').trim()
-        const motivoPausa = String(row[15] || '').trim()
-        const duracao = String(row[14] || '').trim()
+        const duracao = String(row[15] || '').trim() // Coluna P - DuracaoCalculo
 
         if (!isDateInPeriod(dataInicial)) return
 
-        if (operador && atividade.toLowerCase() === 'em pausa' && motivoPausa && duracao) {
-          atendentesComPausas.add(operador)
+        // Contar qualquer operador que tenha atividade (online ou em pausa) com duração
+        if (operador && (atividade.toLowerCase() === 'online' || atividade.toLowerCase() === 'em pausa') && duracao) {
+          const nomeNormalizado = normalizarNomeOperador(operador)
+          
+          // Só adicionar se o nome normalizado for válido
+          if (nomeNormalizado.length >= 3 && /[a-z]/.test(nomeNormalizado.toLowerCase())) {
+            // Usar nome normalizado como chave única
+            if (!operadoresNormalizados.has(nomeNormalizado)) {
+              operadoresNormalizados.set(nomeNormalizado, operador) // Guardar nome original
+            }
+            
+            atendentesQueTrabalharam.add(nomeNormalizado)
+            
+            // Armazenar detalhes para debug
+            atendentesDetalhes.push({
+              operador: nomeNormalizado, // Usar nome normalizado
+              operadorOriginal: operador, // Guardar nome original
+              atividade,
+              dataInicial,
+              duracao
+            })
+          }
         }
       }
     })
-    const quantidadeAtendentes = atendentesComPausas.size
+    
+    // Debug removido para otimização
+    
+    // Mostrar estatísticas por operador (apenas os válidos)
+    const estatisticasPorOperador = {}
+    atendentesDetalhes.forEach(detail => {
+      if (!estatisticasPorOperador[detail.operador]) {
+        estatisticasPorOperador[detail.operador] = {
+          totalRegistros: 0,
+          atividades: new Set(),
+          datas: new Set(),
+          nomeOriginal: detail.operadorOriginal
+        }
+      }
+      estatisticasPorOperador[detail.operador].totalRegistros++
+      estatisticasPorOperador[detail.operador].atividades.add(detail.atividade)
+      estatisticasPorOperador[detail.operador].datas.add(detail.dataInicial)
+    })
+    
+    // Debug removido para otimização
+    Object.keys(estatisticasPorOperador).sort().forEach(operador => {
+      const stats = estatisticasPorOperador[operador]
+      // Debug removido para otimização
+    })
+    
+    const quantidadeAtendentes = atendentesQueTrabalharam.size
 
     return {
       totalPausas,
       tempoTotalPausa,
       duracaoMedia,
-      quantidadeAtendentes
+      quantidadeAtendentes,
+      duracaoMediaPorTipo
     }
   }, [pausasData, periodo])
 
   return (
     <div className="container">
 
-      {/* Navigation Tabs */}
+      {/* Section Title */}
+      <div className="section-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <i className='bx bxs-phone'></i>
+          <h2>Telefonia</h2>
+        </div>
+      </div>
+
+      {/* Navigation Tabs - MOVIDOS PARA BAIXO */}
       <div className="nav-tabs">
         <button 
           className={`nav-tab ${activeView === '55pbx' ? 'active' : ''}`}
@@ -231,112 +314,71 @@ const MetricsDashboard = memo(({ metrics = {}, rankings = [], octaData = null, d
       {/* View 55pbx */}
       {activeView === '55pbx' && (
         <div className="view active">
-          {/* Section Title */}
-          <div className="section-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <i className='bx bxs-phone'></i>
-              <h2>Telefonia</h2>
+          {/* Indicadores */}
+          <div className="indicators-grid">
+            <div className="indicator-card">
+              <i className='bx bx-time-five indicator-icon'></i>
+              <div className="indicator-label">TMA Geral</div>
+              <div className="indicator-value">{metrics.duracaoMediaAtendimento || '0.0'} min</div>
             </div>
           </div>
 
-      {/* Indicadores */}
-      <div className="indicators-grid">
-        <div className="indicator-card">
-          <i className='bx bx-time-five indicator-icon'></i>
-          <div className="indicator-label">TMA Geral</div>
-          <div className="indicator-value">{metrics.duracaoMediaAtendimento || '0.0'} min</div>
-        </div>
-      </div>
-
-      {/* Cards de Gráficos */}
-      <div className="card">
-        <div className="card-header">
-          <h3 className="card-title">Análise Geral</h3>
-          <i className='bx bx-trending-up card-icon'></i>
-        </div>
-        <div className="chart-container">
-          <TendenciaSemanalChart data={chartData} periodo={periodo} />
-        </div>
-      </div>
-
-      <div className="card">
-        <div className="card-header">
-          <h3 className="card-title">CSAT - Satisfação do Cliente</h3>
-          <i className='bx bx-star card-icon'></i>
-        </div>
-        <div className="chart-container">
-          <CSATChart data={chartData} periodo={periodo} />
-        </div>
-      </div>
-
-      {/* Volume por Produto URA - Card Individual Maior */}
-        <div className="card">
-          <div className="card-header">
-            <h3 className="card-title">Volume por Produto URA</h3>
-            <i className='bx bx-line-chart card-icon'></i>
+          {/* Cards de Gráficos */}
+          <div className="card">
+            <div className="card-header">
+              <h3 className="card-title">Análise Geral</h3>
+              <i className='bx bx-trending-up card-icon'></i>
+            </div>
+            <div className="chart-container-analise">
+              <TendenciaSemanalChart data={chartData} periodo={periodo} />
+            </div>
           </div>
-        <div className="chart-container-large">
-            <VolumeProdutoURAChart data={rawData} periodo={periodo} />
-          </div>
-        </div>
 
-      {/* Volume por Hora - Card Individual Maior */}
-      <div className="card">
-        <div className="card-header">
-          <h3 className="card-title">Volume por Hora</h3>
-          <i className='bx bx-bar-chart-alt-2 card-icon'></i>
-        </div>
-        <div className="chart-container-large">
-          <VolumeHoraChart data={rawData} periodo={periodo} />
-        </div>
-      </div>
-
-      {/* Gráficos de TMA */}
-      <div className="card">
-        <div className="card-header">
-          <h3 className="card-title">TMA - Tempo Médio de Atendimento por Produto URA</h3>
-          <i className='bx bx-time-five card-icon'></i>
-        </div>
-        <div className="chart-container-large">
-          <TMAChart data={rawData} periodo={periodo} groupBy="produto" />
-        </div>
-      </div>
-
-      {/* Ranking de Operadores */}
-      {rankings && rankings.length > 0 && (
-        <div className="card">
-          <div className="card-header">
-            <h3 className="card-title">🏆 Ranking de Operadores</h3>
+          <div className="card">
+            <div className="card-header">
+              <h3 className="card-title">CSAT - Satisfação do Cliente</h3>
+              <i className='bx bx-star card-icon'></i>
+            </div>
+            <div className="chart-container-csat">
+              <CSATChart data={chartData} periodo={periodo} />
+            </div>
           </div>
-          <div className="card-content">
-            <table className="rankings-table">
-              <thead>
-                <tr>
-                  <th>Posição</th>
-                  <th>Operador</th>
-                  <th>Chamadas</th>
-                  <th>Nota</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rankings.slice(0, 3).map((operator, index) => (
-                  <tr key={index}>
-                    <td className="position">
-                      {index === 0 && '🥇'}
-                      {index === 1 && '🥈'}
-                      {index === 2 && '🥉'}
-                      {index > 2 && `${index + 1}º`}
-                    </td>
-                    <td>{operator.operator}</td>
-                    <td>{operator.totalCalls || 0}</td>
-                    <td>{operator.avgRatingAttendance || 0}/5</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+
+          {/* Containers lado a lado - Volume URA e Volume Hora */}
+          <div className="charts-side-by-side">
+            {/* Volume por Produto URA - Card Individual Maior */}
+            <div className="card card-ura">
+              <div className="card-header">
+                <h3 className="card-title">Volume por Produto URA</h3>
+                <i className='bx bx-line-chart card-icon'></i>
+              </div>
+              <div className="chart-container-ura">
+                <VolumeProdutoURAChart data={rawData} periodo={periodo} />
+              </div>
+            </div>
+
+            {/* Volume por Hora - Card Individual Maior */}
+            <div className="card card-hora">
+              <div className="card-header">
+                <h3 className="card-title">Volume por Hora</h3>
+                <i className='bx bx-bar-chart-alt-2 card-icon'></i>
+              </div>
+              <div className="chart-container-hora">
+                <VolumeHoraChart data={rawData} periodo={periodo} />
+              </div>
+            </div>
           </div>
-        </div>
-      )}
+
+          {/* Gráfico TMA */}
+          <div className="card">
+            <div className="card-header">
+              <h3 className="card-title">TMA - Tempo Médio de Atendimento por Produto URA</h3>
+              <i className='bx bx-time-five card-icon'></i>
+            </div>
+            <div className="chart-container-tma">
+              <TMAChart data={rawData} periodo={periodo} groupBy="produto" />
+            </div>
+          </div>
         </div>
       )}
 
@@ -377,7 +419,7 @@ const MetricsDashboard = memo(({ metrics = {}, rankings = [], octaData = null, d
               <h3 className="card-title">Análise Geral de Tickets</h3>
               <i className='bx bx-trending-up card-icon'></i>
             </div>
-            <div className="chart-container">
+            <div className="chart-container-analise">
               <TendenciaSemanalChart data={octaData?.octaRawData || []} periodo={periodo} />
             </div>
           </div>
@@ -387,30 +429,33 @@ const MetricsDashboard = memo(({ metrics = {}, rankings = [], octaData = null, d
               <h3 className="card-title">CSAT - Satisfação do Cliente (Tickets)</h3>
               <i className='bx bx-star card-icon'></i>
             </div>
-            <div className="chart-container">
+            <div className="chart-container-tickets">
               <CSATChart data={octaData?.octaRawData || []} periodo={periodo} />
             </div>
           </div>
 
-          {/* Volume por Fila (Tickets) - Card Individual Maior */}
+          {/* Containers lado a lado - Volume Fila e Volume Hora (Tickets) */}
+          <div className="charts-side-by-side">
+            {/* Volume por Fila (Tickets) - Card Individual Maior */}
             <div className="card">
               <div className="card-header">
                 <h3 className="card-title">Volume por Fila (Tickets)</h3>
                 <i className='bx bx-line-chart card-icon'></i>
               </div>
-            <div className="chart-container-large">
+            <div className="chart-container-ura">
                 <VolumeProdutoURAChart data={octaData?.octaRawData || []} periodo={periodo} isTicketsTab={true} />
               </div>
             </div>
 
-          {/* Volume por Hora (Tickets) - Card Individual Maior */}
-          <div className="card">
-            <div className="card-header">
-              <h3 className="card-title">Volume por Hora (Tickets)</h3>
-              <i className='bx bx-bar-chart-alt-2 card-icon'></i>
-            </div>
-            <div className="chart-container-large">
-              <VolumeHoraChart data={octaData?.octaRawData || []} periodo={periodo} />
+            {/* Volume por Hora (Tickets) - Card Individual Maior */}
+            <div className="card card-hora">
+              <div className="card-header">
+                <h3 className="card-title">Volume por Hora (Tickets)</h3>
+                <i className='bx bx-bar-chart-alt-2 card-icon'></i>
+              </div>
+            <div className="chart-container-hora">
+                <VolumeHoraChart data={octaData?.octaRawData || []} periodo={periodo} />
+              </div>
             </div>
           </div>
 
@@ -420,46 +465,10 @@ const MetricsDashboard = memo(({ metrics = {}, rankings = [], octaData = null, d
               <h3 className="card-title">TMA - Tempo Médio de Resolução por Assunto</h3>
               <i className='bx bx-time-five card-icon'></i>
             </div>
-            <div className="chart-container-large">
-              <TMATicketsChart data={octaData?.octaRawData || []} periodo={periodo} />
+            <div className="chart-container-tma">
+              <TMAChart data={octaData?.octaRawData || []} periodo={periodo} groupBy="assunto" />
             </div>
           </div>
-
-          {/* Ranking de Atendentes - Tickets */}
-          {octaData?.octaRankings && octaData.octaRankings.length > 0 && (
-            <div className="card">
-              <div className="card-header">
-                <h3 className="card-title">🏆 Ranking de Atendentes</h3>
-              </div>
-              <div className="card-content">
-                <table className="rankings-table">
-                  <thead>
-                    <tr>
-                      <th>Posição</th>
-                      <th>Atendente</th>
-                      <th>Tickets</th>
-                      <th>Avaliação</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {octaData.octaRankings.slice(0, 3).map((atendente, index) => (
-                      <tr key={index}>
-                        <td className="position">
-                          {index === 0 && '🥇'}
-                          {index === 1 && '🥈'}
-                          {index === 2 && '🥉'}
-                          {index > 2 && `${index + 1}º`}
-                        </td>
-                        <td>{atendente.nome || atendente.operator}</td>
-                        <td>{atendente.totalTickets || atendente.totalCalls || 0}</td>
-                        <td>{atendente.notaMedia || atendente.avgRatingAttendance || 0}/5</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
         </div>
       )}
 
@@ -473,52 +482,35 @@ const MetricsDashboard = memo(({ metrics = {}, rankings = [], octaData = null, d
 
           <div className="indicators-grid">
             <div className="indicator-card">
-              <i className='bx bx-time indicator-icon'></i>
-              <div className="indicator-label">Tempo Total em Pausa</div>
-              <div className="indicator-value">{pausasIndicators.tempoTotalPausa}</div>
-            </div>
-            <div className="indicator-card">
-              <i className='bx bx-timer indicator-icon'></i>
-              <div className="indicator-label">Duração Média por Pausa</div>
-              <div className="indicator-value">{pausasIndicators.duracaoMedia}</div>
-            </div>
-            <div className="indicator-card">
               <i className='bx bx-user indicator-icon'></i>
               <div className="indicator-label">Quantidade de Atendentes</div>
               <div className="indicator-value">{pausasIndicators.quantidadeAtendentes}</div>
             </div>
+            
+            {/* Indicadores por tipo de pausa */}
+            {pausasIndicators.duracaoMediaPorTipo && Object.keys(pausasIndicators.duracaoMediaPorTipo)
+              .filter(motivo => {
+                const motivoLower = motivo.toLowerCase()
+                // Filtrar tipos indesejados
+                return !motivoLower.includes('login') && 
+                       !motivoLower.includes('98') && 
+                       !motivoLower.includes('registro de ponto')
+              })
+              .map(motivo => {
+                // Limpar números do início do nome
+                const motivoLimpo = motivo.replace(/^\d+\s*/, '').trim()
+                return (
+                  <div key={motivo} className="indicator-card">
+                    <i className='bx bx-coffee indicator-icon'></i>
+                    <div className="indicator-label">Média - {motivoLimpo}</div>
+                    <div className="indicator-value">{pausasIndicators.duracaoMediaPorTipo[motivo]}</div>
+                  </div>
+                )
+              })}
           </div>
 
           {/* Cards de Gráficos - Pausas */}
-          <div className="card">
-            <div className="card-header">
-              <h3 className="card-title">TML - Tempo Médio Logado</h3>
-              <i className='bx bx-bar-chart-alt-2 card-icon'></i>
-            </div>
-            <div className="chart-container">
-              <TMLChart data={pausasData} periodo={periodo} />
-            </div>
-          </div>
-
-          <div className="card">
-            <div className="card-header">
-              <h3 className="card-title">Motivos de Pausa</h3>
-              <i className='bx bx-pie-chart-alt-2 card-icon'></i>
-            </div>
-            <div className="chart-container">
-              <PausasChart data={pausasData} periodo={periodo} chartType="pie" />
-            </div>
-          </div>
-
-          <div className="card">
-            <div className="card-header">
-              <h3 className="card-title">Pausas por Operador</h3>
-              <i className='bx bx-user card-icon'></i>
-            </div>
-            <div className="chart-container">
-              <PausasChart data={pausasData} periodo={periodo} chartType="operators" />
-            </div>
-          </div>
+          <PausasSection pausasData={pausasData} periodo={periodo} />
         </div>
       )}
     </div>

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useMemo, useState, memo } from 'react'
 import { Bar } from 'react-chartjs-2'
 import {
   Chart as ChartJS,
@@ -11,6 +11,7 @@ import {
   Filler
 } from 'chart.js'
 import { useTicketsData } from '../hooks/useTicketsData'
+import './VolumeProdutoURAChart.css'
 
 ChartJS.register(
   CategoryScale,
@@ -24,23 +25,18 @@ ChartJS.register(
 
 // Componente para mostrar distribuição de volume por fila da URA
 
-const VolumeProdutoURAChart = ({ data = [], periodo = null, isTicketsTab = false }) => {
-  // Hook para buscar dados específicos de tickets (apenas para aba Tickets)
-  const { ticketsData, isLoading: isLoadingTickets, error: ticketsError, processQueueData } = useTicketsData()
-  
-  
+const VolumeProdutoURAChart = memo(({ data = [], periodo = null, isTicketsTab = false }) => {
+  // Só usar dados de tickets se explicitamente solicitado
+  const shouldUseTicketsData = isTicketsTab
   
   const chartData = useMemo(() => {
     let processedData
     
-    // Usar dados de tickets se explicitamente indicado ou se temos dados de tickets e não temos dados principais
-    const shouldUseTicketsData = isTicketsTab || (ticketsData && ticketsData.length > 0 && (!data || data.length === 0))
-    
     if (shouldUseTicketsData) {
-      
-      const ticketsProcessedData = processQueueData(ticketsData)
-      processedData = processTicketsData(ticketsProcessedData)
+      // Para dados de tickets, processar dados de filas de tickets
+      processedData = processTicketsDataForQueues(data, periodo)
     } else {
+      // Para dados normais de telefonia
       processedData = processVolumeProdutoRadar(data, periodo)
     }
     
@@ -89,22 +85,22 @@ const VolumeProdutoURAChart = ({ data = [], periodo = null, isTicketsTab = false
         }
       ]
     }
-  }, [data, periodo, ticketsData, processQueueData])
+  }, [data, periodo, isTicketsTab])
 
-  // Aplicar tamanho grande para aba Tickets ou quando há dados de tickets
-  const shouldUseLargeSize = isTicketsTab || (ticketsData && ticketsData.length > 0)
+  // Aplicar tamanho grande para aba Tickets
+  const shouldUseLargeSize = isTicketsTab
 
-  const options = {
+  const options = useMemo(() => ({
     responsive: true,
     maintainAspectRatio: false,
-    aspectRatio: shouldUseLargeSize ? 1.5 : 1,
+    aspectRatio: 0.8, // Valor menor para renderizar corretamente
     indexAxis: 'y',
     layout: {
       padding: {
-        top: shouldUseLargeSize ? 20 : 10,
-        bottom: shouldUseLargeSize ? 20 : 10,
-        left: shouldUseLargeSize ? 20 : 10,
-        right: shouldUseLargeSize ? 20 : 10
+        top: 10,
+        bottom: 10,
+        left: 10,
+        right: 10
       }
     },
     scales: {
@@ -226,72 +222,175 @@ const VolumeProdutoURAChart = ({ data = [], periodo = null, isTicketsTab = false
         }
       }
     }
-  }
+  }), [chartData, shouldUseLargeSize])
 
-  // Mostrar loading apenas se estiver carregando dados de tickets E não temos dados principais
-  if (isLoadingTickets && (!data || data.length === 0)) {
+  // Debug logs
+  // Debug removido para otimização
+
+  // Debug removido para otimização
+
+  // Verificar se há dados válidos para renderizar
+  if (!chartData || !chartData.labels || chartData.labels.length === 0) {
+    // Debug removido para otimização
     return (
       <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        height: '700px',
-        flexDirection: 'column',
-        gap: '10px'
+        width: '100%', 
+        height: '100%',
+        minHeight: '300px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#f9fafb',
+        borderRadius: '8px',
+        border: '1px dashed #d1d5db'
       }}>
-        <div className="loading-spinner"></div>
-        <p>Carregando dados de tickets...</p>
-      </div>
-    )
-  }
-
-  // Mostrar erro apenas se houver erro de tickets E não temos dados principais
-  if (ticketsError && (!data || data.length === 0)) {
-    return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        height: '700px',
-        flexDirection: 'column',
-        gap: '10px',
-        color: '#ef4444'
-      }}>
-        <p>❌ Erro ao carregar dados de tickets</p>
-        <p style={{ fontSize: '12px', opacity: 0.7 }}>{ticketsError}</p>
+        <div style={{ textAlign: 'center', color: '#6b7280' }}>
+          <div style={{ fontSize: '24px', marginBottom: '8px' }}>📊</div>
+          <div>Sem dados para exibir</div>
+        </div>
       </div>
     )
   }
 
   return (
-    <div style={{ 
-      width: '100%', 
-      height: shouldUseLargeSize ? '900px' : '400px',
-      minHeight: shouldUseLargeSize ? '900px' : '400px',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '10px'
-    }}>
-      {/* Header com filtros */}
+    <div className="volume-chart-container">
+      {/* Header */}
+      <div className="volume-chart-header">
+        <h3 className="volume-chart-title">Volume por Produto URA</h3>
+        <svg className="volume-chart-icon" fill="currentColor" viewBox="0 0 20 20">
+          <path fillRule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11.707 4.707a1 1 0 00-1.414-1.414L10 9.586 8.707 8.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+        </svg>
+      </div>
 
       {/* Gráfico */}
-      <div style={{ 
-        width: '100%', 
-        height: '100%',
-        maxWidth: '100%',
-        maxHeight: '100%'
-      }}>
-        <Bar data={chartData} options={options} />
+      <div className="volume-chart-wrapper">
+        {chartData && chartData.labels && chartData.labels.length > 0 ? 
+          <Bar data={chartData} options={options} /> : 
+          <div style={{ padding: '20px', textAlign: 'center', color: '#666' }}>
+            Sem dados para exibir
+          </div>
+        }
       </div>
     </div>
   )
-}
+})
 
 // Processar dados para gráfico de radar (filas da coluna K)
 // Função para processar dados de tickets da aba Tickets
+const processTicketsDataForQueues = (data, periodo) => {
+  if (!data || data.length === 0) {
+    return {
+      labels: ['Sem dados'],
+      values: [0]
+    }
+  }
+
+  // Filas específicas que queremos mostrar (com variações)
+  const filasEspecificas = [
+    { nome: 'IRPF', palavras: ['IRPF', 'IMPOSTO DE RENDA'] },
+    { nome: 'CALCULADORA', palavras: ['CALCULADORA', 'CALCULO', 'CÁLCULO'] },
+    { nome: 'ANTECIPAÇÃO DA RESTITUIÇÃO', palavras: ['ANTECIPAÇÃO', 'RESTITUIÇÃO', 'ANTECIPACAO'] },
+    { nome: 'OFF', palavras: ['OFF', 'OFFLINE'] },
+    { nome: 'EMPRÉSTIMO PESSOAL', palavras: ['EMPRÉSTIMO', 'EMPRESTIMO', 'PESSOAL', 'CRÉDITO'] },
+    { nome: 'TABULAÇÃO PENDENTE', palavras: ['TABULAÇÃO', 'TABULACAO', 'PENDENTE'] },
+    { nome: 'PIX', palavras: ['PIX', 'TRANSFERÊNCIA', 'TRANSFERENCIA', 'RECEBIMENTO'] }
+  ]
+
+  // Função para verificar se uma data está dentro do período selecionado
+  const isDateInPeriod = (rowIndex) => {
+    if (!periodo) return true
+    
+    try {
+      const row = data[rowIndex + 14] // Ajustar para o índice real
+      if (!row || !row[0]) return true
+      
+      const rowDate = parseBrazilianDate(row[0])
+      if (!rowDate) return true
+      
+      const startDate = new Date(periodo.startDate)
+      const endDate = new Date(periodo.endDate)
+      
+      return rowDate >= startDate && rowDate <= endDate
+    } catch (error) {
+      return true
+    }
+  }
+
+  // Para tickets, processar dados da coluna de fila/assunto
+  const maxRows = 150000
+  const dataToProcess = data.length > maxRows ? data.slice(0, maxRows) : data
+  
+  const filaCounts = {}
+  let processedRows = 0
+  
+  // Processar dados a partir da linha 15 (índice 14)
+  dataToProcess.slice(14).forEach((row, index) => {
+    // Para tickets, tentar diferentes colunas para encontrar a fila/assunto
+    let fila = null
+    
+    // Tentar coluna B (índice 1) - assunto
+    if (row[1] !== undefined && row[1] !== null && row[1] !== '') {
+      fila = String(row[1]).trim()
+    }
+    // Se não encontrar, tentar coluna C (índice 2) - categoria
+    else if (row[2] !== undefined && row[2] !== null && row[2] !== '') {
+      fila = String(row[2]).trim()
+    }
+    // Se não encontrar, tentar coluna D (índice 3) - fila
+    else if (row[3] !== undefined && row[3] !== null && row[3] !== '') {
+      fila = String(row[3]).trim()
+    }
+    
+    if (fila && fila !== '0' && fila !== '' && fila !== 'null' && fila !== 'undefined') {
+      // Verificar se está no período
+      if (isDateInPeriod(index)) {
+        // Normalizar o nome da fila para comparação
+        const filaNormalizada = fila.toUpperCase()
+        
+        // Verificar se a fila corresponde a alguma das filas específicas
+        const filaEncontrada = filasEspecificas.find(filaEspecifica => 
+          filaEspecifica.palavras.some(palavra => 
+            filaNormalizada.includes(palavra.toUpperCase())
+          )
+        )
+        
+        if (filaEncontrada) {
+          // Usar o nome padronizado da fila específica
+          filaCounts[filaEncontrada.nome] = (filaCounts[filaEncontrada.nome] || 0) + 1
+          processedRows++
+        }
+      }
+    }
+  })
+
+  // Garantir que todas as filas específicas apareçam, mesmo com 0
+  filasEspecificas.forEach(fila => {
+    if (!filaCounts[fila.nome]) {
+      filaCounts[fila.nome] = 0
+    }
+  })
+
+  // Converter para arrays ordenados (manter ordem das filas específicas)
+  const filasOrdenadas = filasEspecificas.map(fila => fila.nome).filter(fila => filaCounts[fila] > 0)
+  const total = filasOrdenadas.reduce((sum, fila) => sum + filaCounts[fila], 0)
+
+  if (total === 0) {
+    return {
+      labels: ['Sem dados'],
+      values: [0]
+    }
+  }
+
+  return {
+    labels: filasOrdenadas,
+    values: filasOrdenadas.map(fila => {
+      const count = filaCounts[fila]
+      return total > 0 ? ((count / total) * 100).toFixed(1) : 0
+    })
+  }
+}
+
 const processTicketsData = (processedData) => {
-  
-  
   const { queueCounts, totalTickets } = processedData
   
   if (totalTickets === 0) {
@@ -315,12 +414,12 @@ const processTicketsData = (processedData) => {
     })
   }
   
-  
   return result
 }
 
 const processVolumeProdutoRadar = (data, periodo) => {
   if (!data || data.length === 0) {
+    // Debug removido para otimização
     return {
       labels: ['Sem dados'],
       values: [0]
@@ -349,24 +448,22 @@ const processVolumeProdutoRadar = (data, periodo) => {
   }
 
   // Mapear filas da coluna K
+  // Processar até 150k linhas para encontrar todas as filas
+  const maxRows = 150000
+  const dataToProcess = data.length > maxRows ? data.slice(0, maxRows) : data
+  
   const filaCounts = {}
   let processedRows = 0
   
   
   // Processar dados a partir da linha 15 (índice 14) para evitar cabeçalhos
-  data.slice(14).forEach((row, index) => {
+  dataToProcess.slice(14).forEach((row, index) => {
     if (Array.isArray(row) && row[10] !== undefined && row[10] !== null && row[10] !== '') {
       const fila = String(row[10]).trim() // Coluna K = índice 10
       
-      // Debug: verificar o que está sendo lido
-      if (processedRows < 10) {
-        
-      }
-      
       if (fila && fila !== '0' && fila !== '' && fila !== 'null' && fila !== 'undefined') {
-        // Desconsiderar "Cobrança"
-        if (fila.toLowerCase().includes('cobrança') || fila.toLowerCase().includes('cobranca')) {
-          
+        // Desconsiderar apenas "Cobrança" (com ç), não "Cobranca"
+        if (fila.toLowerCase().includes('cobrança')) {
           return
         }
         
@@ -382,15 +479,10 @@ const processVolumeProdutoRadar = (data, periodo) => {
         
         filaCounts[filaNormalizada] = (filaCounts[filaNormalizada] || 0) + 1
         
-        // Log das primeiras filas encontradas
-        if (processedRows <= 5) {
-          
-        }
+        // Debug removido para otimização
       }
     }
   })
-  
-  
   
   // Filtrar filas que não têm dados no período selecionado
   const filasComDados = Object.keys(filaCounts).filter(fila => filaCounts[fila] > 0)
@@ -399,6 +491,7 @@ const processVolumeProdutoRadar = (data, periodo) => {
   const filasOrdenadas = filasComDados.sort((a, b) => filaCounts[b] - filaCounts[a])
 
   if (filasOrdenadas.length === 0) {
+    // Debug removido para otimização
     return {
       labels: ['Sem dados'],
       values: [0]
@@ -415,7 +508,6 @@ const processVolumeProdutoRadar = (data, periodo) => {
       return total > 0 ? ((count / total) * 100).toFixed(1) : 0
     })
   }
-  
   
   return result
 }

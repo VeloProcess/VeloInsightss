@@ -60,8 +60,8 @@ const TMLChart = ({ data = [], periodo = null }) => {
       padding: {
         top: 20,
         bottom: 20,
-        left: 10,
-        right: 10
+        left: 15,
+        right: 15
       }
     },
     plugins: {
@@ -90,6 +90,10 @@ const TMLChart = ({ data = [], periodo = null }) => {
     scales: {
       x: {
         beginAtZero: true,
+        max: function(context) {
+          const maxValue = Math.max(...context.chart.data.datasets[0].data)
+          return Math.ceil(maxValue * 1.1) // Adiciona 10% de margem
+        },
         grid: {
           color: 'rgba(0, 0, 0, 0.1)',
           drawBorder: false
@@ -126,27 +130,11 @@ const TMLChart = ({ data = [], periodo = null }) => {
 
   return (
     <div className="tml-modern-container">
-      {/* Header */}
-      <div className="tml-header">
-        <div className="tml-title-section">
-          <h3 className="tml-title">TML - Tempo Médio Logado</h3>
-          <p className="tml-subtitle">Análise de jornadas de trabalho</p>
-        </div>
-        <div className="tml-icon">
-          <i className="bx bx-time-five"></i>
-        </div>
-      </div>
-
       {/* Métricas Cards */}
       <div className="tml-metrics-grid">
         <div className="tml-metric-card logado">
           <div className="tml-metric-icon">
             <i className="bx bx-time"></i>
-          </div>
-          <div className="tml-metric-content">
-            <div className="tml-metric-value">{tableData.tempoMedioLogado}</div>
-            <div className="tml-metric-label">Tempo Médio Logado/Dia</div>
-            <div className="tml-metric-detail">{tableData.totalDias} dias analisados</div>
           </div>
         </div>
 
@@ -154,31 +142,17 @@ const TMLChart = ({ data = [], periodo = null }) => {
           <div className="tml-metric-icon">
             <i className="bx bx-pause-circle"></i>
           </div>
-          <div className="tml-metric-content">
-            <div className="tml-metric-value">{tableData.tempoMedioPausado}</div>
-            <div className="tml-metric-label">Tempo Médio Pausado/Dia</div>
-            <div className="tml-metric-detail">{tableData.totalOperadores} operadores</div>
-          </div>
         </div>
 
         <div className="tml-metric-card eficiencia">
           <div className="tml-metric-icon">
             <i className="bx bx-trending-up"></i>
           </div>
-          <div className="tml-metric-content">
-            <div className="tml-metric-value">{tableData.eficiencia}%</div>
-            <div className="tml-metric-label">Eficiência</div>
-            <div className="tml-metric-detail">Tempo logado vs total</div>
-          </div>
         </div>
       </div>
 
       {/* Gráfico de Barras */}
       <div className="tml-chart-section">
-        <div className="tml-chart-header">
-          <h4>Distribuição de Jornadas</h4>
-          <p>Total de dias trabalhados por tipo de jornada</p>
-        </div>
         <div className="tml-bar-container">
           <Bar data={chartData} options={options} />
         </div>

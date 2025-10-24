@@ -53,17 +53,18 @@ body {
 }
 
 .container {
-  max-width: 100% !important;
+  max-width: none !important; /* Remover limitação de largura */
   width: 100% !important;
   margin: 0 !important;
-  padding: 20px 40px !important;
+  padding: 10px !important; /* Padding mínimo */
   box-sizing: border-box !important;
 }
 
 @media (min-width: 1600px) {
   .container {
-    max-width: 1600px !important;
-    margin: 0 auto !important;
+    max-width: none !important; /* Remover limitação de largura */
+    margin: 0 !important;
+    padding: 10px !important; /* Padding mínimo */
   }
 }
 
@@ -178,13 +179,14 @@ body, html {
   border-color: var(--brand-secondary) !important;
 }
 
-/* Navigation Tabs */
+/* Navigation Tabs - AJUSTADOS PARA POSIÇÃO ABAIXO DO TÍTULO */
 .nav-tabs {
   display: flex !important;
   gap: 15px !important;
   margin-bottom: 30px !important;
-  margin-top: 0 !important;
+  margin-top: 20px !important; /* Espaçamento do título */
   padding-top: 0 !important;
+  justify-content: flex-start !important; /* Alinhar à esquerda */
 }
 
 .header-nav {
@@ -376,4 +378,17 @@ body, html {
   .chart-container {
     height: 300px !important;
   }
+}
+
+/* Main Content - USAR TODO O ESPAÇO DISPONÍVEL */
+.main-content {
+  width: 100% !important;
+  min-height: 100vh !important;
+  padding: 0 !important; /* Sem padding para usar todo o espaço */
+  margin: 0 !important;
+  box-sizing: border-box !important;
+}
+
+.main-content.sidebar-open {
+  margin-left: 0 !important; /* Ajustar quando sidebar estiver aberta */
 }

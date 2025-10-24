@@ -31,12 +31,7 @@ export const useTicketsData = (filters = {}) => {
 
   // Função para buscar TODOS os dados da planilha de Tickets (planilha completa - otimizada para grandes volumes)
   const fetchAllTicketsData = useCallback(async () => {
-    console.log('🔍 Verificando autenticação...', { 
-      hasUserData: !!userData, 
-      hasAccessToken: !!userData?.accessToken,
-      isAuthenticated,
-      userEmail: userData?.email
-    })
+    // Debug removido para otimização
     
     if (!userData?.accessToken) {
       console.error('❌ Access token não disponível para buscar todos os dados de tickets')
@@ -44,13 +39,13 @@ export const useTicketsData = (filters = {}) => {
       return []
     }
 
-    console.log('✅ Token de acesso disponível, iniciando carregamento...')
+    // Debug removido para otimização
     setIsLoading(true)
     setError(null)
 
     try {
-      console.log('🔄 Carregando TODOS os dados da planilha de Tickets (Telefonia) - ~142K linhas...')
-      console.log('📋 Spreadsheet ID:', TICKETS_CONFIG.SPREADSHEET_ID)
+      // Debug removido para otimização
+      // Debug removido para otimização
       
       // Estratégia otimizada para grandes volumes:
       // 1. Primeiro tentar range completo
@@ -63,7 +58,7 @@ export const useTicketsData = (filters = {}) => {
         const endRow = Math.min(currentRow + batchSize - 1, 150000) // Limite máximo
         const range = `Base!A${currentRow}:Z${endRow}` // Usar aba 'Base' da planilha principal
         
-        console.log(`📊 Carregando lote: linhas ${currentRow} a ${endRow}`)
+        // Debug removido para otimização
         
         const url = `https://sheets.googleapis.com/v4/spreadsheets/${TICKETS_CONFIG.SPREADSHEET_ID}/values/${range}?access_token=${userData.accessToken}`
         
@@ -73,14 +68,14 @@ export const useTicketsData = (filters = {}) => {
           console.error(`❌ Erro na requisição: ${response.status} ${response.statusText}`)
           if (response.status === 400 && currentRow === 1) {
             // Se falhar no primeiro lote, tentar range completo
-            console.log('🔄 Tentando carregamento completo...')
+            // Debug removido para otimização
             const fullUrl = `https://sheets.googleapis.com/v4/spreadsheets/${TICKETS_CONFIG.SPREADSHEET_ID}/values/Base!A:Z?access_token=${userData.accessToken}`
             const fullResponse = await fetch(fullUrl)
             
             if (fullResponse.ok) {
               const fullData = await fullResponse.json()
               if (fullData.values && fullData.values.length > 0) {
-                console.log(`✅ Dados completos carregados: ${fullData.values.length} linhas`)
+                // Debug removido para otimização
                 setTicketsData(fullData.values)
                 ticketsCache = fullData.values
                 cacheTimestamp = Date.now()
@@ -95,7 +90,7 @@ export const useTicketsData = (filters = {}) => {
         
         if (data.values && data.values.length > 0) {
           allData = [...allData, ...data.values]
-          console.log(`✅ Lote carregado: ${data.values.length} linhas (Total: ${allData.length})`)
+          // Debug removido para otimização
           
           // Se retornou menos que o batchSize, chegamos ao fim
           if (data.values.length < batchSize) {
@@ -112,7 +107,7 @@ export const useTicketsData = (filters = {}) => {
       }
       
       if (allData.length > 0) {
-        console.log(`✅ Dados completos carregados: ${allData.length} linhas`)
+        // Debug removido para otimização
         setTicketsData(allData)
         
         // Atualizar cache com dados completos
@@ -121,7 +116,7 @@ export const useTicketsData = (filters = {}) => {
         
         return allData
       } else {
-        console.log('⚠️ Nenhum dado encontrado na planilha completa')
+        // Debug removido para otimização
         setTicketsData([])
         return []
       }
@@ -146,7 +141,7 @@ export const useTicketsData = (filters = {}) => {
     // Verificar cache primeiro
     const now = Date.now()
     if (ticketsCache && (now - cacheTimestamp) < CACHE_DURATION) {
-      console.log('📋 Usando dados em cache para tickets')
+      // Debug removido para otimização
       setTicketsData(ticketsCache)
       return ticketsCache
     }
@@ -155,29 +150,29 @@ export const useTicketsData = (filters = {}) => {
     setError(null)
 
     try {
-      console.log('🔍 Buscando dados da aba Tickets...')
-      console.log('🔍 Spreadsheet ID:', TICKETS_CONFIG.SPREADSHEET_ID)
-      console.log('🔍 Ranges disponíveis:', TICKETS_CONFIG.RANGES)
+      // Debug removido para otimização
+      // Debug removido para otimização
+      // Debug removido para otimização
       
       // Tentar diferentes nomes de aba e ranges até encontrar dados
       for (const sheetName of TICKETS_CONFIG.SHEET_NAMES) {
-        console.log(`🔍 Tentando aba: ${sheetName}`)
+        // Debug removido para otimização
         
         for (const range of TICKETS_CONFIG.RANGES) {
           try {
             const fullRange = `${sheetName}!${range}`
             const url = `https://sheets.googleapis.com/v4/spreadsheets/${TICKETS_CONFIG.SPREADSHEET_ID}/values/${fullRange}?access_token=${userData.accessToken}`
             
-            console.log(`🔗 Tentando: ${fullRange}`)
+            // Debug removido para otimização
             
             // Usar rate limiter global
             const response = await fetchGoogleSheets(url)
             const result = await response.json()
             
             if (result.values && result.values.length > 0) {
-              console.log(`✅ Dados encontrados em: ${fullRange}`)
-              console.log(`📊 Total de linhas: ${result.values.length}`)
-              console.log(`📋 Primeiras linhas:`, result.values.slice(0, 5))
+              // Debug removido para otimização
+              // Debug removido para otimização
+              // Debug removido para otimização
               
               // Armazenar no cache
               ticketsCache = result.values
@@ -215,7 +210,7 @@ export const useTicketsData = (filters = {}) => {
   // Função para processar dados de filas da coluna B
   const processQueueData = useCallback((data) => {
     if (!data || data.length === 0) {
-      console.log('⚠️ processQueueData: Sem dados para processar')
+      // Debug removido para otimização
       return {
         queueCounts: {},
         totalTickets: 0,
@@ -223,11 +218,7 @@ export const useTicketsData = (filters = {}) => {
       }
     }
 
-    console.log('🔍 processQueueData: Processando dados de tickets:', {
-      totalRows: data.length,
-      firstRow: data[0],
-      sampleRows: data.slice(0, 3)
-    })
+    // Debug removido para otimização
 
     const queueCounts = {}
     let processedRows = 0
@@ -250,20 +241,16 @@ export const useTicketsData = (filters = {}) => {
             
             // Log das primeiras filas encontradas
             if (processedRows <= 10) {
-              console.log(`✅ Ticket ${ticketId} - Fila: ${normalizedQueue}`)
+              // Debug removido para otimização
             }
           } else {
-            console.log(`🚫 Filtrando fila de cobrança: ${normalizedQueue}`)
+            // Debug removido para otimização
           }
         }
       }
     })
 
-    console.log('📊 Resumo do processamento de filas:', {
-      processedRows,
-      totalQueues: Object.keys(queueCounts).length,
-      queueCounts
-    })
+    // Debug removido para otimização
 
     return {
       queueCounts,

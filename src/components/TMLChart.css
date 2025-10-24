@@ -1,42 +1,11 @@
 /* TMLChart.css - Design Moderno */
 .tml-modern-container {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 20px;
-  padding: 30px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-  color: white;
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
+  color: inherit;
   font-family: 'Inter', sans-serif;
-}
-
-/* Header */
-.tml-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 30px;
-  padding-bottom: 20px;
-  border-bottom: 2px solid rgba(255, 255, 255, 0.2);
-}
-
-.tml-title-section h3 {
-  margin: 0;
-  font-size: 28px;
-  font-weight: 800;
-  color: white;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-}
-
-.tml-subtitle {
-  margin: 5px 0 0 0;
-  font-size: 16px;
-  color: rgba(255, 255, 255, 0.8);
-  font-weight: 500;
-}
-
-.tml-icon {
-  font-size: 40px;
-  color: rgba(255, 255, 255, 0.9);
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 /* Métricas Grid */
@@ -48,28 +17,29 @@
 }
 
 .tml-metric-card {
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 16px;
-  padding: 20px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 25px;
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 15px;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  gap: 18px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
-  backdrop-filter: blur(10px);
+  min-height: 140px;
 }
 
 .tml-metric-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .tml-metric-icon {
-  font-size: 28px;
-  width: 50px;
-  height: 50px;
+  font-size: 32px;
+  width: 60px;
+  height: 60px;
   border-radius: 12px;
   display: flex;
   align-items: center;
@@ -97,33 +67,33 @@
 }
 
 .tml-metric-value {
-  font-size: 20px;
+  font-size: 26px;
   font-weight: 800;
   color: #1f2937;
-  margin-bottom: 5px;
+  margin-bottom: 8px;
 }
 
 .tml-metric-label {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   color: #6b7280;
-  margin-bottom: 3px;
+  margin-bottom: 5px;
 }
 
 .tml-metric-detail {
-  font-size: 10px;
+  font-size: 12px;
   color: #9ca3af;
   font-weight: 500;
 }
 
 /* Chart Section */
 .tml-chart-section {
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 16px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
   padding: 25px;
   margin-bottom: 20px;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-  backdrop-filter: blur(10px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .tml-chart-header {
@@ -145,7 +115,7 @@
 }
 
 .tml-bar-container {
-  height: 300px;
+  height: 350px;
   position: relative;
 }
 
@@ -157,19 +127,20 @@
 }
 
 .tml-summary-item {
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
   padding: 20px;
   display: flex;
   align-items: center;
   gap: 15px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-  backdrop-filter: blur(10px);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+  min-height: 60px;
 }
 
 .tml-summary-color {
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   flex-shrink: 0;
 }
@@ -177,50 +148,37 @@
 .tml-summary-content {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
 }
 
 .tml-summary-label {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   color: #374151;
 }
 
 .tml-summary-value {
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 700;
   color: #1f2937;
 }
 
 /* Responsive */
 @media (max-width: 768px) {
-  .tml-modern-container {
-    padding: 20px;
-  }
-  
-  .tml-header {
-    flex-direction: column;
-    text-align: center;
-    gap: 15px;
-  }
-  
-  .tml-title-section h3 {
-    font-size: 24px;
-  }
-  
   .tml-metrics-grid {
     grid-template-columns: 1fr;
     gap: 15px;
   }
   
   .tml-metric-card {
-    padding: 20px;
+    padding: 25px;
     flex-direction: row;
     text-align: left;
+    min-height: 120px;
   }
   
   .tml-bar-container {
-    height: 250px;
+    height: 300px;
   }
 }
 
@@ -232,9 +190,10 @@
   .tml-metric-card {
     flex-direction: column;
     text-align: center;
+    min-height: 140px;
   }
   
   .tml-bar-container {
-    height: 200px;
+    height: 250px;
   }
 }

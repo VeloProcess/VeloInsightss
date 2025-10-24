@@ -338,19 +338,13 @@ const VerificacaoDados = ({ dados, onClose }) => {
 
   // Formatar tempo
   const formatarTempo = (minutos) => {
-    if (minutos === 0) return '0:00';
+    if (minutos === 0) return '00:00:00';
 
     const horas = Math.floor(minutos / 60);
     const mins = Math.floor(minutos % 60);
     const segs = Math.round((minutos % 1) * 60);
     
-    if (horas > 0) {
-      return `${horas}:${mins.toString().padStart(2, '0')}:${segs.toString().padStart(2, '0')}`;
-    } else if (mins > 0) {
-      return `${mins}:${segs.toString().padStart(2, '0')}`;
-    } else {
-      return `0:${segs.toString().padStart(2, '0')}`;
-    }
+    return `${horas.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${segs.toString().padStart(2, '0')}`;
   }
 
   // Executar verificação completa

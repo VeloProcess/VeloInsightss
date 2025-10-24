@@ -22,9 +22,9 @@ ChartJS.register(
 )
 
 const VolumeHoraChart = ({ data = [], periodo = null }) => {
+  const processedData = processVolumeHora(data, periodo)
   
   const chartData = useMemo(() => {
-    const processedData = processVolumeHora(data, periodo)
     
     // Criar gradiente para as barras
     const createGradient = (ctx, color1, color2) => {
@@ -45,16 +45,16 @@ const VolumeHoraChart = ({ data = [], periodo = null }) => {
             const value = context.parsed.y
             const max = Math.max(...processedData.volumes)
             
-            // Cores de histograma baseadas na intensidade
+            // Cores de histograma baseadas na intensidade - paleta roxa consistente
             const intensity = value / max
             if (intensity > 0.8) {
-              return createGradient(ctx, 'rgba(59, 130, 246, 0.9)', 'rgba(37, 99, 235, 0.9)') // Azul intenso
+              return createGradient(ctx, 'rgba(139, 92, 246, 0.9)', 'rgba(124, 58, 237, 0.9)') // Roxo intenso
             } else if (intensity > 0.5) {
-              return createGradient(ctx, 'rgba(99, 102, 241, 0.8)', 'rgba(79, 70, 229, 0.8)') // Índigo
+              return createGradient(ctx, 'rgba(168, 85, 247, 0.8)', 'rgba(147, 51, 234, 0.8)') // Violeta médio
             } else if (intensity > 0.2) {
-              return createGradient(ctx, 'rgba(139, 92, 246, 0.7)', 'rgba(124, 58, 237, 0.7)') // Roxo
+              return createGradient(ctx, 'rgba(196, 181, 253, 0.7)', 'rgba(167, 139, 250, 0.7)') // Roxo claro
             } else {
-              return createGradient(ctx, 'rgba(168, 85, 247, 0.6)', 'rgba(147, 51, 234, 0.6)') // Violeta claro
+              return createGradient(ctx, 'rgba(221, 214, 254, 0.6)', 'rgba(196, 181, 253, 0.6)') // Roxo muito claro
             }
           },
           borderWidth: 0,
@@ -224,7 +224,7 @@ const VolumeHoraChart = ({ data = [], periodo = null }) => {
       },
       y: {
         beginAtZero: true,
-        max: 150000,
+        max: Math.max(...processedData.volumes) * 1.1, // 10% acima do valor máximo real
         ticks: {
           font: {
             size: 12,
@@ -233,7 +233,7 @@ const VolumeHoraChart = ({ data = [], periodo = null }) => {
           },
           color: '#374151',
           padding: 15,
-          stepSize: 15000
+          stepSize: Math.ceil(Math.max(...processedData.volumes) * 1.1 / 10) // Dividir em 10 partes iguais
         },
         grid: {
           color: 'rgba(0, 0, 0, 0.1)',
@@ -244,7 +244,17 @@ const VolumeHoraChart = ({ data = [], periodo = null }) => {
     }
   }
 
-  return <Bar data={chartData} options={options} />
+  return (
+    <div style={{ 
+      width: '100%', 
+      height: '100%', // Usar toda a altura disponível
+      minHeight: '300px', // Altura mínima para garantir visibilidade
+      display: 'flex',
+      flexDirection: 'column'
+    }}>
+      <Bar data={chartData} options={options} />
+    </div>
+  )
 }
 
 // Processar volume por hora com análise de pico
@@ -369,14 +379,24 @@ const processVolumeHora = (data, periodo = null) => {
     `${String(item.hour).padStart(2, '0')}:00`
   )
 
-  const labels = Array.from({ length: 24 }, (_, i) => {
-    const hora = String(i).padStart(2, '0')
-    return `${hora}:00`
+  // Filtrar apenas horas com dados significativos (mais de 0)
+  const horasComDados = []
+  const volumesComDados = []
+  
+  volumePorHora.forEach((volume, hora) => {
+    if (volume > 0) {
+      horasComDados.push(`${String(hora).padStart(2, '0')}:00`)
+      volumesComDados.push(volume)
+    }
   })
+
+  // Se não há dados significativos, mostrar todas as horas
+  const labels = horasComDados.length > 0 ? horasComDados : Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`)
+  const volumes = volumesComDados.length > 0 ? volumesComDados : volumePorHora
 
   return {
     labels,
-    volumes: volumePorHora,
+    volumes,
     peakInfo: {
       primaryPeak,
       secondaryPeaks,

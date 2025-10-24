@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import './ChartsDetailedPage.css'
 import { useTheme } from '../hooks/useTheme'
 import { useCargo } from '../contexts/CargoContext'
-import ModernChartsDashboard from './ModernChartsDashboard'
 
 const ChartsDetailedPage = ({ data, operatorMetrics, rankings, selectedPeriod, pauseData, userData, filters = {}, originalData, onFiltersChange, loadDataOnDemand }) => {
   const { theme } = useTheme()
@@ -440,17 +439,24 @@ const ChartsDetailedPage = ({ data, operatorMetrics, rankings, selectedPeriod, p
 
       {/* Dashboard Moderno */}
       {activeTab === 'modern' && (
-        <ModernChartsDashboard 
-          data={data}
-          operatorMetrics={operatorMetrics}
-          rankings={rankings}
-          selectedPeriod={selectedPeriod}
-          pauseData={pauseData}
-          userData={userData}
-          filters={filters}
-          originalData={originalData}
-          onFiltersChange={onFiltersChange}
-        />
+        <div className="modern-dashboard-placeholder">
+          <h3>📊 Dashboard Moderno</h3>
+          <p>Dashboard moderno em desenvolvimento...</p>
+          <div className="dashboard-stats">
+            <div className="stat-card">
+              <h4>Total de Registros</h4>
+              <span>{data?.length || 0}</span>
+            </div>
+            <div className="stat-card">
+              <h4>Operadores</h4>
+              <span>{operatorMetrics?.length || 0}</span>
+            </div>
+            <div className="stat-card">
+              <h4>Período</h4>
+              <span>{selectedPeriod || 'N/A'}</span>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Gráficos Avançados */}

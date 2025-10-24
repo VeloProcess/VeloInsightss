@@ -1,36 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React from 'react'
 
-const LazyWrapper = ({ children, threshold = 0.1 }) => {
-  const [isVisible, setIsVisible] = useState(false)
-  const ref = useRef(null)
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsVisible(true)
-          observer.disconnect()
-        }
-      },
-      { threshold }
-    )
-
-    if (ref.current) {
-      observer.observe(ref.current)
-    }
-
-    return () => observer.disconnect()
-  }, [threshold])
-
-  return (
-    <div ref={ref}>
-      {isVisible ? children : <div style={{ height: '200px' }} />}
-    </div>
-  )
+// Componente wrapper simples para compatibilidade
+const LazyWrapper = ({ children }) => {
+  return <>{children}</>
 }
 
-export const LazyChart = ({ children, ...props }) => {
-  return <LazyWrapper {...props}>{children}</LazyWrapper>
+// Componente de gráfico lazy simples para compatibilidade
+export const LazyChart = ({ children }) => {
+  return <>{children}</>
 }
 
 export default LazyWrapper
