@@ -96,10 +96,11 @@ export const useOctaData = (filters = {}) => {
       
       // Tentar diferentes ranges (mesma lógica da seção de tickets)
       let data = null
+      let lastError = null
       
       for (const range of OCTA_CONFIG.RANGES) {
         try {
-                 const url = `https://sheets.googleapis.com/v4/spreadsheets/${OCTA_CONFIG.SPREADSHEET_ID}/values/${range}?access_token=${accessToken}`
+          const url = `https://sheets.googleapis.com/v4/spreadsheets/${OCTA_CONFIG.SPREADSHEET_ID}/values/${range}?access_token=${accessToken}`
           
           const response = await fetch(url)
           
@@ -113,15 +114,27 @@ export const useOctaData = (filters = {}) => {
             
             data = result.values
             break
+          } else if (response.status === 403) {
+            // Erro de permissão - não tentar outros ranges
+            const errorText = await response.text()
+            throw new Error(`Acesso negado à planilha OCTA. Verifique se você tem permissão para acessar esta planilha.`)
           } else {
             const errorText = await response.text()
+            lastError = new Error(`Erro ${response.status}: ${errorText}`)
           }
         } catch (err) {
+          if (err.message.includes('Acesso negado')) {
+            throw err // Re-throw erros de permissão imediatamente
+          }
+          lastError = err
           continue
         }
       }
       
       if (!data || data.length < 2) {
+        if (lastError && lastError.message.includes('Acesso negado')) {
+          throw lastError
+        }
         throw new Error('Nenhum dado encontrado na planilha OCTA')
       }
       
@@ -417,7 +430,13 @@ export const useOctaData = (filters = {}) => {
 
     } catch (err) {
       console.error('❌ Erro ao buscar dados OCTA:', err)
-      setError(`Erro ao buscar dados: ${err.message}`)
+      
+      // Tratar erro de permissão especificamente
+      if (err.message.includes('Acesso negado')) {
+        setError('🔒 Acesso negado à planilha de tickets OCTA. Verifique se você tem permissão para acessar esta planilha ou entre em contato com o administrador.')
+      } else {
+        setError(`Erro ao buscar dados: ${err.message}`)
+      }
     } finally {
       setIsLoading(false)
     }

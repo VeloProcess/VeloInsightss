@@ -15,6 +15,9 @@ const MetricsDashboard = memo(({ metrics = {}, octaData = null, data = [], perio
   // Hook para carregar dados específicos de pausas
   const { pausasData, isLoading: isLoadingPausas, error: pausasError } = usePausasData()
   
+  // Verificar se há erro de permissão no octaData
+  const hasOctaPermissionError = octaData?.error && octaData.error.includes('Acesso negado')
+  
 
   // Preparar dados para os gráficos - usar dados processados
   const chartData = useMemo(() => {
@@ -389,6 +392,29 @@ const MetricsDashboard = memo(({ metrics = {}, octaData = null, data = [], perio
             <i className='bx bxs-message-square-detail'></i>
             <h2>Tickets</h2>
           </div>
+
+          {/* Mensagem de erro de permissão */}
+          {hasOctaPermissionError && (
+            <div className="error-message" style={{
+              background: '#fee2e2',
+              border: '1px solid #fca5a5',
+              borderRadius: '8px',
+              padding: '16px',
+              margin: '16px 0',
+              color: '#dc2626'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <i className='bx bx-error-circle' style={{ fontSize: '20px' }}></i>
+                <strong>Problema de Acesso aos Dados de Tickets</strong>
+              </div>
+              <p style={{ margin: '8px 0 0 0', fontSize: '14px' }}>
+                {octaData.error}
+              </p>
+              <p style={{ margin: '8px 0 0 0', fontSize: '13px', opacity: 0.8 }}>
+                💡 <strong>Solução:</strong> Solicite ao administrador para compartilhar a planilha de tickets OCTA com sua conta Google.
+              </p>
+            </div>
+          )}
 
           <div className="indicators-grid">
             <div className="indicator-card">
