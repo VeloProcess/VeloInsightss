@@ -1,5 +1,6 @@
 import React from 'react'
 import './ProcessingLoader.css'
+// Updated: 27/10/2025 - Tema Executivo
 
 const ProcessingLoader = ({ progress = 0, currentRecord = 0, totalRecords = 0, isVisible = false }) => {
   if (!isVisible) return null
@@ -8,56 +9,67 @@ const ProcessingLoader = ({ progress = 0, currentRecord = 0, totalRecords = 0, i
   const processedRecords = Math.round((progress / 100) * totalRecords)
 
   return (
-    <div className="processing-loader-overlay">
-      <div className="processing-loader-container">
-        <div className="processing-loader-header">
-          <div className="processing-icon">⚡</div>
-          <h2>Processando TODOS OS REGISTROS</h2>
-          <p>Carregando histórico completo da planilha...</p>
+    <div className="processing-loader-overlay-executive">
+      <div className="processing-loader-container-executive">
+        {/* Header */}
+        <div className="processing-header-executive">
+          <div className="processing-icon-wrapper">
+            <i className="bx bx-check-circle"></i>
+          </div>
+          <div className="processing-title-wrapper">
+            <h2 className="processing-title">Processando Arquivo</h2>
+          </div>
         </div>
         
-        <div className="processing-progress">
-          <div className="progress-bar-container">
+        {/* Status Steps */}
+        <div className="processing-status-executive">
+          <div className="status-step active">
+            <i className="bx bx-check-circle"></i>
+            <span>Validando registros...</span>
+          </div>
+          <div className="status-step active">
+            <i className="bx bx-loader-circle"></i>
+            <span>Carregando dados...</span>
+          </div>
+        </div>
+        
+        {/* Progress Bar */}
+        <div className="processing-progress-executive">
+          <div className="progress-percentage-executive">{percentage}%</div>
+          <div className="progress-bar-executive">
             <div 
-              className="progress-bar-fill" 
+              className="progress-bar-fill-executive" 
               style={{ width: `${percentage}%` }}
             ></div>
           </div>
-          
-          <div className="progress-info">
-            <div className="progress-percentage">
-              {percentage}%
-            </div>
-            <div className="progress-details">
-              <span className="processed-count">{processedRecords.toLocaleString()}</span>
-              <span className="separator">de</span>
-              <span className="total-count">{totalRecords.toLocaleString()}</span>
-              <span className="records-label">registros</span>
-            </div>
+        </div>
+        
+        {/* Metrics */}
+        <div className="processing-metrics-executive">
+          <div className="metric-item">
+            <span className="metric-label">Progresso:</span>
+            <span className="metric-value">{processedRecords}</span>
+            <span className="metric-separator">de</span>
+            <span className="metric-total">{totalRecords}</span>
+          </div>
+          <div className="metric-item">
+            <span className="metric-label">Tempo decorrido:</span>
+            <span className="metric-value">0:04</span>
+          </div>
+          <div className="metric-item">
+            <span className="metric-label">Tempo estimado:</span>
+            <span className="metric-value">0:04</span>
           </div>
         </div>
         
-        <div className="processing-stats">
-          <div className="stat-item">
-            <span className="stat-icon">📊</span>
-            <span className="stat-label">Total de Registros</span>
-            <span className="stat-value">{totalRecords.toLocaleString()}</span>
+        {/* Loading Indicator */}
+        <div className="processing-loading-executive">
+          <div className="loading-dots">
+            <span></span>
+            <span></span>
+            <span></span>
           </div>
-          <div className="stat-item">
-            <span className="stat-icon">⚡</span>
-            <span className="stat-label">Processados</span>
-            <span className="stat-value">{processedRecords.toLocaleString()}</span>
-          </div>
-          <div className="stat-item">
-            <span className="stat-icon">⏱️</span>
-            <span className="stat-label">Restantes</span>
-            <span className="stat-value">{(totalRecords - processedRecords).toLocaleString()}</span>
-          </div>
-        </div>
-        
-        <div className="processing-message">
-          <p>Por favor, aguarde enquanto processamos todos os dados históricos...</p>
-          <p className="processing-note">Este processo pode levar alguns minutos devido ao volume de dados.</p>
+          <span className="loading-text">Processando...</span>
         </div>
       </div>
     </div>

@@ -3,7 +3,6 @@ import Chart from 'chart.js/auto'
 import { useTheme } from '../hooks/useTheme'
 import { useAccessControl } from '../hooks/useAccessControl'
 import PeriodSelectorV2 from './PeriodSelectorV2'
-import TemporalComparison from './TemporalComparison'
 import './AgentAnalysis.css'
 
 // Componente para seleção de operador

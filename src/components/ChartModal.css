@@ -1,0 +1,169 @@
+/* ChartModal.css - Estilos para modal de gráficos */
+
+.chart-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.chart-modal {
+  background: var(--color-card-bg);
+  border-radius: 20px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  max-width: 95vw;
+  max-height: 95vh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: slideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid var(--color-border-secondary);
+}
+
+.chart-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px 32px;
+  background: linear-gradient(135deg, var(--color-primary-light) 0%, var(--color-primary) 100%);
+  color: white;
+  border-bottom: 1px solid var(--color-border-secondary);
+}
+
+.chart-modal-title-section {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.chart-modal-icon {
+  font-size: 32px;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+}
+
+.chart-modal-title {
+  font-size: 24px;
+  font-weight: 700;
+  margin: 0;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+.chart-modal-close {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chart-modal-close:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.1);
+}
+
+.chart-modal-content {
+  padding: 32px;
+  flex: 1;
+  overflow: auto;
+  background: var(--color-card-bg);
+}
+
+/* Animações */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+  .chart-modal-overlay {
+    padding: 10px;
+  }
+  
+  .chart-modal {
+    border-radius: 16px;
+    max-width: 100vw;
+    max-height: 100vh;
+  }
+  
+  .chart-modal-header {
+    padding: 20px 24px;
+  }
+  
+  .chart-modal-title-section {
+    gap: 12px;
+  }
+  
+  .chart-modal-icon {
+    font-size: 28px;
+  }
+  
+  .chart-modal-title {
+    font-size: 20px;
+  }
+  
+  .chart-modal-close {
+    font-size: 20px;
+    width: 36px;
+    height: 36px;
+  }
+  
+  .chart-modal-content {
+    padding: 24px;
+  }
+}
+
+@media (max-width: 480px) {
+  .chart-modal-header {
+    padding: 16px 20px;
+  }
+  
+  .chart-modal-title-section {
+    gap: 8px;
+  }
+  
+  .chart-modal-icon {
+    font-size: 24px;
+  }
+  
+  .chart-modal-title {
+    font-size: 18px;
+  }
+  
+  .chart-modal-content {
+    padding: 20px;
+  }
+}

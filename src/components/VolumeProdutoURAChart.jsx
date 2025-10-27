@@ -254,13 +254,15 @@ const VolumeProdutoURAChart = memo(({ data = [], periodo = null, isTicketsTab = 
 
   return (
     <div className="volume-chart-container">
-      {/* Header */}
-      <div className="volume-chart-header">
-        <h3 className="volume-chart-title">Volume por Produto URA</h3>
-        <svg className="volume-chart-icon" fill="currentColor" viewBox="0 0 20 20">
-          <path fillRule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11.707 4.707a1 1 0 00-1.414-1.414L10 9.586 8.707 8.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-        </svg>
-      </div>
+      {/* Header - só mostrar se não for aba de tickets */}
+      {!shouldUseTicketsData && (
+        <div className="volume-chart-header">
+          <h3 className="volume-chart-title">Volume por Produto URA</h3>
+          <svg className="volume-chart-icon" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11.707 4.707a1 1 0 00-1.414-1.414L10 9.586 8.707 8.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+          </svg>
+        </div>
+      )}
 
       {/* Gráfico */}
       <div className="volume-chart-wrapper">
@@ -298,19 +300,24 @@ const processTicketsDataForQueues = (data, periodo) => {
 
   // Função para verificar se uma data está dentro do período selecionado
   const isDateInPeriod = (rowIndex) => {
-    if (!periodo) return true
+    if (!periodo || !periodo.startDate || !periodo.endDate) return true
     
     try {
       const row = data[rowIndex + 14] // Ajustar para o índice real
       if (!row || !row[0]) return true
       
       const rowDate = parseBrazilianDate(row[0])
-      if (!rowDate) return true
+      if (!rowDate || isNaN(rowDate.getTime())) return true
       
       const startDate = new Date(periodo.startDate)
       const endDate = new Date(periodo.endDate)
       
-      return rowDate >= startDate && rowDate <= endDate
+      // Normalizar para comparar apenas a data (sem hora)
+      const recordDate = new Date(rowDate.getFullYear(), rowDate.getMonth(), rowDate.getDate())
+      const startDateNorm = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate())
+      const endDateNorm = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate())
+      
+      return recordDate >= startDateNorm && recordDate <= endDateNorm
     } catch (error) {
       return true
     }
@@ -325,32 +332,24 @@ const processTicketsDataForQueues = (data, periodo) => {
   
   // Processar dados a partir da linha 15 (índice 14)
   dataToProcess.slice(14).forEach((row, index) => {
-    // Para tickets, tentar diferentes colunas para encontrar a fila/assunto
-    let fila = null
+    // Para tickets, usar APENAS coluna B (Assunto do ticket)
+    let assunto = null
     
-    // Tentar coluna B (índice 1) - assunto
+    // APENAS coluna B (índice 1) - Assunto do ticket
     if (row[1] !== undefined && row[1] !== null && row[1] !== '') {
-      fila = String(row[1]).trim()
-    }
-    // Se não encontrar, tentar coluna C (índice 2) - categoria
-    else if (row[2] !== undefined && row[2] !== null && row[2] !== '') {
-      fila = String(row[2]).trim()
-    }
-    // Se não encontrar, tentar coluna D (índice 3) - fila
-    else if (row[3] !== undefined && row[3] !== null && row[3] !== '') {
-      fila = String(row[3]).trim()
+      assunto = String(row[1]).trim()
     }
     
-    if (fila && fila !== '0' && fila !== '' && fila !== 'null' && fila !== 'undefined') {
+    if (assunto && assunto !== '0' && assunto !== '' && assunto !== 'null' && assunto !== 'undefined') {
       // Verificar se está no período
       if (isDateInPeriod(index)) {
-        // Normalizar o nome da fila para comparação
-        const filaNormalizada = fila.toUpperCase()
+        // Normalizar o assunto para comparação
+        const assuntoNormalizado = assunto.toUpperCase()
         
-        // Verificar se a fila corresponde a alguma das filas específicas
+        // Verificar se o assunto corresponde a alguma das filas específicas
         const filaEncontrada = filasEspecificas.find(filaEspecifica => 
           filaEspecifica.palavras.some(palavra => 
-            filaNormalizada.includes(palavra.toUpperCase())
+            assuntoNormalizado.includes(palavra.toUpperCase())
           )
         )
         
@@ -428,22 +427,26 @@ const processVolumeProdutoRadar = (data, periodo) => {
 
   // Função para verificar se uma data está dentro do período selecionado
   const isDateInPeriod = (rowIndex) => {
-    if (!periodo) return true // Se não há período, incluir todos os dados
+    if (!periodo || !periodo.startDate || !periodo.endDate) return true
     
     try {
-      // Buscar a data na linha atual (coluna A - índice 0)
-      const row = data[rowIndex + 14] // Ajustar para o índice real
-      if (!row || !row[0]) return true // Se não encontrar data, incluir
+      const row = data[rowIndex + 14]
+      if (!row || !row[0]) return true
       
       const rowDate = parseBrazilianDate(row[0])
-      if (!rowDate) return true
+      if (!rowDate || isNaN(rowDate.getTime())) return true
       
       const startDate = new Date(periodo.startDate)
       const endDate = new Date(periodo.endDate)
       
-      return rowDate >= startDate && rowDate <= endDate
+      // Normalizar para comparar apenas a data (sem hora)
+      const recordDate = new Date(rowDate.getFullYear(), rowDate.getMonth(), rowDate.getDate())
+      const startDateNorm = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate())
+      const endDateNorm = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate())
+      
+      return recordDate >= startDateNorm && recordDate <= endDateNorm
     } catch (error) {
-      return true // Em caso de erro, incluir o dado
+      return true
     }
   }
 

@@ -149,7 +149,7 @@ const TendenciaSemanalChart = ({ data = [], periodo = null }) => {
         yAxisID: 'y'
       },
       {
-        label: 'Performance Geral (%)',
+        label: 'Pesquisa(%)',
         data: performancePercent,
         borderColor: roxo,
         backgroundColor: 'rgba(139, 92, 246, 0.15)',
@@ -342,8 +342,10 @@ const TendenciaSemanalChart = ({ data = [], periodo = null }) => {
       },
       datalabels: {
         display: function(context) {
-          // Mostrar apenas nos pontos de Total de Chamadas/Tickets
-          return context.dataset.label === 'Total de Chamadas' || context.dataset.label === 'Total de Tickets'
+          // Mostrar nos pontos de Total de Chamadas/Tickets E na linha de Pesquisa
+          return context.dataset.label === 'Total de Chamadas' || 
+                 context.dataset.label === 'Total de Tickets' ||
+                 context.dataset.label === 'Pesquisa(%)'
         },
         color: '#1f2937',
         font: {
@@ -357,8 +359,16 @@ const TendenciaSemanalChart = ({ data = [], periodo = null }) => {
         borderRadius: 4,
         padding: 8, // Aumentado de 4 para 8
         formatter: function(value, context) {
-          if (value > 0) {
-            // Formatar números grandes de forma mais compacta
+          // Verificar se o valor é válido e maior que 0
+          if (value && value > 0 && !isNaN(value)) {
+            // Para linha de Pesquisa, mostrar com %
+            if (context.dataset.label === 'Pesquisa(%)') {
+              // Garantir que o valor é um número antes de usar toFixed
+              const numValue = typeof value === 'number' ? value : parseFloat(value) || 0
+              return numValue.toFixed(1) + '%'
+            }
+            
+            // Para números grandes de tickets/chamadas, formatar de forma compacta
             if (value >= 1000) {
               return (value / 1000).toFixed(1) + 'k'
             }
@@ -366,9 +376,30 @@ const TendenciaSemanalChart = ({ data = [], periodo = null }) => {
           }
           return ''
         },
-        anchor: 'end',
-        align: 'top',
-        offset: 6,
+        anchor: function(context) {
+          // Para linha de Pesquisa, mostrar acima
+          if (context.dataset.label === 'Pesquisa(%)') {
+            return 'end'
+          }
+          // Para outras linhas, manter comportamento padrão
+          return 'end'
+        },
+        align: function(context) {
+          // Para linha de Pesquisa, alinhar acima
+          if (context.dataset.label === 'Pesquisa(%)') {
+            return 'top'
+          }
+          // Para outras linhas, manter comportamento padrão
+          return 'top'
+        },
+        offset: function(context) {
+          // Para linha de Pesquisa, offset maior para ficar bem acima
+          if (context.dataset.label === 'Pesquisa(%)') {
+            return 10
+          }
+          // Para outras linhas, offset padrão
+          return 6
+        },
         rotation: 0
       }
     },
@@ -446,23 +477,158 @@ const TendenciaSemanalChart = ({ data = [], periodo = null }) => {
 
 // Função para processar dados de acordo com o período selecionado
 const processDataByPeriod = (data, periodo) => {
-  // Determinar o tipo de agrupamento baseado no período
-  const totalDays = periodo?.totalDays || 0
-  let groupBy = 'month' // padrão para quando não há período
+  // FILTRAR DADOS PELO PERÍODO ANTES DE AGRUPAR
+  let filteredData = data
   
-  if (totalDays > 0 && totalDays <= 7) {
-    groupBy = 'day' // 7 dias ou menos = agrupar por dia
-  } else if (totalDays > 7 && totalDays <= 60) {
-    groupBy = 'day' // 8 a 60 dias = agrupar por dia também
-  } else if (totalDays > 60) {
-    groupBy = 'month' // mais de 60 dias = agrupar por mês
+  // Definir start e end com valores padrão
+  let start = periodo?.startDate ? new Date(periodo.startDate) : new Date()
+  let end = periodo?.endDate ? new Date(periodo.endDate) : new Date()
+  
+  if (periodo && periodo.startDate && periodo.endDate) {
+    // PRIMEIRO: Descobrir qual é a última data disponível em TODOS os dados (otimizado)
+    let lastAvailableDate = null
+    
+    for (let i = 0; i < data.length; i++) {
+      let dateField
+      const record = data[i]
+      if (Array.isArray(record)) {
+        dateField = record[28] || record[0]
+      } else {
+        dateField = record.calldate || record.Data || record.data || record.date || 
+                    record['Data de entrada'] || record.dataEntrada || record.Dia
+      }
+      if (!dateField) continue
+      if (typeof dateField === 'string' && dateField.includes(' ')) {
+        dateField = dateField.split(' ')[0]
+      }
+      const date = parseBrazilianDate(dateField)
+      if (!date || isNaN(date.getTime())) continue
+      
+      if (!lastAvailableDate || date > lastAvailableDate) {
+        lastAvailableDate = date
+      }
+    }
+    
+    // AJUSTAR PERÍODO: usar última data disponível se for menor que a data fim desejada
+    start = new Date(periodo.startDate)
+    end = new Date(periodo.endDate)
+    
+    if (lastAvailableDate && lastAvailableDate < end) {
+      // SELEÇÃO ESPECIAL: Para "Mês atual" e "Último mês"
+      if (periodo.totalDays >= 28 && periodo.totalDays <= 31) {
+        // Verificar se é "Mês atual" ou "Último mês"
+        const now = new Date()
+        const isCurrentMonth = now.getMonth() === lastAvailableDate.getMonth() && now.getFullYear() === lastAvailableDate.getFullYear()
+        
+        if (isCurrentMonth) {
+          // MÊS ATUAL: do dia 01 até a última data disponível
+          const now = new Date()
+          const firstDayOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+          start = firstDayOfCurrentMonth
+          end = lastAvailableDate
+          
+          console.log(`📅 Mês atual: ${start.toLocaleDateString('pt-BR')} a ${end.toLocaleDateString('pt-BR')}`)
+        } else {
+          // ÚLTIMO MÊS: usar mês anterior COMPLETO
+          const previousMonth = new Date(lastAvailableDate.getFullYear(), lastAvailableDate.getMonth() - 1, 1)
+          const lastDayOfPreviousMonth = new Date(lastAvailableDate.getFullYear(), lastAvailableDate.getMonth(), 0)
+          
+          start = previousMonth
+          end = lastDayOfPreviousMonth
+          
+          console.log(`📅 Último mês completo (anterior): ${start.toLocaleDateString('pt-BR')} a ${end.toLocaleDateString('pt-BR')}`)
+        }
+      } else {
+        // Para outros períodos, ajustar normalmente
+        const daysDiff = Math.floor((end - lastAvailableDate) / (1000 * 60 * 60 * 24))
+        start = new Date(lastAvailableDate.getTime() - (periodo.totalDays - 1) * 24 * 60 * 60 * 1000)
+        end = lastAvailableDate
+        
+        console.log(`📅 Ajustando período: última data disponível é ${lastAvailableDate.toLocaleDateString('pt-BR')}, movendo ${daysDiff} dias para trás`)
+      }
+    } else if (!lastAvailableDate || lastAvailableDate >= end) {
+      // Se a última data está depois ou na data fim, ajustar para garantir que não vá além
+      const now = new Date()
+      const isCurrentMonth = now.getMonth() === end.getMonth() && now.getFullYear() === end.getFullYear()
+      
+      if (periodo.totalDays >= 28 && periodo.totalDays <= 31 && isCurrentMonth) {
+        // MÊS ATUAL: ajustar o fim para não passar da data atual
+        const firstDayOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+        if (end > now) {
+          end = now
+        }
+        if (start > end) {
+          start = firstDayOfCurrentMonth
+        }
+        
+        console.log(`📅 Mês atual (sem dados): ${start.toLocaleDateString('pt-BR')} a ${end.toLocaleDateString('pt-BR')}`)
+      }
+    }
+    
+    // Normalizar para comparar apenas a data (sem hora)
+    const startDate = new Date(start.getFullYear(), start.getMonth(), start.getDate())
+    const endDate = new Date(end.getFullYear(), end.getMonth(), end.getDate())
+    
+    filteredData = data.filter(record => {
+      let dateField
+      
+      if (Array.isArray(record)) {
+        dateField = record[28] || record[0]
+      } else {
+        dateField = record.calldate || record.Data || record.data || record.date || 
+                    record['Data de entrada'] || record.dataEntrada || record.Dia
+      }
+      
+      if (!dateField) return false
+      
+      if (typeof dateField === 'string' && dateField.includes(' ')) {
+        dateField = dateField.split(' ')[0]
+      }
+      
+      const date = parseBrazilianDate(dateField)
+      if (!date || isNaN(date.getTime())) return false
+      
+      // DESCARTAR DOMINGOS - não trabalhamos no domingo
+      if (date.getDay() === 0) {
+        return false // DOMINGO NÃO CONTA
+      }
+      
+      // Normalizar para comparar apenas a data (sem hora)
+      const recordDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+      
+      return recordDate >= startDate && recordDate <= endDate
+    })
+    
+    console.log(`📅 Análise Geral - Filtro aplicado:`, {
+      totalRegistros: data.length,
+      registrosFiltrados: filteredData.length,
+      periodoOriginal: `${new Date(periodo.startDate).toLocaleDateString('pt-BR')} a ${new Date(periodo.endDate).toLocaleDateString('pt-BR')}`,
+      periodoAjustado: `${startDate.toLocaleDateString('pt-BR')} a ${endDate.toLocaleDateString('pt-BR')}`,
+      ultimaDataDisponivel: lastAvailableDate ? lastAvailableDate.toLocaleDateString('pt-BR') : 'N/A'
+    })
   }
   
-  return processDataByGrouping(data, groupBy)
+  // Determinar o tipo de agrupamento baseado no período
+  const totalDays = periodo?.totalDays || 0
+  let groupBy = 'month' // padrão: agrupar por mês quando não há período ou "Todos os registros"
+  
+  if (totalDays > 0 && totalDays <= 15) {
+    groupBy = 'day' // 7 e 15 dias = agrupar por dia
+  } else if (totalDays > 15 && totalDays <= 90) {
+    groupBy = 'week' // último mês e mês atual = agrupar por semana
+  } else if (totalDays > 90 || totalDays === 0) {
+    groupBy = 'month' // todos os registros (>90 dias ou totalDays === 0) = agrupar por mês
+  }
+  
+  // Normalizar para comparar apenas a data (sem hora)
+  const startDateNormalized = new Date(start.getFullYear(), start.getMonth(), start.getDate())
+  const endDateNormalized = new Date(end.getFullYear(), end.getMonth(), end.getDate())
+  
+  return processDataByGrouping(filteredData, groupBy, periodo, startDateNormalized, endDateNormalized)
 }
 
 // Função auxiliar para processar dados com agrupamento específico
-const processDataByGrouping = (data, groupBy) => {
+const processDataByGrouping = (data, groupBy, periodo = null, startDate = null, endDate = null) => {
   
   if (!data || data.length === 0) {
     return {
@@ -532,6 +698,19 @@ const processDataByGrouping = (data, groupBy) => {
         3
       )
       return
+    }
+    
+    // FILTRO ADICIONAL: Para "Mês atual", descartar dados de semanas que cruzam com o mês anterior
+    if (startDate && periodo && periodo.totalDays >= 28 && periodo.totalDays <= 31) {
+      const now = new Date()
+      const isCurrentMonth = now.getMonth() === startDate.getMonth() && now.getFullYear() === startDate.getFullYear()
+      
+      if (isCurrentMonth) {
+        // Se é mês atual, só contar dias do mês atual (descartar dados do mês anterior em semanas)
+        if (date.getMonth() < startDate.getMonth() || date.getFullYear() < startDate.getFullYear()) {
+          return // Descarta dias do mês anterior
+        }
+      }
     }
     
     processedCount++
@@ -625,7 +804,7 @@ const processDataByGrouping = (data, groupBy) => {
     return groupedData[a].date - groupedData[b].date
   })
   
-  const labels = sortedKeys.map(k => formatLabel(k, groupBy))
+  const labels = sortedKeys.map(k => formatLabel(k, groupBy, groupedData[k].date))
   const total = sortedKeys.map(k => groupedData[k].total)
   const atendidas = sortedKeys.map(k => groupedData[k].atendidas)
   const abandonadas = sortedKeys.map(k => groupedData[k].abandonadas)
@@ -699,13 +878,29 @@ const getWeekNumber = (date) => {
 }
 
 // Formatar label de acordo com o agrupamento
-const formatLabel = (key, groupBy) => {
+const formatLabel = (key, groupBy, date = null) => {
   if (groupBy === 'day') {
     const parts = key.split('-')
     return `${parts[2]}/${parts[1]}`
   } else if (groupBy === 'week') {
-    const parts = key.split('-W')
-    return `Sem ${parts[1]}`
+    // Para semanas, calcular início e fim se tiver a data
+    if (date) {
+      // Calcular início da semana (segunda-feira)
+      const dayOfWeek = date.getDay()
+      const diff = dayOfWeek === 0 ? 6 : dayOfWeek - 1
+      const weekStart = new Date(date)
+      weekStart.setDate(date.getDate() - diff)
+      
+      // Calcular fim da semana (domingo)
+      const weekEnd = new Date(weekStart)
+      weekEnd.setDate(weekStart.getDate() + 6)
+      
+      const formatDate = (d) => `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`
+      return `${formatDate(weekStart)} - ${formatDate(weekEnd)}`
+    } else {
+      const parts = key.split('-W')
+      return `Sem ${parts[1]}`
+    }
   } else { // month
     const parts = key.split('-')
     const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']

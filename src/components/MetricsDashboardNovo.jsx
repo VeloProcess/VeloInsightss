@@ -7,10 +7,37 @@ import VolumeHoraChart from './VolumeHoraChart'
 import PausasSection from './PausasSection'
 import TMAChart from './TMAChart'
 import TMLChart from './TMLChart'
+import MiniCard from './MiniCard'
+import ChartModal from './ChartModal'
+import StackedBarPreview from './StackedBarPreview'
+import LineChartPreview from './LineChartPreview'
+import HorizontalBarPreview from './HorizontalBarPreview'
+import GroupedBarPreview from './GroupedBarPreview'
+import DoughnutPreview from './DoughnutPreview'
+import PausasPreview from './PausasPreview'
+import PeriodSelectorV2 from './PeriodSelectorV2'
 import { usePausasData } from '../hooks/usePausasData'
 
 const MetricsDashboard = memo(({ metrics = {}, octaData = null, data = [], periodo = null, fullDataset = [] }) => {
   const [activeView, setActiveView] = useState('55pbx')
+  
+  // Estado para período selecionado
+  const [selectedPeriod, setSelectedPeriod] = useState('last15Days')
+  const [isAnaliseGeralModalOpen, setIsAnaliseGeralModalOpen] = useState(false)
+  const [isCSATModalOpen, setIsCSATModalOpen] = useState(false)
+  const [isVolumeURAModalOpen, setIsVolumeURAModalOpen] = useState(false)
+  const [isVolumeHoraModalOpen, setIsVolumeHoraModalOpen] = useState(false)
+  const [isTMAModalOpen, setIsTMAModalOpen] = useState(false)
+  
+  // Estados para modais de tickets
+  const [isTicketsAnaliseGeralModalOpen, setIsTicketsAnaliseGeralModalOpen] = useState(false)
+  const [isTicketsTMAModalOpen, setIsTicketsTMAModalOpen] = useState(false)
+  const [isTicketsVolumeFilaModalOpen, setIsTicketsVolumeFilaModalOpen] = useState(false)
+  const [isTicketsVolumeHoraModalOpen, setIsTicketsVolumeHoraModalOpen] = useState(false)
+  const [isTicketsTMAResolucaoModalOpen, setIsTicketsTMAResolucaoModalOpen] = useState(false)
+  
+  // Estados para modais de pausas
+  const [isPausasModalOpen, setIsPausasModalOpen] = useState(false)
   
   // Hook para carregar dados específicos de pausas
   const { pausasData, isLoading: isLoadingPausas, error: pausasError } = usePausasData()
@@ -18,6 +45,78 @@ const MetricsDashboard = memo(({ metrics = {}, octaData = null, data = [], perio
   // Verificar se há erro de permissão no octaData
   const hasOctaPermissionError = octaData?.error && octaData.error.includes('Acesso negado')
   
+  
+
+  // Calcular objeto periodo baseado no selectedPeriod
+  const calculatedPeriodo = useMemo(() => {
+    const now = new Date()
+    let startDate, endDate, totalDays
+    
+    // Se for um objeto de range customizado
+    if (selectedPeriod && typeof selectedPeriod === 'object') {
+      if (selectedPeriod.type === 'customRange') {
+        // Range de datas customizado
+        startDate = new Date(selectedPeriod.startDate)
+        endDate = new Date(selectedPeriod.endDate)
+        totalDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1
+      }
+    }
+    // Se for um mês específico (formato YYYY-MM)
+    else if (selectedPeriod && selectedPeriod.match(/^\d{4}-\d{2}$/)) {
+      const [year, month] = selectedPeriod.split('-')
+      const firstDay = new Date(parseInt(year), parseInt(month) - 1, 1)
+      const lastDay = new Date(parseInt(year), parseInt(month), 0)
+      startDate = firstDay
+      endDate = lastDay
+      totalDays = lastDay.getDate()
+    } else {
+      switch(selectedPeriod) {
+        case 'previousDay':
+          // Dia anterior
+          const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+          startDate = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate())
+          endDate = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate())
+          totalDays = 1
+          break
+        case 'currentMonth':
+          // Mês atual: do dia 01 até hoje (ou última data disponível)
+          const firstDayOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+          startDate = firstDayOfCurrentMonth
+          endDate = new Date(now)
+          totalDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1
+          break
+        case 'last3Months':
+          // Últimos 3 meses completos
+          const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, 1)
+          const lastDayOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0)
+          startDate = threeMonthsAgo
+          endDate = lastDayOfLastMonth
+          totalDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1
+          break
+        case 'last7Days':
+          endDate = new Date(now)
+          startDate = new Date(now.getTime() - (6 * 24 * 60 * 60 * 1000))
+          totalDays = 7
+          break
+        case 'last15Days':
+          startDate = new Date(now.getTime() - (14 * 24 * 60 * 60 * 1000))
+          endDate = new Date(now)
+          totalDays = 15
+          break
+        case 'allRecords':
+          startDate = null
+          endDate = null
+          totalDays = 0
+          break
+        default:
+          startDate = new Date(now.getTime() - (14 * 24 * 60 * 60 * 1000))
+          endDate = new Date(now)
+          totalDays = 15
+      }
+    }
+    
+    return { startDate, endDate, totalDays }
+  }, [selectedPeriod])
 
   // Preparar dados para os gráficos - usar dados processados
   const chartData = useMemo(() => {
@@ -30,6 +129,39 @@ const MetricsDashboard = memo(({ metrics = {}, octaData = null, data = [], perio
     // Usar fullDataset se disponível, senão usar data
     return fullDataset.length > 0 ? fullDataset : data
   }, [fullDataset, data])
+
+  // Preparar dados de tickets - extrair array correto do octaData
+  const ticketsData = useMemo(() => {
+    if (!octaData) return []
+    
+    // Se octaData é um array, usar diretamente
+    if (Array.isArray(octaData)) return octaData
+    
+    // Tentar diferentes propriedades possíveis (incluindo as que vimos no debug)
+    const possibleDataKeys = ['octaData', 'octaRawData', 'data', 'tickets', 'records', 'items', 'rows', 'values', 'results', 'list']
+    
+    for (const key of possibleDataKeys) {
+      if (octaData[key] && Array.isArray(octaData[key])) {
+        return octaData[key]
+      }
+    }
+    
+    // Buscar em estruturas aninhadas (objetos dentro de objetos)
+    for (const key of Object.keys(octaData)) {
+      const value = octaData[key]
+      if (value && typeof value === 'object' && !Array.isArray(value)) {
+        // Verificar se este objeto tem propriedades com arrays
+        for (const nestedKey of possibleDataKeys) {
+          if (value[nestedKey] && Array.isArray(value[nestedKey])) {
+            return value[nestedKey]
+          }
+        }
+      }
+    }
+    
+    // Se não encontrar array, retornar vazio
+    return []
+  }, [octaData])
 
   // Processar dados de pausas para os indicadores
   const pausasIndicators = useMemo(() => {
@@ -281,107 +413,305 @@ const MetricsDashboard = memo(({ metrics = {}, octaData = null, data = [], perio
   return (
     <div className="container">
 
-      {/* Section Title */}
-      <div className="section-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <i className='bx bxs-phone'></i>
-          <h2>Telefonia</h2>
-        </div>
-      </div>
-
-      {/* Navigation Tabs - MOVIDOS PARA BAIXO */}
-      <div className="nav-tabs">
-        <button 
-          className={`nav-tab ${activeView === '55pbx' ? 'active' : ''}`}
-          onClick={() => setActiveView('55pbx')}
-        >
-          <i className='bx bx-phone'></i>
-          Telefonia
-        </button>
-        <button 
-          className={`nav-tab ${activeView === 'octadesk' ? 'active' : ''}`}
-          onClick={() => setActiveView('octadesk')}
-        >
-          <i className='bx bx-support'></i>
-          Tickets
-        </button>
-        <button 
-          className={`nav-tab ${activeView === 'pausas' ? 'active' : ''}`}
-          onClick={() => setActiveView('pausas')}
-        >
-          <i className='bx bx-pause-circle'></i>
-          Pausas
-        </button>
-      </div>
 
       {/* View 55pbx */}
       {activeView === '55pbx' && (
         <div className="view active">
-          {/* Indicadores */}
-          <div className="indicators-grid">
-            <div className="indicator-card">
-              <i className='bx bx-time-five indicator-icon'></i>
-              <div className="indicator-label">TMA Geral</div>
-              <div className="indicator-value">{metrics.duracaoMediaAtendimento || '0.0'} min</div>
-            </div>
+
+      {/* Seletor de Período */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '10px 20px' }}>
+        <PeriodSelectorV2 
+          onPeriodChange={setSelectedPeriod}
+          currentPeriod={selectedPeriod}
+        />
+      </div>
+
+      {/* Separador entre seções */}
+      <div className="section-separator">
+            <div className="separator-line"></div>
+            <div className="separator-text">Telefonia</div>
+            <div className="separator-line"></div>
           </div>
 
-          {/* Cards de Gráficos */}
-          <div className="card">
-            <div className="card-header">
-              <h3 className="card-title">Análise Geral</h3>
-              <i className='bx bx-trending-up card-icon'></i>
-            </div>
+
+          {/* Mini Cards Horizontais */}
+          <div className="mini-cards-container">
+            {/* Mini Card - Análise Geral */}
+            <MiniCard
+              title="Análise Geral"
+              icon="📊"
+              description="Tendências gerais"
+              previewData={<StackedBarPreview />}
+              onClick={() => setIsAnaliseGeralModalOpen(true)}
+            />
+
+            {/* Mini Card - CSAT */}
+            <MiniCard
+              title="CSAT - Satisfação do Cliente"
+              icon="⭐"
+              description="Satisfação do cliente"
+              previewData={<LineChartPreview />}
+              onClick={() => setIsCSATModalOpen(true)}
+            />
+
+            {/* Mini Card - Volume URA */}
+            <MiniCard
+              title="Volume por Produto URA"
+              icon="📞"
+              description="Volume por produto"
+              previewData={<HorizontalBarPreview />}
+              onClick={() => setIsVolumeURAModalOpen(true)}
+            />
+
+            {/* Mini Card - Volume Hora */}
+            <MiniCard
+              title="Volume por Hora"
+              icon="⏰"
+              description="Volume por hora"
+              previewData={<GroupedBarPreview />}
+              onClick={() => setIsVolumeHoraModalOpen(true)}
+            />
+
+            {/* Mini Card - TMA */}
+            <MiniCard
+              title="TMA - Tempo Médio de Atendimento"
+              icon="⏱️"
+              description="Tempo médio por produto"
+              previewData={<DoughnutPreview />}
+              onClick={() => setIsTMAModalOpen(true)}
+            />
+
+            {/* Mini Card - Volume X Contact Rate (Em breve) */}
+            <MiniCard
+              title="Volume de chamadas X contact rate"
+              icon="⏰"
+              description="Em breve"
+              previewData={<StackedBarPreview />}
+              onClick={() => {}}
+              disabled={true}
+            />
+          </div>
+
+          {/* Modal para Análise Geral */}
+          <ChartModal
+            isOpen={isAnaliseGeralModalOpen}
+            onClose={() => setIsAnaliseGeralModalOpen(false)}
+            title="Análise Geral"
+            icon="📊"
+          >
             <div className="chart-container-analise">
-              <TendenciaSemanalChart data={chartData} periodo={periodo} />
+              <TendenciaSemanalChart data={chartData} periodo={calculatedPeriodo} />
             </div>
-          </div>
+          </ChartModal>
 
-          <div className="card">
-            <div className="card-header">
-              <h3 className="card-title">CSAT - Satisfação do Cliente</h3>
-              <i className='bx bx-star card-icon'></i>
-            </div>
+          {/* Modal para CSAT */}
+          <ChartModal
+            isOpen={isCSATModalOpen}
+            onClose={() => setIsCSATModalOpen(false)}
+            title="CSAT - Satisfação do Cliente"
+            icon="⭐"
+          >
             <div className="chart-container-csat">
-              <CSATChart data={chartData} periodo={periodo} />
+              <CSATChart data={chartData} periodo={calculatedPeriodo} />
             </div>
-          </div>
+          </ChartModal>
 
-          {/* Containers lado a lado - Volume URA e Volume Hora */}
-          <div className="charts-side-by-side">
-            {/* Volume por Produto URA - Card Individual Maior */}
-            <div className="card card-ura">
-              <div className="card-header">
-                <h3 className="card-title">Volume por Produto URA</h3>
-                <i className='bx bx-line-chart card-icon'></i>
-              </div>
-              <div className="chart-container-ura">
-                <VolumeProdutoURAChart data={rawData} periodo={periodo} />
-              </div>
+          {/* Modal para Volume URA */}
+          <ChartModal
+            isOpen={isVolumeURAModalOpen}
+            onClose={() => setIsVolumeURAModalOpen(false)}
+            title="Volume por Produto URA"
+            icon="📞"
+          >
+            <div className="chart-container-ura">
+              <VolumeProdutoURAChart data={rawData} periodo={calculatedPeriodo} />
             </div>
+          </ChartModal>
 
-            {/* Volume por Hora - Card Individual Maior */}
-            <div className="card card-hora">
-              <div className="card-header">
-                <h3 className="card-title">Volume por Hora</h3>
-                <i className='bx bx-bar-chart-alt-2 card-icon'></i>
-              </div>
-              <div className="chart-container-hora">
-                <VolumeHoraChart data={rawData} periodo={periodo} />
-              </div>
+          {/* Modal para Volume Hora */}
+          <ChartModal
+            isOpen={isVolumeHoraModalOpen}
+            onClose={() => setIsVolumeHoraModalOpen(false)}
+            title="Volume por Hora"
+            icon="⏰"
+          >
+            <div className="chart-container-hora">
+              <VolumeHoraChart data={rawData} periodo={calculatedPeriodo} />
             </div>
-          </div>
+          </ChartModal>
 
-          {/* Gráfico TMA */}
-          <div className="card">
-            <div className="card-header">
-              <h3 className="card-title">TMA - Tempo Médio de Atendimento por Produto URA</h3>
-              <i className='bx bx-time-five card-icon'></i>
-            </div>
+          {/* Modal para TMA */}
+          <ChartModal
+            isOpen={isTMAModalOpen}
+            onClose={() => setIsTMAModalOpen(false)}
+            title="TMA - Tempo Médio de Atendimento"
+            icon="⏱️"
+          >
             <div className="chart-container-tma">
-              <TMAChart data={rawData} periodo={periodo} groupBy="produto" />
+              <TMAChart data={rawData} periodo={calculatedPeriodo} groupBy="produto" />
             </div>
+          </ChartModal>
+
+          {/* Separador entre seções */}
+          <div className="section-separator">
+            <div className="separator-line"></div>
+            <div className="separator-text">TICKETS</div>
+            <div className="separator-line"></div>
           </div>
+
+          {/* Mini Cards Horizontais - Tickets */}
+          <div className="mini-cards-container">
+            {/* Mini Card - Análise Geral de Tickets */}
+            <MiniCard
+              title="Análise Geral de Tickets"
+              icon="📊"
+              description="Tendências gerais"
+              previewData={<StackedBarPreview />}
+              onClick={() => setIsTicketsAnaliseGeralModalOpen(true)}
+            />
+
+            {/* Mini Card - TMA Operação Tickets */}
+            <MiniCard
+              title="TMA Operação Tickets"
+              icon="⏱️"
+              description="Tempo médio operação"
+              previewData={<LineChartPreview />}
+              onClick={() => setIsTicketsTMAModalOpen(true)}
+            />
+
+            {/* Mini Card - Volume por Fila (Tickets) */}
+            <MiniCard
+              title="Volume por Fila (Tickets)"
+              icon="📋"
+              description="Volume por fila"
+              previewData={<HorizontalBarPreview />}
+              onClick={() => setIsTicketsVolumeFilaModalOpen(true)}
+            />
+          </div>
+
+          {/* Segunda linha de tickets - 2 cards centralizados */}
+          <div className="mini-cards-container-tickets-row2">
+            {/* Mini Card - Volume por Hora (Tickets) */}
+            <MiniCard
+              title="Volume por Hora (Tickets)"
+              icon="⏰"
+              description="Volume por hora"
+              previewData={<GroupedBarPreview />}
+              onClick={() => setIsTicketsVolumeHoraModalOpen(true)}
+            />
+
+            {/* Mini Card - TMA Resolução por Assunto */}
+            <MiniCard
+              title="TMA - Tempo Médio de Resolução por Assunto"
+              icon="🎯"
+              description="Tempo médio por assunto"
+              previewData={<DoughnutPreview />}
+              onClick={() => setIsTicketsTMAResolucaoModalOpen(true)}
+            />
+          </div>
+
+          {/* Modais para gráficos de tickets */}
+          <ChartModal
+            isOpen={isTicketsAnaliseGeralModalOpen}
+            onClose={() => setIsTicketsAnaliseGeralModalOpen(false)}
+            title="Análise Geral de Tickets"
+            icon="📊"
+          >
+            <div className="chart-container-analise">
+              <TendenciaSemanalChart data={ticketsData} periodo={calculatedPeriodo} />
+            </div>
+          </ChartModal>
+
+          <ChartModal
+            isOpen={isTicketsTMAModalOpen}
+            onClose={() => setIsTicketsTMAModalOpen(false)}
+            title="TMA Operação Tickets"
+            icon="⏱️"
+          >
+            <div className="chart-container-csat">
+              <CSATChart data={ticketsData} periodo={calculatedPeriodo} />
+            </div>
+          </ChartModal>
+
+          <ChartModal
+            isOpen={isTicketsVolumeFilaModalOpen}
+            onClose={() => setIsTicketsVolumeFilaModalOpen(false)}
+            title="Volume por Fila (Tickets)"
+            icon="📋"
+          >
+            <div className="chart-container-ura">
+              <VolumeProdutoURAChart data={ticketsData} periodo={calculatedPeriodo} isTicketsTab={true} />
+            </div>
+          </ChartModal>
+
+          <ChartModal
+            isOpen={isTicketsVolumeHoraModalOpen}
+            onClose={() => setIsTicketsVolumeHoraModalOpen(false)}
+            title="Volume por Hora (Tickets)"
+            icon="⏰"
+          >
+            <div className="chart-container-hora">
+              <VolumeHoraChart data={ticketsData} periodo={calculatedPeriodo} />
+            </div>
+          </ChartModal>
+
+          <ChartModal
+            isOpen={isTicketsTMAResolucaoModalOpen}
+            onClose={() => setIsTicketsTMAResolucaoModalOpen(false)}
+            title="TMA - Tempo Médio de Resolução por Assunto"
+            icon="🎯"
+          >
+            <div className="chart-container-tma">
+              <TMAChart data={ticketsData} periodo={calculatedPeriodo} groupBy="assunto" />
+            </div>
+          </ChartModal>
+
+          {/* Separador entre seções */}
+          <div className="section-separator">
+            <div className="separator-line"></div>
+            <div className="separator-text">PAUSAS</div>
+            <div className="separator-line"></div>
+          </div>
+
+          {/* Mini Cards Horizontais - Pausas */}
+          <div className="mini-cards-container-pausas">
+            {/* Mini Card - Pausas */}
+            <MiniCard
+              title="Pausas por Operador"
+              icon="⏸️"
+              description={isLoadingPausas ? "Carregando..." : pausasError ? "Erro ao carregar" : `${pausasData?.length || 0} registros`}
+              previewData={<PausasPreview />}
+              onClick={() => setIsPausasModalOpen(true)}
+            />
+          </div>
+
+          {/* Modal para gráfico de pausas */}
+          <ChartModal
+            isOpen={isPausasModalOpen}
+            onClose={() => setIsPausasModalOpen(false)}
+            title="Pausas por Operador"
+            icon="⏸️"
+          >
+            <div className="chart-container-pausas">
+              {isLoadingPausas ? (
+                <div style={{ padding: '40px', textAlign: 'center', color: '#666' }}>
+                  <div style={{ fontSize: '18px', marginBottom: '10px' }}>⏳</div>
+                  Carregando dados de pausas...
+                </div>
+              ) : pausasError ? (
+                <div style={{ padding: '40px', textAlign: 'center', color: '#dc2626' }}>
+                  <div style={{ fontSize: '18px', marginBottom: '10px' }}>❌</div>
+                  Erro ao carregar dados de pausas
+                  <div style={{ fontSize: '14px', marginTop: '10px', opacity: 0.8 }}>
+                    {pausasError}
+                  </div>
+                </div>
+              ) : (
+                <PausasSection pausasData={pausasData} periodo={calculatedPeriodo} />
+              )}
+            </div>
+          </ChartModal>
+
         </div>
       )}
 
@@ -424,7 +754,7 @@ const MetricsDashboard = memo(({ metrics = {}, octaData = null, data = [], perio
             </div>
             <div className="indicator-card">
               <i className='bx bx-time-five indicator-icon'></i>
-              <div className="indicator-label">Performance Geral</div>
+              <div className="indicator-label">Pesquisa</div>
               <div className="indicator-value">{octaData?.octaMetrics?.porcentagemGeral || '0%'}</div>
             </div>
             <div className="indicator-card">
@@ -446,17 +776,17 @@ const MetricsDashboard = memo(({ metrics = {}, octaData = null, data = [], perio
               <i className='bx bx-trending-up card-icon'></i>
             </div>
             <div className="chart-container-analise">
-              <TendenciaSemanalChart data={octaData?.octaRawData || []} periodo={periodo} />
+              <TendenciaSemanalChart data={octaData?.octaRawData || []} periodo={calculatedPeriodo} />
             </div>
           </div>
 
           <div className="card">
             <div className="card-header">
-              <h3 className="card-title">CSAT - Satisfação do Cliente (Tickets)</h3>
+              <h3 className="card-title">TMA Operação Tickets</h3>
               <i className='bx bx-star card-icon'></i>
             </div>
             <div className="chart-container-tickets">
-              <CSATChart data={octaData?.octaRawData || []} periodo={periodo} />
+              <CSATChart data={octaData?.octaRawData || []} periodo={calculatedPeriodo} />
             </div>
           </div>
 
@@ -469,7 +799,7 @@ const MetricsDashboard = memo(({ metrics = {}, octaData = null, data = [], perio
                 <i className='bx bx-line-chart card-icon'></i>
               </div>
             <div className="chart-container-ura">
-                <VolumeProdutoURAChart data={octaData?.octaRawData || []} periodo={periodo} isTicketsTab={true} />
+                <VolumeProdutoURAChart data={octaData?.octaRawData || []} periodo={calculatedPeriodo} isTicketsTab={true} />
               </div>
             </div>
 
@@ -480,7 +810,7 @@ const MetricsDashboard = memo(({ metrics = {}, octaData = null, data = [], perio
                 <i className='bx bx-bar-chart-alt-2 card-icon'></i>
               </div>
             <div className="chart-container-hora">
-                <VolumeHoraChart data={octaData?.octaRawData || []} periodo={periodo} />
+                <VolumeHoraChart data={octaData?.octaRawData || []} periodo={calculatedPeriodo} />
               </div>
             </div>
           </div>
@@ -492,7 +822,7 @@ const MetricsDashboard = memo(({ metrics = {}, octaData = null, data = [], perio
               <i className='bx bx-time-five card-icon'></i>
             </div>
             <div className="chart-container-tma">
-              <TMAChart data={octaData?.octaRawData || []} periodo={periodo} groupBy="assunto" />
+              <TMAChart data={octaData?.octaRawData || []} periodo={calculatedPeriodo} groupBy="assunto" />
             </div>
           </div>
         </div>
@@ -536,7 +866,7 @@ const MetricsDashboard = memo(({ metrics = {}, octaData = null, data = [], perio
           </div>
 
           {/* Cards de Gráficos - Pausas */}
-          <PausasSection pausasData={pausasData} periodo={periodo} />
+          <PausasSection pausasData={pausasData} periodo={calculatedPeriodo} />
         </div>
       )}
     </div>

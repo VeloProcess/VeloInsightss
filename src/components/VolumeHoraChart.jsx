@@ -277,7 +277,7 @@ const processVolumeHora = (data, periodo = null) => {
   
   // Função para verificar se uma data está dentro do período selecionado
   const isDateInPeriod = (record) => {
-    if (!periodo) return true
+    if (!periodo || !periodo.startDate || !periodo.endDate) return true
     
     try {
       // Tentar diferentes campos de data
@@ -285,12 +285,17 @@ const processVolumeHora = (data, periodo = null) => {
       if (!dateField) return true
       
       const recordDate = parseBrazilianDate(dateField)
-      if (!recordDate) return true
+      if (!recordDate || isNaN(recordDate.getTime())) return true
       
       const startDate = new Date(periodo.startDate)
       const endDate = new Date(periodo.endDate)
       
-      return recordDate >= startDate && recordDate <= endDate
+      // Normalizar para comparar apenas a data (sem hora)
+      const recordDateNorm = new Date(recordDate.getFullYear(), recordDate.getMonth(), recordDate.getDate())
+      const startDateNorm = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate())
+      const endDateNorm = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate())
+      
+      return recordDateNorm >= startDateNorm && recordDateNorm <= endDateNorm
     } catch (error) {
       return true
     }

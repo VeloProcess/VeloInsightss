@@ -1,7 +1,7 @@
 import React from 'react'
 import './Header.css'
 
-const Header = ({ onToggleSidebar, sidebarOpen, theme, onToggleTheme, currentView, onViewChange, hasData, onOpenPeriodModal, currentPeriod }) => {
+const Header = ({ onToggleSidebar, sidebarOpen, theme, onToggleTheme, currentView, onViewChange, hasData }) => {
   return (
     <>
       <header className="header">
@@ -9,16 +9,6 @@ const Header = ({ onToggleSidebar, sidebarOpen, theme, onToggleTheme, currentVie
           <div className="logo">VELOINSIGHTS</div>
         </div>
 
-        {/* Botão Seletor de Período - CENTRO */}
-        {hasData && onOpenPeriodModal && (
-          <div className="period-selector" onClick={onOpenPeriodModal}>
-            <i className='bx bx-calendar'></i>
-            <div className="period-text">
-              <strong>{currentPeriod || 'Últimos 15 dias'}</strong>
-            </div>
-          </div>
-        )}
-        
         <div className="header-actions">
           {/* Botão de tema removido */}
         </div>

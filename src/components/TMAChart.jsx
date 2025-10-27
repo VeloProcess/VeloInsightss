@@ -87,31 +87,30 @@ const TMAChart = memo(({ data = [], periodo = null, groupBy = 'fila' }) => {
 
   // Função para verificar se uma data está dentro do período
   const isDateInPeriod = (dateStr) => {
-    if (!periodo) return true
+    if (!periodo || !periodo.startDate || !periodo.endDate) return true
     
     try {
-      const parts = dateStr.split('/')
-      if (parts.length === 3) {
-        const day = parseInt(parts[0])
-        const month = parseInt(parts[1]) - 1
-        const year = parseInt(parts[2])
-        const rowDate = new Date(year, month, day)
-        
-        const startDate = new Date(periodo.startDate)
-        const endDate = new Date(periodo.endDate)
-        
-        return rowDate >= startDate && rowDate <= endDate
-      }
+      const date = parseBrazilianDate(dateStr)
+      if (!date || isNaN(date.getTime())) return true
+      
+      const startDate = new Date(periodo.startDate)
+      const endDate = new Date(periodo.endDate)
+      
+      // Normalizar para comparar apenas a data (sem hora)
+      const recordDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+      const startDateNorm = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate())
+      const endDateNorm = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate())
+      
+      return recordDate >= startDateNorm && recordDate <= endDateNorm
     } catch (error) {
       console.warn('Erro ao verificar período:', dateStr, error)
+      return true
     }
-    return true
   }
 
   // Processar dados de TMA
   const processTMAData = (data, periodo, groupBy) => {
     if (!data || data.length === 0) {
-      console.log('🔍 TMA Debug: Nenhum dado fornecido')
       return {
         labels: [],
         values: [],
@@ -142,8 +141,6 @@ const TMAChart = memo(({ data = [], periodo = null, groupBy = 'fila' }) => {
     
     const finalIsTicketData = isTicketData || isTicketDataAlt
     
-    console.log('🔍 TMA Debug: Tipo de dados detectado:', finalIsTicketData ? 'TICKETS' : 'TELEFONIA')
-
     // Filas específicas que queremos mostrar (mesmas do Volume por Fila)
     const filasEspecificas = [
       { nome: 'IRPF', palavras: ['IRPF', 'IMPOSTO DE RENDA'] },
@@ -202,19 +199,7 @@ const TMAChart = memo(({ data = [], periodo = null, groupBy = 'fila' }) => {
         
         if (!tempoValido) return
 
-        // Debug das primeiras linhas
-        if (index < 20) {
-          console.log(`🔍 TMA Debug Linha ${index} (${finalIsTicketData ? 'TICKETS' : 'TELEFONIA'}):`, {
-            dateField,
-            filaField,
-            tempoField,
-            tempoValido,
-            recordLength: record.length,
-            isDateValid: dateField ? isDateInPeriod(dateField) : 'no date',
-            hasFila: !!filaField,
-            hasTempo: !!tempoValido
-          })
-        }
+        // Debug das primeiras linhas removido para otimização
 
         const fila = String(filaField).trim()
         

@@ -3,7 +3,6 @@ import Header from './components/Header'
 import Sidebar from './components/Sidebar'
 import LoginTest from './components/LoginTest'
 import MetricsDashboard from './components/MetricsDashboardNovo'
-import ChartsSection from './components/ChartsSection'
 import OperatorAnalysis from './components/OperatorAnalysis'
 import ProgressIndicator from './components/ProgressIndicator'
 import { processarDados } from './utils/dataProcessor'
@@ -640,48 +639,55 @@ function AppContent() {
 
   // Funções da Dark List removidas - todos os operadores são contabilizados normalmente
 
+  // Verificar se deve ocultar Header e Sidebar (na tela de login ou cargo selection)
+  const isLoginOrCargoScreen = !isAuthenticated || showCargoSelection
+
   return (
     <div className="app">
-      <Header 
-        onToggleSidebar={toggleSidebar}
-        sidebarOpen={sidebarOpen}
-        theme={theme}
-        onToggleTheme={toggleTheme}
-        currentView={currentView}
-        onViewChange={handleViewChange}
-        hasData={data && data.length > 0}
-        onOpenPeriodModal={() => setShowPeriodModal(true)}
-        currentPeriod={currentPeriodLabel}
-        onSyncData={async () => {
-          // Debug removido para melhor performance
-          setIsLoading(true)
-          try {
-            await fetchData()
-            // Debug removido para melhor performance
-          } catch (error) {
-            console.error('❌ Erro na sincronização manual:', error)
-          } finally {
-            setIsLoading(false)
-          }
-        }}
-      />
-      
-      <div className="app-content">
-        <Sidebar 
-          open={sidebarOpen}
+      {!isLoginOrCargoScreen && (
+        <Header 
+          onToggleSidebar={toggleSidebar}
+          sidebarOpen={sidebarOpen}
+          theme={theme}
+          onToggleTheme={toggleTheme}
           currentView={currentView}
           onViewChange={handleViewChange}
           hasData={data && data.length > 0}
-          onClearData={() => {}}
-          viewMode={viewMode}
-          onViewModeChange={setViewMode}
-          selectedOperator={selectedOperator}
-          onOperatorSelect={handleOperatorSelect}
-          operatorMetrics={operatorMetrics}
-          onShowPreferences={() => setShowPreferences(true)}
-          onClose={() => setSidebarOpen(false)}
-          selectedCargo={selectedCargo}
+          onOpenPeriodModal={() => setShowPeriodModal(true)}
+          currentPeriod={currentPeriodLabel}
+          onSyncData={async () => {
+            // Debug removido para melhor performance
+            setIsLoading(true)
+            try {
+              await fetchData()
+              // Debug removido para melhor performance
+            } catch (error) {
+              console.error('❌ Erro na sincronização manual:', error)
+            } finally {
+              setIsLoading(false)
+            }
+          }}
         />
+      )}
+      
+      <div className={`app-content ${isLoginOrCargoScreen ? 'fullscreen' : ''}`}>
+        {!isLoginOrCargoScreen && (
+          <Sidebar 
+            open={sidebarOpen}
+            currentView={currentView}
+            onViewChange={handleViewChange}
+            hasData={data && data.length > 0}
+            onClearData={() => {}}
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
+            selectedOperator={selectedOperator}
+            onOperatorSelect={handleOperatorSelect}
+            operatorMetrics={operatorMetrics}
+            onShowPreferences={() => setShowPreferences(true)}
+            onClose={() => setSidebarOpen(false)}
+            selectedCargo={selectedCargo}
+          />
+        )}
         
         <main className={`main-content ${sidebarOpen ? 'sidebar-open' : ''}`}>
           {isLoading && (
@@ -699,7 +705,7 @@ function AppContent() {
             totalRecords={totalRecordsToProcess}
           />
           
-          {(currentView === 'fetch' || showNewLogin) && (
+          {(!isAuthenticated && (currentView === 'fetch' || showNewLogin)) && (
             <LoginTest
               onContinue={() => {
                 // Debug removido para melhor performance

@@ -1,82 +1,104 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 
 export const useDataCache = () => {
   const [cache, setCache] = useState(new Map())
-  const [isProcessing, setIsProcessing] = useState(false)
+  const [cacheStats, setCacheStats] = useState({
+    hits: 0,
+    misses: 0,
+    size: 0
+  })
 
-  // Cache de métricas calculadas
-  const getCachedMetrics = useCallback((dataHash, operatorMetricsHash) => {
-    const key = `metrics_${dataHash}_${operatorMetricsHash}`
-    return cache.get(key)
-  }, [cache])
-
-  const setCachedMetrics = useCallback((dataHash, operatorMetricsHash, metrics) => {
-    const key = `metrics_${dataHash}_${operatorMetricsHash}`
-    setCache(prev => new Map(prev).set(key, {
-      data: metrics,
-      timestamp: Date.now()
-    }))
-  }, [])
-
-  // Cache de dados filtrados
-  const getCachedFilteredData = useCallback((dataHash, filtersHash) => {
-    const key = `filtered_${dataHash}_${filtersHash}`
-    return cache.get(key)
-  }, [cache])
-
-  const setCachedFilteredData = useCallback((dataHash, filtersHash, filteredData) => {
-    const key = `filtered_${dataHash}_${filtersHash}`
-    setCache(prev => new Map(prev).set(key, {
-      data: filteredData,
-      timestamp: Date.now()
-    }))
-  }, [])
-
-  // Limpar cache antigo (mais de 5 minutos)
-  const cleanOldCache = useCallback(() => {
-    const fiveMinutesAgo = Date.now() - (5 * 60 * 1000)
-    setCache(prev => {
-      const newCache = new Map()
-      for (const [key, value] of prev) {
-        if (value.timestamp > fiveMinutesAgo) {
-          newCache.set(key, value)
-        }
+  // Função para obter dados do cache
+  const getFromCache = useCallback((key) => {
+    const cached = cache.get(key)
+    if (cached) {
+      // Verificar se o cache não expirou
+      if (Date.now() - cached.timestamp < cached.ttl) {
+        setCacheStats(prev => ({ ...prev, hits: prev.hits + 1 }))
+        return cached.data
+      } else {
+        // Cache expirado, remover
+        cache.delete(key)
+        setCache(prev => {
+          const newCache = new Map(prev)
+          newCache.delete(key)
+          return newCache
+        })
       }
+    }
+    setCacheStats(prev => ({ ...prev, misses: prev.misses + 1 }))
+    return null
+  }, [cache])
+
+  // Função para salvar dados no cache
+  const setCacheData = useCallback((key, data, ttl = 300000) => { // 5 minutos por padrão
+    const cacheEntry = {
+      data,
+      timestamp: Date.now(),
+      ttl
+    }
+    
+    setCache(prev => {
+      const newCache = new Map(prev)
+      newCache.set(key, cacheEntry)
       return newCache
     })
+    
+    setCacheStats(prev => ({ ...prev, size: cache.size + 1 }))
+  }, [cache.size])
+
+  // Função para limpar cache
+  const clearCache = useCallback(() => {
+    setCache(new Map())
+    setCacheStats({ hits: 0, misses: 0, size: 0 })
   }, [])
 
-  // Gerar hash simples para dados
-  const generateDataHash = useCallback((data) => {
-    if (!data || data.length === 0) return 'empty'
-    return `${data.length}_${data[0]?.date || 'no_date'}_${data[data.length - 1]?.date || 'no_date'}`
+  // Função para remover item específico do cache
+  const removeFromCache = useCallback((key) => {
+    setCache(prev => {
+      const newCache = new Map(prev)
+      newCache.delete(key)
+      return newCache
+    })
+    setCacheStats(prev => ({ ...prev, size: Math.max(0, prev.size - 1) }))
   }, [])
 
-  // Gerar hash para filtros
-  const generateFiltersHash = useCallback((filters) => {
-    return JSON.stringify(filters)
-  }, [])
+  // Limpeza automática de cache expirado
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Date.now()
+      setCache(prev => {
+        const newCache = new Map()
+        let removedCount = 0
+        
+        prev.forEach((value, key) => {
+          if (now - value.timestamp < value.ttl) {
+            newCache.set(key, value)
+          } else {
+            removedCount++
+          }
+        })
+        
+        if (removedCount > 0) {
+          setCacheStats(stats => ({ 
+            ...stats, 
+            size: Math.max(0, stats.size - removedCount) 
+          }))
+        }
+        
+        return newCache
+      })
+    }, 60000) // Verificar a cada minuto
 
-  // Debounce para operações pesadas
-  const debounce = useCallback((func, delay) => {
-    let timeoutId
-    return (...args) => {
-      clearTimeout(timeoutId)
-      timeoutId = setTimeout(() => func.apply(null, args), delay)
-    }
+    return () => clearInterval(interval)
   }, [])
 
   return {
-    getCachedMetrics,
-    setCachedMetrics,
-    getCachedFilteredData,
-    setCachedFilteredData,
-    generateDataHash,
-    generateFiltersHash,
-    cleanOldCache,
-    debounce,
-    isProcessing,
-    setIsProcessing,
+    getFromCache,
+    setCacheData,
+    clearCache,
+    removeFromCache,
+    cacheStats,
     cacheSize: cache.size
   }
 }

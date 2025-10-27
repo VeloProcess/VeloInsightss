@@ -1,242 +1,181 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import './PeriodSelectorV2.css'
 
-const PeriodSelectorV2 = ({ onPeriodSelect, isLoading }) => {
-  const [selectedOption, setSelectedOption] = useState('currentMonth')
-  const [currentMonth, setCurrentMonth] = useState(new Date())
-  const [customStartDate, setCustomStartDate] = useState('')
-  const [customEndDate, setCustomEndDate] = useState('')
+const PeriodSelectorV2 = ({ 
+  onPeriodChange, 
+  currentPeriod = 'currentMonth',
+  disabled = false 
+}) => {
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const [isPersonalizadoOpen, setIsPersonalizadoOpen] = useState(false)
+  const [isDateRangeOpen, setIsDateRangeOpen] = useState(false)
+  const [selectedPeriod, setSelectedPeriod] = useState(null)
+  
+  // Estados para o range de datas
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
 
-  // Função para obter nomes dos meses
-  const getMonthName = (date) => {
-    const monthNames = [
-      'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-      'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
-    ]
-    return `${monthNames[date.getMonth()]} ${date.getFullYear()}`
+  // Períodos principais
+  const mainPeriods = [
+    { value: 'previousDay', label: 'Dia anterior' },
+    { value: 'currentMonth', label: 'Mês atual' },
+    { value: 'last3Months', label: 'Últimos 3 meses' },
+    { value: 'personalizado', label: 'Personalizado', hasSubMenu: true }
+  ]
+
+  // Subperíodos dentro de "Personalizado"
+  const personalizadoSubPeriods = [
+    { value: 'customRange', label: 'Range personalizado', hasSubSubMenu: true },
+    { value: 'last7Days', label: '7 dias' },
+    { value: 'last15Days', label: '15 dias' },
+    { value: 'allRecords', label: 'Todos os registros' }
+  ]
+
+
+  const handlePeriodSelect = (period) => {
+    // Se for "Personalizado", apenas abre o submenu
+    if (period === 'personalizado') {
+      setIsPersonalizadoOpen(!isPersonalizadoOpen)
+      return
+    }
+    
+    // Se for range personalizado, apenas abre o seletor
+    if (period === 'customRange') {
+      setIsDateRangeOpen(!isDateRangeOpen)
+      return
+    }
+    
+    // Para outros períodos, seleciona normalmente
+    setSelectedPeriod(period)
+    setIsPersonalizadoOpen(false)
+    setIsDateRangeOpen(false)
+    setIsDropdownOpen(false)
+    if (onPeriodChange) {
+      onPeriodChange(period)
+    }
   }
 
-  // Calcular períodos baseado na data
-  const calculatePeriods = () => {
-    const now = new Date()
-    const periods = {
-      currentMonth: {
-        label: `Mês atual (${getMonthName(now)})`,
-        startDate: new Date(now.getFullYear(), now.getMonth(), 1),
-        endDate: new Date(now.getFullYear(), now.getMonth() + 1, 0)
-      },
-      lastMonth: {
-        label: `1 mês atrás (${getMonthName(new Date(now.getFullYear(), now.getMonth() - 1))})`,
-        startDate: new Date(now.getFullYear(), now.getMonth() - 1, 1),
-        endDate: new Date(now.getFullYear(), now.getMonth(), 0)
-      },
-      twoMonthsAgo: {
-        label: `2 meses atrás (${getMonthName(new Date(now.getFullYear(), now.getMonth() - 2))})`,
-        startDate: new Date(now.getFullYear(), now.getMonth() - 2, 1),
-        endDate: new Date(now.getFullYear(), now.getMonth() - 1, 0)
-      },
-      last7Days: {
-        label: 'Últimos 7 dias',
-        startDate: new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000),
-        endDate: now
-      },
-      last15Days: {
-        label: 'Últimos 15 dias',
-        startDate: new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000),
-        endDate: now
-      },
-      last90Days: {
-        label: 'Últimos 90 dias',
-        startDate: new Date(now.getTime() - 89 * 24 * 60 * 60 * 1000),
-        endDate: now
-      },
-      custom: {
-        label: 'Período personalizado',
-        startDate: null,
-        endDate: null
+  const handleCustomRangeSubmit = () => {
+    if (startDate && endDate) {
+      setSelectedPeriod(`custom-range:${startDate}:${endDate}`)
+      setIsPersonalizadoOpen(false)
+      setIsDateRangeOpen(false)
+      setIsDropdownOpen(false)
+      if (onPeriodChange) {
+        onPeriodChange({ type: 'customRange', startDate, endDate })
       }
     }
-    return periods
   }
 
-  const periods = calculatePeriods()
-
-  // Função para converter data para formato YYYY-MM-DD
-  const formatDate = (date) => {
-    return date.toISOString().split('T')[0]
-  }
-
-  // Função principal para selecionar período
-  const handlePeriodSelect = (periodKey) => {
-    setSelectedOption(periodKey)
+  const getSelectedPeriodLabel = () => {
+    if (!selectedPeriod) {
+      return 'Selecione um período'
+    }
     
-    if (periodKey === 'custom') {
-      return // Aguardar datas personalizadas
+    // Range customizado
+    if (selectedPeriod.startsWith('custom-range:')) {
+      const [, start, end] = selectedPeriod.split(':')
+      return `${start} - ${end}`
     }
-
-    const period = periods[periodKey]
-    const startDate = formatDate(period.startDate)
-    const endDate = formatDate(period.endDate)
-
-    onPeriodSelect({
-      type: periodKey,
-      label: period.label,
-      startDate,
-      endDate,
-      startDateObj: period.startDate,
-      endDateObj: period.endDate
-    })
-  }
-
-  // Função para período personalizado
-  const handleCustomSubmit = (e) => {
-    e.preventDefault()
     
-    if (!customStartDate || !customEndDate) {
-      alert('Por favor, selecione ambas as datas')
-      return
+    // Subperíodos de personalizado
+    const personalizadoPeriod = personalizadoSubPeriods.find(p => p.value === selectedPeriod)
+    if (personalizadoPeriod) {
+      return personalizadoPeriod.label
     }
-
-    if (new Date(customStartDate) > new Date(customEndDate)) {
-      alert('A data inicial não pode ser maior que a data final')
-      return
-    }
-
-    onPeriodSelect({
-      type: 'custom',
-      label: `Período personalizado (${new Date(customStartDate).getDate()}/${new Date(customStartDate).getMonth() + 1} a ${new Date(customEndDate).getDate()}/${new Date(customEndDate).getMonth() + 1})`,
-      startDate: customStartDate,
-      endDate: customEndDate,
-      startDateObj: new Date(customStartDate),
-      endDateObj: new Date(customEndDate)
-    })
+    
+    // Períodos principais
+    return mainPeriods.find(p => p.value === selectedPeriod)?.label || 'Selecione um período'
   }
-
-  // Atualizar períodos quando mês atual mudar
-  useEffect(() => {
-    setCurrentMonth(new Date())
-  }, [])
 
   return (
     <div className="period-selector-v2">
-      <div className="period-header">
-        <h2>📅 Selecionar Período</h2>
-        <p>Escolha o período para análise dos dados</p>
+      <button
+        className={`period-selector-button-main ${isDropdownOpen ? 'open' : ''}`}
+        onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+        disabled={disabled}
+      >
+        <span>{getSelectedPeriodLabel()}</span>
+        <span className="period-arrow">▼</span>
+      </button>
+      
+      {isDropdownOpen && (
+      <div className="period-selector-options">
+        {mainPeriods.map(period => {
+          const isPersonalizado = period.value === 'personalizado'
+          
+          return (
+            <div key={period.value} className="period-option-container">
+              <button
+                className={`period-option-main ${selectedPeriod === period.value && !isPersonalizado ? 'selected' : ''}`}
+                onClick={() => handlePeriodSelect(period.value)}
+                disabled={disabled}
+              >
+                {period.label}
+                {(isPersonalizado && isPersonalizadoOpen) && <span className="period-arrow">▼</span>}
+                {isPersonalizado && !isPersonalizadoOpen && <span className="period-arrow">▶</span>}
+              </button>
+              
+              {/* Submenu de "Personalizado" */}
+              {isPersonalizado && isPersonalizadoOpen && (
+                <div className="period-submenu">
+                  {personalizadoSubPeriods.map(subPeriod => {
+                    const isCustomRange = subPeriod.value === 'customRange'
+                    
+                    return (
+                      <div key={subPeriod.value} className="period-suboption-container">
+                        <button
+                          className={`period-suboption ${selectedPeriod === subPeriod.value ? 'selected' : ''}`}
+                          onClick={() => handlePeriodSelect(subPeriod.value)}
+                          disabled={disabled}
+                        >
+                          {subPeriod.label}
+                          {isCustomRange && isDateRangeOpen && <span className="period-arrow">▼</span>}
+                          {isCustomRange && !isDateRangeOpen && <span className="period-arrow">▶</span>}
+                        </button>
+                        
+                        {/* Sub-submenu de "Range personalizado" */}
+                        {isCustomRange && isDateRangeOpen && (
+                          <div className="period-date-range">
+                            <div className="date-range-inputs">
+                              <label>
+                                Data inicial:
+                                <input 
+                                  type="date" 
+                                  value={startDate} 
+                                  onChange={(e) => setStartDate(e.target.value)}
+                                  className="date-input"
+                                />
+                              </label>
+                              <label>
+                                Data final:
+                                <input 
+                                  type="date" 
+                                  value={endDate} 
+                                  onChange={(e) => setEndDate(e.target.value)}
+                                  className="date-input"
+                                />
+                              </label>
+                              <button 
+                                className="date-range-submit"
+                                onClick={handleCustomRangeSubmit}
+                                disabled={!startDate || !endDate}
+                              >
+                                Aplicar
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )
+        })}
       </div>
-
-      <div className="period-options">
-        <div className="period-grid">
-          {/* Mês atual */}
-          <button 
-            className={`period-card ${selectedOption === 'currentMonth' ? 'active' : ''}`}
-            onClick={() => handlePeriodSelect('currentMonth')}
-            disabled={isLoading}
-          >
-            <div className="period-icon">📅</div>
-            <div className="period-label">Mês atual</div>
-            <div className="period-month">{getMonthName(currentMonth)}</div>
-          </button>
-
-          {/* 1 mês atrás */}
-          <button 
-            className={`period-card ${selectedOption === 'lastMonth' ? 'active' : ''}`}
-            onClick={() => handlePeriodSelect('lastMonth')}
-            disabled={isLoading}
-          >
-            <div className="period-icon">📅</div>
-            <div className="period-label">1 mês atrás</div>
-            <div className="period-month">{getMonthName(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))}</div>
-          </button>
-
-          {/* 2 meses atrás */}
-          <button 
-            className={`period-card ${selectedOption === 'twoMonthsAgo' ? 'active' : ''}`}
-            onClick={() => handlePeriodSelect('twoMonthsAgo')}
-            disabled={isLoading}
-          >
-            <div className="period-icon">📅</div>
-            <div className="period-label">2 meses atrás</div>
-            <div className="period-month">{getMonthName(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 2))}</div>
-          </button>
-
-          {/* Últimos 7 dias */}
-          <button 
-            className={`period-card ${selectedOption === 'last7Days' ? 'active' : ''}`}
-            onClick={() => handlePeriodSelect('last7Days')}
-            disabled={isLoading}
-          >
-            <div className="period-icon">📊</div>
-            <div className="period-label">Últimos 7 dias</div>
-            <div className="period-subtitle">Análise semanal</div>
-          </button>
-
-          {/* Últimos 15 dias */}
-          <button 
-            className={`period-card ${selectedOption === 'last15Days' ? 'active' : ''}`}
-            onClick={() => handlePeriodSelect('last15Days')}
-            disabled={isLoading}
-          >
-            <div className="period-icon">📈</div>
-            <div className="period-label">Últimos 15 dias</div>
-            <div className="period-subtitle">Análise quinzenal</div>
-          </button>
-
-          {/* Período personalizado */}
-          <button 
-            className={`period-card ${selectedOption === 'custom' ? 'active' : ''}`}
-            onClick={() => setSelectedOption('custom')}
-            disabled={isLoading}
-          >
-            <div className="period-icon">🎯</div>
-            <div className="period-label">Personalizado</div>
-            <div className="period-subtitle">Escolha as datas</div>
-          </button>
-        </div>
-
-        {/* Formulário para período personalizado */}
-        {selectedOption === 'custom' && (
-          <div className="custom-period-form">
-            <h3>🎯 Período Personalizado</h3>
-            <form onSubmit={handleCustomSubmit}>
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="customStartDate">Data Inicial:</label>
-                  <input
-                    type="date"
-                    id="customStartDate"
-                    value={customStartDate}
-                    onChange={(e) => setCustomStartDate(e.target.value)}
-                    disabled={isLoading}
-                    required
-                  />
-                </div>
-                
-                <div className="form-group">
-                  <label htmlFor="customEndDate">Data Final:</label>
-                  <input
-                    type="date"
-                    id="customEndDate"
-                    value={customEndDate}
-                    onChange={(e) => setCustomEndDate(e.target.value)}
-                    disabled={isLoading}
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <button 
-                    type="submit" 
-                    className="btn-primary"
-                    disabled={isLoading}
-                  >
-                    {isLoading ? '🔄 Processando...' : '🔍 Buscar Dados'}
-                  </button>
-                </div>
-              </div>
-            </form>
-          </div>
-        )}
-      </div>
+      )}
     </div>
   )
 }
