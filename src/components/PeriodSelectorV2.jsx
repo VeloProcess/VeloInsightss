@@ -1,45 +1,32 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import './PeriodSelectorV2.css'
 
 const PeriodSelectorV2 = ({ 
   onPeriodChange, 
-  currentPeriod = 'currentMonth',
+  currentPeriod = null,
+  customStartDate = null,
+  customEndDate = null,
   disabled = false 
 }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
-  const [isPersonalizadoOpen, setIsPersonalizadoOpen] = useState(false)
   const [isDateRangeOpen, setIsDateRangeOpen] = useState(false)
-  const [selectedPeriod, setSelectedPeriod] = useState(null)
+  const [selectedPeriod, setSelectedPeriod] = useState(currentPeriod)
   
   // Estados para o range de datas
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
 
-  // Períodos principais
-  const mainPeriods = [
+  // Períodos disponíveis
+  const periods = [
     { value: 'previousDay', label: 'Dia anterior' },
     { value: 'currentMonth', label: 'Mês atual' },
     { value: 'last3Months', label: 'Últimos 3 meses' },
-    { value: 'personalizado', label: 'Personalizado', hasSubMenu: true }
-  ]
-
-  // Subperíodos dentro de "Personalizado"
-  const personalizadoSubPeriods = [
-    { value: 'customRange', label: 'Range personalizado', hasSubSubMenu: true },
-    { value: 'last7Days', label: '7 dias' },
-    { value: 'last15Days', label: '15 dias' },
-    { value: 'allRecords', label: 'Todos os registros' }
+    { value: 'customRange', label: 'Personalizado' }
   ]
 
 
   const handlePeriodSelect = (period) => {
-    // Se for "Personalizado", apenas abre o submenu
-    if (period === 'personalizado') {
-      setIsPersonalizadoOpen(!isPersonalizadoOpen)
-      return
-    }
-    
-    // Se for range personalizado, apenas abre o seletor
+    // Se for range personalizado, abre o seletor de datas
     if (period === 'customRange') {
       setIsDateRangeOpen(!isDateRangeOpen)
       return
@@ -47,22 +34,27 @@ const PeriodSelectorV2 = ({
     
     // Para outros períodos, seleciona normalmente
     setSelectedPeriod(period)
-    setIsPersonalizadoOpen(false)
     setIsDateRangeOpen(false)
     setIsDropdownOpen(false)
     if (onPeriodChange) {
       onPeriodChange(period)
     }
   }
+  
+  // Sincronizar selectedPeriod quando currentPeriod mudar
+  useEffect(() => {
+    setSelectedPeriod(currentPeriod)
+  }, [currentPeriod])
 
   const handleCustomRangeSubmit = () => {
     if (startDate && endDate) {
       setSelectedPeriod(`custom-range:${startDate}:${endDate}`)
-      setIsPersonalizadoOpen(false)
       setIsDateRangeOpen(false)
       setIsDropdownOpen(false)
       if (onPeriodChange) {
-        onPeriodChange({ type: 'customRange', startDate, endDate })
+        // Passar o objeto completo com as datas
+        const periodData = { type: 'customRange', customStartDate: startDate, customEndDate: endDate }
+        onPeriodChange(periodData)
       }
     }
   }
@@ -78,14 +70,13 @@ const PeriodSelectorV2 = ({
       return `${start} - ${end}`
     }
     
-    // Subperíodos de personalizado
-    const personalizadoPeriod = personalizadoSubPeriods.find(p => p.value === selectedPeriod)
-    if (personalizadoPeriod) {
-      return personalizadoPeriod.label
+    // Se for customRange mas está no formato de filtro (string)
+    if (selectedPeriod === 'customRange' && customStartDate && customEndDate) {
+      return `${customStartDate} - ${customEndDate}`
     }
     
-    // Períodos principais
-    return mainPeriods.find(p => p.value === selectedPeriod)?.label || 'Selecione um período'
+    // Períodos normais
+    return periods.find(p => p.value === selectedPeriod)?.label || 'Selecione um período'
   }
 
   return (
@@ -101,74 +92,56 @@ const PeriodSelectorV2 = ({
       
       {isDropdownOpen && (
       <div className="period-selector-options">
-        {mainPeriods.map(period => {
-          const isPersonalizado = period.value === 'personalizado'
+        {periods.map(period => {
+          const isCustomRange = period.value === 'customRange'
           
           return (
             <div key={period.value} className="period-option-container">
               <button
-                className={`period-option-main ${selectedPeriod === period.value && !isPersonalizado ? 'selected' : ''}`}
+                className={`period-option-main ${selectedPeriod === period.value && !isCustomRange ? 'selected' : ''}`}
                 onClick={() => handlePeriodSelect(period.value)}
                 disabled={disabled}
               >
                 {period.label}
-                {(isPersonalizado && isPersonalizadoOpen) && <span className="period-arrow">▼</span>}
-                {isPersonalizado && !isPersonalizadoOpen && <span className="period-arrow">▶</span>}
+                {isCustomRange && isDateRangeOpen && <span className="period-arrow">▼</span>}
+                {isCustomRange && !isDateRangeOpen && <span className="period-arrow">▶</span>}
               </button>
               
-              {/* Submenu de "Personalizado" */}
-              {isPersonalizado && isPersonalizadoOpen && (
-                <div className="period-submenu">
-                  {personalizadoSubPeriods.map(subPeriod => {
-                    const isCustomRange = subPeriod.value === 'customRange'
-                    
-                    return (
-                      <div key={subPeriod.value} className="period-suboption-container">
-                        <button
-                          className={`period-suboption ${selectedPeriod === subPeriod.value ? 'selected' : ''}`}
-                          onClick={() => handlePeriodSelect(subPeriod.value)}
-                          disabled={disabled}
-                        >
-                          {subPeriod.label}
-                          {isCustomRange && isDateRangeOpen && <span className="period-arrow">▼</span>}
-                          {isCustomRange && !isDateRangeOpen && <span className="period-arrow">▶</span>}
-                        </button>
-                        
-                        {/* Sub-submenu de "Range personalizado" */}
-                        {isCustomRange && isDateRangeOpen && (
-                          <div className="period-date-range">
-                            <div className="date-range-inputs">
-                              <label>
-                                Data inicial:
-                                <input 
-                                  type="date" 
-                                  value={startDate} 
-                                  onChange={(e) => setStartDate(e.target.value)}
-                                  className="date-input"
-                                />
-                              </label>
-                              <label>
-                                Data final:
-                                <input 
-                                  type="date" 
-                                  value={endDate} 
-                                  onChange={(e) => setEndDate(e.target.value)}
-                                  className="date-input"
-                                />
-                              </label>
-                              <button 
-                                className="date-range-submit"
-                                onClick={handleCustomRangeSubmit}
-                                disabled={!startDate || !endDate}
-                              >
-                                Aplicar
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
+              {/* Submenu de "Range personalizado" */}
+              {isCustomRange && isDateRangeOpen && (
+                <div className="period-date-range">
+                  <div className="date-range-inputs">
+                    <p style={{ fontSize: '12px', color: '#666', marginBottom: '8px', padding: '0 10px' }}>
+                      Selecione o período desejado (de ... até)
+                    </p>
+                    <label>
+                      📅 De:
+                      <input 
+                        type="date" 
+                        value={startDate} 
+                        onChange={(e) => setStartDate(e.target.value)}
+                        className="date-input"
+                        placeholder="Data inicial"
+                      />
+                    </label>
+                    <label>
+                      📅 Até:
+                      <input 
+                        type="date" 
+                        value={endDate} 
+                        onChange={(e) => setEndDate(e.target.value)}
+                        className="date-input"
+                        placeholder="Data final"
+                      />
+                    </label>
+                    <button 
+                      className="date-range-submit"
+                      onClick={handleCustomRangeSubmit}
+                      disabled={!startDate || !endDate}
+                    >
+                      ✓ Aplicar
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

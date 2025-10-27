@@ -6,7 +6,20 @@ const Header = ({ onToggleSidebar, sidebarOpen, theme, onToggleTheme, currentVie
     <>
       <header className="header">
         <div className="logo-section">
-          <div className="logo">VELOINSIGHTS</div>
+          <img 
+            src="/logo-veloinsights.png" 
+            alt="VeloInsights Logo" 
+            className="header-logo-img"
+            onError={(e) => {
+              e.target.style.display = 'none'
+              const fallback = e.target.nextSibling
+              if (fallback) fallback.style.display = 'flex'
+            }}
+          />
+          <div className="logo-fallback" style={{display: 'none'}}>
+            <span className="velo-text">Velo</span>
+            <span className="insights-text">Insights</span>
+          </div>
         </div>
 
         <div className="header-actions">

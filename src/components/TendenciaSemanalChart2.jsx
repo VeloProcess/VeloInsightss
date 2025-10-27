@@ -71,7 +71,6 @@ const calculateMetrics = (processedData) => {
 
 const TendenciaSemanalChart = ({ data = [], periodo = null }) => {
   const chartData = useMemo(() => {
-    
     const processedData = processDataByPeriod(data, periodo)
     
     // Calcular métricas para os cards
@@ -613,11 +612,11 @@ const processDataByPeriod = (data, periodo) => {
   let groupBy = 'month' // padrão: agrupar por mês quando não há período ou "Todos os registros"
   
   if (totalDays > 0 && totalDays <= 15) {
-    groupBy = 'day' // 7 e 15 dias = agrupar por dia
-  } else if (totalDays > 15 && totalDays <= 90) {
-    groupBy = 'week' // último mês e mês atual = agrupar por semana
-  } else if (totalDays > 90 || totalDays === 0) {
-    groupBy = 'month' // todos os registros (>90 dias ou totalDays === 0) = agrupar por mês
+    groupBy = 'day' // 15 dias ou menos = agrupar por dia
+  } else if (totalDays > 15 && totalDays <= 30) {
+    groupBy = 'week' // 15 a 30 dias = agrupar por semana
+  } else if (totalDays > 30 || totalDays === 0) {
+    groupBy = 'month' // 30+ dias = agrupar por mês
   }
   
   // Normalizar para comparar apenas a data (sem hora)
@@ -715,7 +714,7 @@ const processDataByGrouping = (data, groupBy, periodo = null, startDate = null, 
     
     processedCount++
     
-    const key = getGroupKey(date, groupBy)
+    const key = getGroupKey(date, groupBy, startDate, endDate)
     
     if (!groupedData[key]) {
       groupedData[key] = {
@@ -853,7 +852,7 @@ const parseBrazilianDate = (dateStr) => {
 }
 
 // Obter chave de agrupamento
-const getGroupKey = (date, groupBy) => {
+const getGroupKey = (date, groupBy, startDate = null, endDate = null) => {
   const year = date.getFullYear()
   const month = date.getMonth() + 1
   const day = date.getDate()
@@ -861,8 +860,17 @@ const getGroupKey = (date, groupBy) => {
   if (groupBy === 'day') {
     return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
   } else if (groupBy === 'week') {
-    const weekNum = getWeekNumber(date)
-    return `${year}-W${String(weekNum).padStart(2, '0')}`
+    // Se temos um período personalizado (startDate e endDate)
+    if (startDate && endDate && startDate instanceof Date && endDate instanceof Date) {
+      // Calcular semanas relativas ao início do período
+      const diffInDays = Math.floor((date - startDate) / (1000 * 60 * 60 * 24))
+      const weekNum = Math.floor(diffInDays / 7) + 1
+      return `W${weekNum}`
+    } else {
+      // Usar número da semana padrão do ano
+      const weekNum = getWeekNumber(date)
+      return `${year}-W${String(weekNum).padStart(2, '0')}`
+    }
   } else { // month
     return `${year}-${String(month).padStart(2, '0')}`
   }

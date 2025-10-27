@@ -119,21 +119,24 @@ const filterDataByPeriod = (data, selectedPeriod, offsetDays = 0) => {
       
       switch (selectedPeriod) {
         case 'last7Days':
-          // Usar o ano detectado nos dados
-          const sevenDaysAgo = new Date(dataYear, today.getMonth(), today.getDate() - 7)
-          shouldInclude = rowDateOnly >= sevenDaysAgo && rowDateOnly.getFullYear() === dataYear
+          // Calcular 6 dias atrás (7 dias = hoje + 6 anteriores)
+          const sevenDaysAgo = new Date(now.getTime() - (6 * 24 * 60 * 60 * 1000))
+          const sevenDaysAgoOnly = new Date(sevenDaysAgo.getFullYear(), sevenDaysAgo.getMonth(), sevenDaysAgo.getDate())
+          shouldInclude = rowDateOnly >= sevenDaysAgoOnly
           break
           
         case 'last15Days':
-          // Usar o ano detectado nos dados
-          const fifteenDaysAgo = new Date(dataYear, today.getMonth(), today.getDate() - 15)
-          shouldInclude = rowDateOnly >= fifteenDaysAgo && rowDateOnly.getFullYear() === dataYear
+          // Calcular 14 dias atrás (15 dias = hoje + 14 anteriores)
+          const fifteenDaysAgo = new Date(now.getTime() - (14 * 24 * 60 * 60 * 1000))
+          const fifteenDaysAgoOnly = new Date(fifteenDaysAgo.getFullYear(), fifteenDaysAgo.getMonth(), fifteenDaysAgo.getDate())
+          shouldInclude = rowDateOnly >= fifteenDaysAgoOnly
           break
           
         case 'last90Days':
-          // Usar o ano detectado nos dados
-          const ninetyDaysAgo = new Date(dataYear, today.getMonth(), today.getDate() - 90)
-          shouldInclude = rowDateOnly >= ninetyDaysAgo && rowDateOnly.getFullYear() === dataYear
+          // Calcular 89 dias atrás (90 dias = hoje + 89 anteriores)
+          const ninetyDaysAgo = new Date(now.getTime() - (89 * 24 * 60 * 60 * 1000))
+          const ninetyDaysAgoOnly = new Date(ninetyDaysAgo.getFullYear(), ninetyDaysAgo.getMonth(), ninetyDaysAgo.getDate())
+          shouldInclude = rowDateOnly >= ninetyDaysAgoOnly
           break
           
         case 'lastMonth':
@@ -154,6 +157,47 @@ const filterDataByPeriod = (data, selectedPeriod, offsetDays = 0) => {
           // Usar o ano detectado nos dados
           shouldInclude = rowDateOnly.getMonth() === today.getMonth() && 
                          rowDateOnly.getFullYear() === dataYear
+          break
+          
+        case 'lastMonth':
+          // Último mês completo
+          const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+          const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0)
+          shouldInclude = rowDateOnly >= lastMonthStart && rowDateOnly <= lastMonthEnd
+          break
+          
+        case 'penultimateMonth':
+          // Penúltimo mês completo
+          const penultMonthStart = new Date(now.getFullYear(), now.getMonth() - 2, 1)
+          const penultMonthEnd = new Date(now.getFullYear(), now.getMonth() - 1, 0)
+          shouldInclude = rowDateOnly >= penultMonthStart && rowDateOnly <= penultMonthEnd
+          break
+          
+        case 'ultimoMes':
+          // Último mês completo (português)
+          const ultimoMesStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+          const ultimoMesEnd = new Date(now.getFullYear(), now.getMonth(), 0)
+          shouldInclude = rowDateOnly >= ultimoMesStart && rowDateOnly <= ultimoMesEnd
+          break
+          
+        case 'penultimoMes':
+          // Penúltimo mês completo (português)
+          const penultimoMesStart = new Date(now.getFullYear(), now.getMonth() - 2, 1)
+          const penultimoMesEnd = new Date(now.getFullYear(), now.getMonth() - 1, 0)
+          shouldInclude = rowDateOnly >= penultimoMesStart && rowDateOnly <= penultimoMesEnd
+          break
+          
+        case 'last3Months':
+          // Últimos 3 meses
+          const threeMonthsAgo = new Date(now.getTime() - (90 * 24 * 60 * 60 * 1000))
+          shouldInclude = rowDateOnly >= threeMonthsAgo
+          break
+          
+        case 'previousDay':
+          // Ontem
+          const yesterday = new Date(now.getTime() - (24 * 60 * 60 * 1000))
+          const yesterdayOnly = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate())
+          shouldInclude = rowDateOnly >= yesterdayOnly && rowDateOnly <= yesterdayOnly
           break
           
         default:
@@ -335,19 +379,14 @@ export const useGoogleSheetsDirectSimple = () => {
       // Salvar no localStorage
       localStorage.setItem('veloinsights_user', JSON.stringify(userInfo))
       
-      // Debug removido para melhor performance
+      console.log('✅ Autenticação concluída com sucesso!')
       
-      // Buscar dados automaticamente após login
-      try {
-        // Debug removido para melhor performance
-        await fetchSheetData(tokenData.access_token)
-      } catch (error) {
-        console.error('❌ Erro ao carregar dados após login:', error)
-      }
+      return userInfo
       
     } catch (error) {
       console.error('❌ Erro ao trocar código por token:', error)
       setErrors(prev => [...prev, `❌ Erro de autenticação: ${error.message}`])
+      throw error
     } finally {
       setIsLoading(false)
     }
@@ -357,7 +396,7 @@ export const useGoogleSheetsDirectSimple = () => {
   useEffect(() => {
     if (!CLIENT_ID || CLIENT_ID === 'seu_client_id_aqui') return
 
-    // Verificar no query string
+    // Verificar no query string primeiro
     const urlParams = new URLSearchParams(window.location.search)
     const authCode = urlParams.get('code')
     const error = urlParams.get('error')
@@ -365,19 +404,33 @@ export const useGoogleSheetsDirectSimple = () => {
     if (error) {
       setErrors(prev => [...prev, `❌ Erro de autenticação: ${error}`])
       window.history.replaceState({}, document.title, window.location.pathname)
-    } else if (authCode) {
-      exchangeCodeForTokens(authCode)
-      window.history.replaceState({}, document.title, window.location.pathname)
+      return
+    } 
+    
+    if (authCode) {
+      // Processar código da URL imediatamente
+      exchangeCodeForTokens(authCode).then(() => {
+        // Limpar URL após processamento
+        window.history.replaceState({}, document.title, window.location.pathname)
+      }).catch(err => {
+        console.error('❌ Erro ao processar código:', err)
+        window.history.replaceState({}, document.title, window.location.pathname)
+      })
+      return
     }
 
-    // Verificar localStorage
+    // Verificar localStorage (o callback.html salva aqui)
     const storedAuthCode = localStorage.getItem('google_auth_code')
     const storedAuthError = localStorage.getItem('google_auth_error')
     
     if (storedAuthCode) {
-      // Debug removido para melhor performance
-      exchangeCodeForTokens(storedAuthCode)
-      localStorage.removeItem('google_auth_code')
+      console.log('🔑 Processando código salvo no localStorage...')
+      exchangeCodeForTokens(storedAuthCode).then(() => {
+        localStorage.removeItem('google_auth_code')
+      }).catch(err => {
+        console.error('❌ Erro ao processar código salvo:', err)
+        localStorage.removeItem('google_auth_code')
+      })
     }
     
     if (storedAuthError) {
@@ -550,9 +603,10 @@ export const useGoogleSheetsDirectSimple = () => {
         setFullDataset(result.values)
         
         // FILTRAGEM POR PERÍODO: aplicar filtro baseado no período selecionado
-        // Se não há período selecionado, usar período padrão (últimos 90 dias)
-        const periodToUse = selectedPeriod === 'all' ? 'last90Days' : selectedPeriod
-        const filteredData = filterDataByPeriod(result.values, periodToUse)
+        // Se for 'all', pegar todos os dados sem filtro
+        const filteredData = selectedPeriod === 'all' 
+          ? result.values 
+          : filterDataByPeriod(result.values, selectedPeriod)
         
         
         // Processamento assíncrono com progresso

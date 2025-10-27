@@ -32,7 +32,8 @@ function AppContent() {
   const [expandedOperator, setExpandedOperator] = useState(null) // Para controlar qual operador está expandido
   const [previousPeriodData, setPreviousPeriodData] = useState([]) // Dados do período anterior para comparação
   const [showPeriodModal, setShowPeriodModal] = useState(false) // Modal de período
-  const [currentPeriodLabel, setCurrentPeriodLabel] = useState('Selecionar') // Label do período atual
+  const [currentPeriodLabel, setCurrentPeriodLabel] = useState('Últimos 90 dias') // Label do período atual
+  const [loadingCancelled, setLoadingCancelled] = useState(false) // Estado para controlar cancelamento
   
   // Hook do sistema de cargos - apenas para cargo selecionado
   const { 
@@ -60,7 +61,7 @@ function AppContent() {
   
   // Estados para dados e outras configurações
   // Dark List removida - todos os operadores são contabilizados normalmente
-  const [filters, setFilters] = useState({ hideDesligados: false })
+  const [filters, setFilters] = useState({ hideDesligados: false, period: null, customStartDate: null, customEndDate: null }) // Sem filtro inicial
   const [filteredData, setFilteredData] = useState([])
   const [filteredMetrics, setFilteredMetrics] = useState(null)
   const [filteredOperatorMetrics, setFilteredOperatorMetrics] = useState(null)
@@ -121,11 +122,8 @@ function AppContent() {
   // Processar dados quando filtros mudam
   useEffect(() => {
     if (data && data.length > 0) {
-      // console.log('🔄 Aplicando filtros aos dados...', filters)
-      
       // Se não há filtros ativos, usar dados originais
       if (!filters.period) {
-        // console.log('🔍 Sem filtros ativos, usando dados originais')
         setFilteredData(data)
         setFilteredMetrics(metrics)
         setFilteredOperatorMetrics(operatorMetrics)
@@ -149,8 +147,6 @@ function AppContent() {
         setFilteredRankings(rankings)
         return
       }
-      
-      // console.log('🔍 Filtro ativo:', filters.period)
 
       // Encontrar a última data disponível nos dados
       const ultimaDataDisponivel = data.reduce((ultima, item) => {
@@ -180,27 +176,17 @@ function AppContent() {
 
       switch (filters.period) {
         case 'last7Days':
+          // 7 dias = hoje + 6 dias anteriores
           startDate = new Date(now.getTime() - (6 * 24 * 60 * 60 * 1000))
           startDate.setHours(0, 0, 0, 0)
           endDate = new Date(now)
           endDate.setHours(23, 59, 59, 999)
           break
         case 'last15Days':
+          // 15 dias = hoje + 14 dias anteriores
           startDate = new Date(now.getTime() - (14 * 24 * 60 * 60 * 1000))
           startDate.setHours(0, 0, 0, 0)
           endDate = new Date(now)
-          endDate.setHours(23, 59, 59, 999)
-          break
-        case 'ultimoMes':
-          startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-          startDate.setHours(0, 0, 0, 0)
-          endDate = new Date(now.getFullYear(), now.getMonth(), 0)
-          endDate.setHours(23, 59, 59, 999)
-          break
-        case 'penultimoMes':
-          startDate = new Date(now.getFullYear(), now.getMonth() - 2, 1)
-          startDate.setHours(0, 0, 0, 0)
-          endDate = new Date(now.getFullYear(), now.getMonth() - 1, 0)
           endDate.setHours(23, 59, 59, 999)
           break
         case 'currentMonth':
@@ -208,6 +194,60 @@ function AppContent() {
           startDate.setHours(0, 0, 0, 0)
           endDate = new Date(now)
           endDate.setHours(23, 59, 59, 999)
+          break
+        case 'previousDay':
+          const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+          startDate = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate(), 0, 0, 0, 0)
+          endDate = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate(), 23, 59, 59, 999)
+          break
+        case 'last3Months':
+          startDate = new Date(now.getTime() - (90 * 24 * 60 * 60 * 1000))
+          startDate.setHours(0, 0, 0, 0)
+          endDate = new Date(now)
+          endDate.setHours(23, 59, 59, 999)
+          break
+        case 'allRecords':
+          // Para todos os registros, não aplicar filtro de data
+          setFilteredData(data)
+          setFilteredMetrics(metrics)
+          setFilteredOperatorMetrics(operatorMetrics)
+          setFilteredRankings(rankings)
+          return
+        case 'customRange':
+          // Range personalizado - pegar datas dos filtros
+          if (filters.customStartDate && filters.customEndDate) {
+            // As datas vêm no formato YYYY-MM-DD do input type="date"
+            // Criar objetos Date temporários para verificar qual é maior
+            const [anoInicio, mesInicio, diaInicio] = filters.customStartDate.split('-')
+            const [anoFim, mesFim, diaFim] = filters.customEndDate.split('-')
+            
+            let tempStartDate = new Date(parseInt(anoInicio), parseInt(mesInicio) - 1, parseInt(diaInicio), 0, 0, 0, 0)
+            let tempEndDate = new Date(parseInt(anoFim), parseInt(mesFim) - 1, parseInt(diaFim), 23, 59, 59, 999)
+            
+            // Verificar se as datas estão invertidas
+            if (tempStartDate > tempEndDate) {
+              // Inverter as datas
+              startDate = tempEndDate
+              endDate = new Date(tempStartDate)
+              endDate.setHours(23, 59, 59, 999)
+            } else {
+              startDate = tempStartDate
+              endDate = tempEndDate
+            }
+          } else if (filters.startDate && filters.endDate) {
+            // Backup para outro formato
+            startDate = new Date(filters.startDate)
+            startDate.setHours(0, 0, 0, 0)
+            endDate = new Date(filters.endDate)
+            endDate.setHours(23, 59, 59, 999)
+          } else {
+            // Sem datas customizadas, usar data atual
+            setFilteredData(data)
+            setFilteredMetrics(metrics)
+            setFilteredOperatorMetrics(operatorMetrics)
+            setFilteredRankings(rankings)
+            return
+          }
           break
         case 'custom':
           if (filters.customStartDate && filters.customEndDate) {
@@ -575,10 +615,10 @@ function AppContent() {
     if (isAuthenticated && currentView === 'fetch') {
       // Debug removido para melhor performance
       setCurrentView('dashboard')
-      // Carregar dados automaticamente se não houver dados - período padrão: todos os registros
+      // Carregar TODOS os dados automaticamente (sem filtro no servidor)
       if (loadDataOnDemand && (!data || data.length === 0)) {
         // Debug removido para melhor performance
-        loadDataOnDemand('allRecords')
+        loadDataOnDemand('all')
       }
     }
   }, [isAuthenticated, currentView, loadDataOnDemand, data])
@@ -690,10 +730,27 @@ function AppContent() {
         )}
         
         <main className={`main-content ${sidebarOpen ? 'sidebar-open' : ''}`}>
-          {isLoading && (
+          {isLoading && !loadingCancelled && (
             <ProgressIndicator 
-              progress={{ current: 50, total: 100, message: 'Carregando dados...' }}
-              onCancel={() => {}}
+              progress={{ current: processingProgress || 0, total: 100, message: 'Carregando dados...' }}
+              onCancel={async () => {
+                // Cancelar o carregamento e voltar para login
+                setLoadingCancelled(true)
+                try {
+                  // Limpar dados e fazer logout
+                  if (signOut) {
+                    await signOut()
+                  }
+                  // Limpar localStorage
+                  localStorage.removeItem('veloinsights_user')
+                  // Voltar para a tela de login
+                  setCurrentView('fetch')
+                  setLoadingCancelled(false)
+                } catch (error) {
+                  console.error('Erro ao cancelar:', error)
+                  setLoadingCancelled(false)
+                }
+              }}
             />
           )}
 
@@ -840,12 +897,30 @@ function AppContent() {
                               endDate = new Date(now)
                               totalDays = 15
                               break
+                            case 'last90Days':
+                              startDate = new Date(now.getTime() - (89 * 24 * 60 * 60 * 1000))
+                              endDate = new Date(now)
+                              totalDays = 90
+                              break
+                            case 'last3Months':
+                              startDate = new Date(now.getTime() - (90 * 24 * 60 * 60 * 1000))
+                              endDate = new Date(now)
+                              totalDays = 90
+                              break
+                            case 'previousDay':
+                              const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+                              startDate = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate())
+                              endDate = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate())
+                              totalDays = 1
+                              break
                             case 'lastMonth':
+                            case 'ultimoMes':
                               startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1)
                               endDate = new Date(now.getFullYear(), now.getMonth(), 0)
                               totalDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1
                               break
                             case 'penultimateMonth':
+                            case 'penultimoMes':
                               startDate = new Date(now.getFullYear(), now.getMonth() - 2, 1)
                               endDate = new Date(now.getFullYear(), now.getMonth() - 1, 0)
                               totalDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1
@@ -1063,6 +1138,7 @@ function AppContent() {
           const periodLabels = {
             'last7Days': 'Últimos 7 dias',
             'last15Days': 'Últimos 15 dias',
+            'last90Days': 'Últimos 90 dias',
             'penultimoMes': 'Penúltimo mês',
             'ultimoMes': 'Último mês',
             'currentMonth': 'Mês atual',

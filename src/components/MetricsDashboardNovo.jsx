@@ -18,11 +18,36 @@ import PausasPreview from './PausasPreview'
 import PeriodSelectorV2 from './PeriodSelectorV2'
 import { usePausasData } from '../hooks/usePausasData'
 
-const MetricsDashboard = memo(({ metrics = {}, octaData = null, data = [], periodo = null, fullDataset = [] }) => {
+const MetricsDashboard = memo(({ metrics = {}, octaData = null, data = [], periodo = null, fullDataset = [], onFiltersChange = null, filters = null }) => {
   const [activeView, setActiveView] = useState('55pbx')
   
-  // Estado para período selecionado
-  const [selectedPeriod, setSelectedPeriod] = useState('last15Days')
+  // Função para lidar com mudança de período
+  const handlePeriodChange = (newPeriod) => {
+    if (onFiltersChange) {
+      // Se for customRange, passar as datas junto
+      if (typeof newPeriod === 'object' && newPeriod.type === 'customRange') {
+        const newFilters = { 
+          ...filters, 
+          period: 'customRange',
+          customStartDate: newPeriod.customStartDate,
+          customEndDate: newPeriod.customEndDate
+        }
+        onFiltersChange(newFilters)
+      } else {
+        // Para outros períodos, limpar as datas customizadas
+        const newFilters = { 
+          ...filters, 
+          period: newPeriod,
+          customStartDate: null,
+          customEndDate: null
+        }
+        onFiltersChange(newFilters)
+      }
+    }
+  }
+  
+  // Usar o período dos filtros do App.jsx
+  const selectedPeriod = filters?.period || null
   const [isAnaliseGeralModalOpen, setIsAnaliseGeralModalOpen] = useState(false)
   const [isCSATModalOpen, setIsCSATModalOpen] = useState(false)
   const [isVolumeURAModalOpen, setIsVolumeURAModalOpen] = useState(false)
@@ -44,7 +69,6 @@ const MetricsDashboard = memo(({ metrics = {}, octaData = null, data = [], perio
   
   // Verificar se há erro de permissão no octaData
   const hasOctaPermissionError = octaData?.error && octaData.error.includes('Acesso negado')
-  
   
 
   // Calcular objeto periodo baseado no selectedPeriod
@@ -103,6 +127,47 @@ const MetricsDashboard = memo(({ metrics = {}, octaData = null, data = [], perio
           endDate = new Date(now)
           totalDays = 15
           break
+        case 'last90Days':
+          startDate = new Date(now.getTime() - (89 * 24 * 60 * 60 * 1000))
+          endDate = new Date(now)
+          totalDays = 90
+          break
+        case 'customRange':
+          // Range personalizado - usar datas dos filtros
+          if (filters?.customStartDate && filters?.customEndDate) {
+            const [anoInicio, mesInicio, diaInicio] = filters.customStartDate.split('-')
+            const [anoFim, mesFim, diaFim] = filters.customEndDate.split('-')
+            
+            startDate = new Date(parseInt(anoInicio), parseInt(mesInicio) - 1, parseInt(diaInicio))
+            endDate = new Date(parseInt(anoFim), parseInt(mesFim) - 1, parseInt(diaFim))
+            totalDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1
+          } else {
+            // Sem datas, usar mês atual
+            startDate = new Date(now.getFullYear(), now.getMonth(), 1)
+            endDate = new Date(now)
+            totalDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1
+          }
+          break
+        case 'lastMonth':
+          startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+          endDate = new Date(now.getFullYear(), now.getMonth(), 0)
+          totalDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1
+          break
+        case 'penultimateMonth':
+          startDate = new Date(now.getFullYear(), now.getMonth() - 2, 1)
+          endDate = new Date(now.getFullYear(), now.getMonth() - 1, 0)
+          totalDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1
+          break
+        case 'ultimoMes':
+          startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+          endDate = new Date(now.getFullYear(), now.getMonth(), 0)
+          totalDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1
+          break
+        case 'penultimoMes':
+          startDate = new Date(now.getFullYear(), now.getMonth() - 2, 1)
+          endDate = new Date(now.getFullYear(), now.getMonth() - 1, 0)
+          totalDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1
+          break
         case 'allRecords':
           startDate = null
           endDate = null
@@ -116,7 +181,7 @@ const MetricsDashboard = memo(({ metrics = {}, octaData = null, data = [], perio
     }
     
     return { startDate, endDate, totalDays }
-  }, [selectedPeriod])
+  }, [selectedPeriod, filters])
 
   // Preparar dados para os gráficos - usar dados processados
   const chartData = useMemo(() => {
@@ -421,8 +486,10 @@ const MetricsDashboard = memo(({ metrics = {}, octaData = null, data = [], perio
       {/* Seletor de Período */}
       <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '10px 20px' }}>
         <PeriodSelectorV2 
-          onPeriodChange={setSelectedPeriod}
+          onPeriodChange={handlePeriodChange}
           currentPeriod={selectedPeriod}
+          customStartDate={filters?.customStartDate}
+          customEndDate={filters?.customEndDate}
         />
       </div>
 

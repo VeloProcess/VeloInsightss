@@ -1,3 +1,14 @@
+@keyframes pulseRed {
+  0%, 100% {
+    border-color: var(--brand-primary);
+    box-shadow: 0 2px 8px rgba(22, 52, 255, 0.15);
+  }
+  50% {
+    border-color: #dc2626;
+    box-shadow: 0 4px 16px rgba(220, 38, 38, 0.4);
+  }
+}
+
 /* ========================================
    HEADER STYLES
    ======================================== */
@@ -8,7 +19,7 @@
   left: 0;
   right: 0;
   height: 80px;
-  background: var(--color-bg-header);
+  background: transparent;
   color: var(--color-text-light);
   display: grid;
   grid-template-columns: auto 1fr auto;
@@ -16,7 +27,41 @@
   gap: 1.5rem;
   padding: 0 2rem;
   z-index: 1000;
-  box-shadow: 0 2px 20px var(--color-shadow);
+  box-shadow: none;
+}
+
+.logo-section {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.header-logo-img {
+  max-height: 40px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+.logo-fallback {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.velo-text {
+  color: #1634FF;
+}
+
+.insights-text {
+  color: #1694FF;
+}
+
+.logo {
+  display: none;
 }
 
 .header-left {
@@ -172,6 +217,11 @@
 
 .theme-dark .period-text {
   color: #FFFFFF;
+}
+
+/* Classe de erro - pulso vermelho */
+.period-selector-btn.pulse-red-error {
+  animation: pulseRed 0.6s ease-in-out 5;
 }
 
 /* ========================================
