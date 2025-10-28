@@ -56,7 +56,7 @@ const TMAChart = memo(({ data = [], periodo = null, groupBy = 'fila' }) => {
       }
       
     } catch (error) {
-      console.warn('Erro ao converter tempo:', timeString, error)
+      // Silenciar erros de parsing para evitar spam no console
     }
     return 0
   }
@@ -85,6 +85,37 @@ const TMAChart = memo(({ data = [], periodo = null, groupBy = 'fila' }) => {
     }
   }
 
+  // Função para parsear data brasileira
+  const parseBrazilianDate = (dateStr) => {
+    if (!dateStr) return null
+    
+    // Se tiver espaço, pega apenas a parte da data (ignora horário)
+    if (typeof dateStr === 'string' && dateStr.includes(' ')) {
+      dateStr = dateStr.split(' ')[0]
+    }
+    
+    // Tenta formato YYYY-MM-DD (ex: "2025-01-28")
+    const ymdPattern = /^(\d{4})-(\d{2})-(\d{2})$/
+    const ymdMatch = dateStr.match(ymdPattern)
+    if (ymdMatch) {
+      const year = parseInt(ymdMatch[1], 10)
+      const month = parseInt(ymdMatch[2], 10)
+      const day = parseInt(ymdMatch[3], 10)
+      return new Date(year, month - 1, day)
+    }
+    
+    // Tenta formato DD/MM/YYYY (ex: "28/01/2025")
+    const parts = dateStr.split('/')
+    if (parts.length === 3) {
+      const day = parseInt(parts[0], 10)
+      const month = parseInt(parts[1], 10)
+      const year = parseInt(parts[2], 10)
+      return new Date(year, month - 1, day)
+    }
+    
+    return null
+  }
+
   // Função para verificar se uma data está dentro do período
   const isDateInPeriod = (dateStr) => {
     if (!periodo || !periodo.startDate || !periodo.endDate) return true
@@ -103,7 +134,7 @@ const TMAChart = memo(({ data = [], periodo = null, groupBy = 'fila' }) => {
       
       return recordDate >= startDateNorm && recordDate <= endDateNorm
     } catch (error) {
-      console.warn('Erro ao verificar período:', dateStr, error)
+      // Silenciar erros de parsing para evitar spam no console
       return true
     }
   }
@@ -154,7 +185,7 @@ const TMAChart = memo(({ data = [], periodo = null, groupBy = 'fila' }) => {
     ]
 
     // Otimização: limitar processamento para evitar travamentos
-    const maxRecords = 150000
+    const maxRecords = 50000 // Reduzido de 150k para 50k
     const dataToProcess = data.length > maxRecords ? data.slice(0, maxRecords) : data
 
     const groupedData = {}
@@ -163,113 +194,92 @@ const TMAChart = memo(({ data = [], periodo = null, groupBy = 'fila' }) => {
     let totalCalls = 0
     let filasEncontradas = new Set()
 
-    // Processar dados linha por linha
+    // Processar dados linha por linha com otimizações
     dataToProcess.forEach((record, index) => {
       // Pular cabeçalho e linhas iniciais
       if (index < 14) return
+      
+      // Validação antecipada para evitar processamento desnecessário
+      if (!Array.isArray(record) || record.length <= 14) return
 
-      if (Array.isArray(record) && record.length > 14) {
-        let dateField, filaField, tempoField
+      let dateField, filaField, tempoField
+      
+      if (finalIsTicketData) {
+        // Validar se tem dados suficientes antes de processar
+        if (record.length <= 28) return
         
-        if (finalIsTicketData) {
-          // Para dados de tickets - usar estrutura diferente
-          dateField = record[28] // Coluna AC - Dia
-          filaField = record[1] // Coluna B - Assunto
-          tempoField = record[10] // Coluna K - Tempo de resolução
-        } else {
-          // Para dados de telefonia - estrutura original
-          dateField = record[3] // Coluna D - Data
-          filaField = record[10] // Coluna K - Fila/Produto
-          tempoField = record[14] // Coluna O - Tempo Total
-        }
+        // Para dados de tickets - usar estrutura diferente
+        dateField = record[28] // Coluna AC - Dia
+        filaField = record[1] // Coluna B - Assunto
+        tempoField = record[10] // Coluna K - Tempo de resolução
+      } else {
+        // Para dados de telefonia - estrutura original
+        dateField = record[3] // Coluna D - Data
+        filaField = record[10] // Coluna K - Fila/Produto
+        tempoField = record[14] // Coluna O - Tempo Total
+      }
 
-        // Verificar se está no período
-        if (dateField && !isDateInPeriod(dateField)) {
-          return
-        }
+      // Verificar se está no período (otimização: só se tem dateField)
+      if (dateField && !isDateInPeriod(dateField)) {
+        return
+      }
 
-        // Validar dados necessários - mais flexível para tickets
-        if (!filaField) return
-        
-        // Para tickets, tempo pode estar vazio - usar tempo padrão se necessário
-        let tempoValido = tempoField
-        if (!tempoValido && finalIsTicketData) {
-          tempoValido = '1 min(s)' // Tempo padrão para tickets sem tempo
-        }
-        
-        if (!tempoValido) return
+      // Validar dados necessários
+      if (!filaField) return
+      
+      // Para tickets, tempo pode estar vazio - usar tempo padrão se necessário
+      let tempoValido = tempoField
+      if (!tempoValido && finalIsTicketData) {
+        tempoValido = '1 min(s)' // Tempo padrão para tickets sem tempo
+      }
+      
+      if (!tempoValido) return
 
-        // Debug das primeiras linhas removido para otimização
-
-        const fila = String(filaField).trim()
-        
-        // Filtrar apenas filas específicas
-        const filaNormalizada = fila.toUpperCase()
-        const filaEncontrada = filasEspecificas.find(filaEspecifica => 
-          filaEspecifica.palavras.some(palavra => 
-            filaNormalizada.includes(palavra.toUpperCase()) ||
-            palavra.toUpperCase().includes(filaNormalizada)
-          )
+      const fila = String(filaField).trim()
+      
+      // Filtrar apenas filas específicas
+      const filaNormalizada = fila.toUpperCase()
+      const filaEncontrada = filasEspecificas.find(filaEspecifica => 
+        filaEspecifica.palavras.some(palavra => 
+          filaNormalizada.includes(palavra.toUpperCase()) ||
+          palavra.toUpperCase().includes(filaNormalizada)
         )
-        
-        if (!filaEncontrada) {
-          // Debug: mostrar filas que não foram encontradas
-          if (index < 20) {
-            console.log(`🔍 TMA Debug: Fila não encontrada: "${fila}" (normalizada: "${filaNormalizada}")`)
-          }
-          return // Pular se não for uma fila específica
-        }
-        
-        // Debug: mostrar filas encontradas
-        if (index < 20) {
-          console.log(`🔍 TMA Debug: Fila encontrada: "${fila}" -> "${filaEncontrada.nome}"`)
-        }
-        
-        filasEncontradas.add(filaEncontrada.nome)
-        
-        const tempoMinutos = parseTimeToMinutes(tempoValido)
+      )
+      
+      if (!filaEncontrada) {
+        return // Pular se não for uma fila específica
+      }
+      
+      filasEncontradas.add(filaEncontrada.nome)
+      
+      const tempoMinutos = parseTimeToMinutes(tempoValido)
 
-        // Debug: mostrar validação de tempo
-        if (index < 20) {
-          console.log(`🔍 TMA Debug: Validação de tempo - tempoValido: "${tempoValido}", tempoMinutos: ${tempoMinutos}`)
-        }
+      // Ignorar tempos zerados
+      if (tempoMinutos <= 0) {
+        return
+      }
 
-        // Ignorar tempos zerados
-        if (tempoMinutos <= 0) {
-          if (index < 20) {
-            console.log(`🔍 TMA Debug: Tempo zerado ignorado - tempoMinutos: ${tempoMinutos}`)
-          }
-          return
-        }
+      // Usar o nome padronizado da fila
+      const filaPadronizada = filaEncontrada.nome
 
-        // Usar o nome padronizado da fila
-        const filaPadronizada = filaEncontrada.nome
-
-        // Inicializar grupo se não existir
-        if (!groupedData[filaPadronizada]) {
-          groupedData[filaPadronizada] = {
-            totalTime: 0,
-            callCount: 0
-          }
-        }
-
-        // Acumular dados
-        groupedData[filaPadronizada].totalTime += tempoMinutos
-        groupedData[filaPadronizada].callCount += 1
-        totalTimeMinutes += tempoMinutos
-        totalCalls += 1
-        processedRecords++
-        
-        // Debug: mostrar quando dados são processados
-        if (index < 20) {
-          console.log(`🔍 TMA Debug: Dados processados - Fila: "${filaPadronizada}", Tempo: ${tempoMinutos}min, Total: ${totalCalls}`)
+      // Inicializar grupo se não existir
+      if (!groupedData[filaPadronizada]) {
+        groupedData[filaPadronizada] = {
+          totalTime: 0,
+          callCount: 0
         }
       }
+
+      // Acumular dados
+      groupedData[filaPadronizada].totalTime += tempoMinutos
+      groupedData[filaPadronizada].callCount += 1
+      totalTimeMinutes += tempoMinutos
+      totalCalls += 1
+      processedRecords++
     })
 
     // Se não encontrou dados com filtros específicos, tentar sem filtros
     if (totalCalls === 0) {
-      console.log('🔍 TMA Debug: Nenhum dado encontrado com filtros específicos, tentando sem filtros...')
       
       // Tentar processar sem filtros específicos
       dataToProcess.forEach((record, index) => {
@@ -325,18 +335,12 @@ const TMAChart = memo(({ data = [], periodo = null, groupBy = 'fila' }) => {
           totalTimeMinutes += tempoMinutos
           totalCalls += 1
           processedRecords++
-          
-          // Debug: mostrar quando dados são processados no fallback
-          if (index < 20) {
-            console.log(`🔍 TMA Debug Fallback: Dados processados - Fila: "${fila}", Tempo: ${tempoMinutos}min, Total: ${totalCalls}`)
-          }
         }
       })
     }
     
     // Se ainda não encontrou dados, tentar processamento mais agressivo
     if (totalCalls === 0) {
-      console.log('🔍 TMA Debug: Tentando processamento mais agressivo...')
       
       dataToProcess.forEach((record, index) => {
         if (index < 14) return
@@ -387,11 +391,6 @@ const TMAChart = memo(({ data = [], periodo = null, groupBy = 'fila' }) => {
               totalTimeMinutes += tempoMinutos
               totalCalls += 1
               processedRecords++
-              
-              // Debug: mostrar quando dados são processados no modo agressivo
-              if (index < 20) {
-                console.log(`🔍 TMA Debug Agressivo: Dados processados - Fila: "${fila}", Tempo: ${tempoMinutos}min, Total: ${totalCalls}`)
-              }
               break // Usar apenas a primeira combinação válida
             }
           }
@@ -399,21 +398,6 @@ const TMAChart = memo(({ data = [], periodo = null, groupBy = 'fila' }) => {
       })
     }
 
-    console.log('🔍 TMA Debug Resultado Final:', {
-      processedRecords,
-      totalCalls,
-      filasEncontradas: Array.from(filasEncontradas),
-      groupedDataKeys: Object.keys(groupedData),
-      groupedDataValues: Object.keys(groupedData).map(key => ({
-        fila: key,
-        totalTime: groupedData[key].totalTime,
-        callCount: groupedData[key].callCount,
-        tma: groupedData[key].totalTime / groupedData[key].callCount
-      })),
-      sampleGroupedData: Object.keys(groupedData).length > 0 ? groupedData[Object.keys(groupedData)[0]] : null,
-      isTicketData: finalIsTicketData,
-      dataLength: data.length
-    })
     // Calcular TMA por grupo e ordenar
     const tmaData = Object.entries(groupedData)
       .map(([fila, data]) => ({

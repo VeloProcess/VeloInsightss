@@ -46,6 +46,26 @@ const parseBrazilianDate = (dateStr) => {
   return new Date(dateStr)
 }
 
+// Função auxiliar para formatar label de mês (YYYY-MM para "MMM/YYYY")
+const formatMonthLabel = (key) => {
+  if (!key || typeof key !== 'string') return key
+  
+  // Formato esperado: YYYY-MM
+  const match = key.match(/^(\d{4})-(\d{2})$/)
+  if (!match) return key
+  
+  const year = match[1]
+  const month = parseInt(match[2], 10)
+  
+  // Array de meses em português
+  const months = [
+    'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun',
+    'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'
+  ]
+  
+  return `${months[month - 1]}/${year}`
+}
+
 const CSATChart = memo(({ data = [], periodo = null }) => {
   // Processar dados para gráfico de linhas
   const processedData = useMemo(() => {
@@ -125,29 +145,20 @@ const CSATChart = memo(({ data = [], periodo = null }) => {
         text: 'CSAT - Satisfação do Cliente',
       },
       datalabels: {
-        color: '#fff',
+        color: '#000', // Cor do texto preto (sem background)
         font: {
-          size: 26,
+          size: 25,
           weight: 'bold',
           family: 'Arial, sans-serif'
         },
-        backgroundColor: function(context) {
-          // Cor baseada na linha (azul para atendimento, verde para solução)
-          const datasetIndex = context.datasetIndex
-          if (datasetIndex === 0) {
-            return 'rgba(59, 130, 246, 0.9)' // Azul para Atendimento
-          } else if (datasetIndex === 1) {
-            return 'rgba(34, 197, 94, 0.9)' // Verde para Solução
-          }
-          return 'rgba(100, 100, 100, 0.9)' // Cinza padrão
-        },
-        borderColor: '#000',
-        borderWidth: 2,
-        borderRadius: 8,
-        padding: 8,
-        offset: -10, // Mover para cima
-        anchor: 'start', // Posicionar no início da linha
-        align: 'end', // Alinhar à direita (para ficar à esquerda do ponto)
+        backgroundColor: 'transparent', // Remover quadrados coloridos
+        borderColor: 'transparent', // Remover bordas
+        borderWidth: 0,
+        borderRadius: 0,
+        padding: 4,
+        offset: 0, // Mover para cima
+        anchor: 'end', // Posicionar na extremidade
+        align: 'start', // Alinhar à esquerda do ponto
         formatter: (value, context) => {
           if (hasTicketData) {
             return value > 0 ? `${value.toFixed(1)}%` : ''
@@ -162,7 +173,7 @@ const CSATChart = memo(({ data = [], periodo = null }) => {
           display: true,
           text: 'Período',
           font: {
-            size: 18,
+            size: 0,
             weight: 'bold',
             family: 'Arial, sans-serif'
           },
@@ -630,6 +641,9 @@ const processTMADataForLines = (data, periodo) => {
       
       if (!key) return
       
+      // Filtrar apenas 2025 - pular 2024
+      if (key.startsWith('2024')) return
+      
       if (!groupedData[key]) {
         groupedData[key] = {
           label: formatMonthLabel(key),
@@ -697,10 +711,10 @@ const processTMADataForLines = (data, periodo) => {
       backgroundColor: 'rgba(34, 197, 94, 0.1)',
       borderWidth: 4,
       fill: false,
-      tension: 0.4,
-      pointRadius: 14,
+      tension: 0.1,
+      pointRadius: 1,
       pointHoverRadius: 16,
-      pointBorderWidth: 6,
+      pointBorderWidth: 20,
       pointBackgroundColor: '#fff',
       pointBorderColor: 'rgb(34, 197, 94)'
     })

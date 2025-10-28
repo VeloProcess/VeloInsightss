@@ -127,27 +127,6 @@ const TendenciaSemanalChart = ({ data = [], periodo = null }) => {
         yAxisID: 'y'
       },
       {
-        label: 'Tickets Avaliados',
-        data: processedData.avaliados,
-        borderColor: amarelo,
-        backgroundColor: 'rgba(245, 158, 11, 0.15)',
-        borderWidth: 6, // Aumentado de 4 para 6
-        fill: true,
-        tension: 0.3,
-        pointRadius: 10, // Aumentado de 8 para 10
-        pointHoverRadius: 15, // Aumentado de 12 para 15
-        pointBackgroundColor: amarelo,
-        pointBorderColor: '#ffffff',
-        pointBorderWidth: 3,
-        pointHoverBorderWidth: 5,
-        pointHoverBackgroundColor: '#D97706',
-        shadowOffsetX: 2,
-        shadowOffsetY: 2,
-        shadowBlur: 6,
-        shadowColor: 'rgba(245, 158, 11, 0.3)',
-        yAxisID: 'y'
-      },
-      {
         label: 'Pesquisa(%)',
         data: performancePercent,
         borderColor: roxo,

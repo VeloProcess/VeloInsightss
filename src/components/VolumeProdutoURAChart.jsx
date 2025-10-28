@@ -1,10 +1,11 @@
-import React, { useMemo, useState, memo } from 'react'
-import { Bar } from 'react-chartjs-2'
+import React, { useMemo, memo } from 'react'
+import { Line } from 'react-chartjs-2'
 import {
   Chart as ChartJS,
   CategoryScale,
   LinearScale,
-  BarElement,
+  PointElement,
+  LineElement,
   Title,
   Tooltip,
   Legend,
@@ -16,222 +17,96 @@ import './VolumeProdutoURAChart.css'
 ChartJS.register(
   CategoryScale,
   LinearScale,
-  BarElement,
+  PointElement,
+  LineElement,
   Title,
   Tooltip,
   Legend,
   Filler
 )
 
-// Componente para mostrar distribuição de volume por fila da URA
-
 const VolumeProdutoURAChart = memo(({ data = [], periodo = null, isTicketsTab = false }) => {
-  // Só usar dados de tickets se explicitamente solicitado
   const shouldUseTicketsData = isTicketsTab
   
   const chartData = useMemo(() => {
     let processedData
     
     if (shouldUseTicketsData) {
-      // Para dados de tickets, processar dados de filas de tickets
       processedData = processTicketsDataForQueues(data, periodo)
     } else {
-      // Para dados normais de telefonia
       processedData = processVolumeProdutoRadar(data, periodo)
     }
     
-    // Gerar cores dinâmicas para cada produto
-    const colors = [
-      'rgba(59, 130, 246, 0.8)',   // Azul
-      'rgba(16, 185, 129, 0.8)',   // Verde
-      'rgba(245, 101, 101, 0.8)',  // Vermelho
-      'rgba(251, 191, 36, 0.8)',   // Amarelo
-      'rgba(139, 92, 246, 0.8)',   // Roxo
-      'rgba(236, 72, 153, 0.8)',   // Rosa
-      'rgba(34, 197, 94, 0.8)',    // Verde claro
-      'rgba(249, 115, 22, 0.8)',   // Laranja
-      'rgba(99, 102, 241, 0.8)',   // Índigo
-      'rgba(20, 184, 166, 0.8)',   // Ciano
-      'rgba(168, 85, 247, 0.8)',   // Violeta
-      'rgba(244, 63, 94, 0.8)',    // Rosa escuro
-      'rgba(14, 165, 233, 0.8)',   // Azul claro
-      'rgba(34, 197, 94, 0.8)',    // Verde
-      'rgba(251, 146, 60, 0.8)',   // Laranja claro
-      'rgba(147, 51, 234, 0.8)',   // Roxo escuro
-      'rgba(6, 182, 212, 0.8)',    // Ciano claro
-      'rgba(251, 113, 133, 0.8)'    // Rosa claro
-    ]
-    
-    // Garantir que processedData seja válido
-    if (!processedData || !processedData.labels || !processedData.values) {
+    if (!processedData || !processedData.labels) {
       processedData = {
         labels: ['Sem dados'],
-        values: [0]
+        datasets: [{ label: 'Sem dados', data: [0] }]
       }
     }
     
-    return {
-      labels: processedData.labels,
-      datasets: [
-        {
-          label: 'Distribuição por Fila (%)',
-          data: processedData.values,
-          backgroundColor: processedData.labels.map((_, index) => colors[index % colors.length]),
-          borderColor: processedData.labels.map((_, index) => colors[index % colors.length].replace('0.8', '1')),
-          borderWidth: 2,
-          hoverBackgroundColor: processedData.labels.map((_, index) => colors[index % colors.length].replace('0.8', '0.9')),
-          hoverBorderColor: processedData.labels.map((_, index) => colors[index % colors.length].replace('0.8', '1')),
-          hoverBorderWidth: 3
-        }
-      ]
+    if (processedData.datasets) {
+      return processedData
     }
+    
+    return processedData
   }, [data, periodo, isTicketsTab])
 
-  // Aplicar tamanho grande para aba Tickets
-  const shouldUseLargeSize = isTicketsTab
-
-  const options = useMemo(() => ({
+  // Processar dados para tabela (ordenado do maior para o menor)
+  const tableData = useMemo(() => {
+    if (!chartData.datasets || !chartData.labels) return []
+    
+    const rows = chartData.datasets.map((dataset, idx) => {
+      const total = dataset.data.reduce((sum, val) => sum + (Number(val) || 0), 0)
+      
+      return {
+        product: dataset.label,
+        values: dataset.data,
+        total: total,
+        color: dataset.backgroundColor,
+        sparklineData: dataset.data
+      }
+    })
+    
+    // Ordenar do maior para o menor (por total)
+    return rows.sort((a, b) => b.total - a.total)
+  }, [chartData])
+  
+  // Calcular valor máximo para heatmap
+  const maxValue = useMemo(() => {
+    if (tableData.length === 0) return 1
+    return Math.max(...tableData.map(row => Math.max(...row.values)))
+  }, [tableData])
+  
+  // Função para calcular cor do heatmap
+  const getHeatColor = (value) => {
+    if (value === 0) return '#f9fafb'
+    const intensity = value / maxValue
+    if (intensity < 0.2) return '#dbeafe'
+    if (intensity < 0.4) return '#93c5fd'
+    if (intensity < 0.7) return '#60a5fa'
+    return '#3b82f6'
+  }
+  
+  // Opções para sparklines (mini gráficos de linha)
+  const sparklineOptions = {
     responsive: true,
     maintainAspectRatio: false,
-    aspectRatio: 0.8, // Valor menor para renderizar corretamente
-    indexAxis: 'y',
-    layout: {
-      padding: {
-        top: 10,
-        bottom: 10,
-        left: 10,
-        right: 10
-      }
+    plugins: {
+      legend: { display: false },
+      tooltip: { enabled: false }
     },
     scales: {
-      x: {
-        beginAtZero: true,
-        grid: {
-          color: 'rgba(0, 0, 0, 0.1)',
-          drawBorder: false
-        },
-        ticks: {
-          font: {
-            size: shouldUseLargeSize ? 14 : 12,
-            family: "'Inter', sans-serif",
-            weight: '600'
-          },
-          color: '#1f2937',
-          callback: function(value) {
-            return value + '%'
-          }
-        }
-      },
-      y: {
-        beginAtZero: true,
-        grid: {
-          display: false
-        },
-        ticks: {
-          font: {
-            size: shouldUseLargeSize ? 14 : 12,
-            family: "'Inter', sans-serif",
-            weight: '600'
-          },
-          color: '#1f2937',
-          maxRotation: 0,
-          minRotation: 0,
-          callback: function(value, index) {
-            const queueName = chartData.labels[index]
-            return queueName
-          }
-        }
-      }
+      x: { display: false, grid: { display: false } },
+      y: { display: false, grid: { display: false } }
     },
-    plugins: {
-      legend: {
-        display: true,
-        position: 'top',
-        labels: {
-          font: {
-            size: shouldUseLargeSize ? 16 : 14,
-            family: "'Inter', sans-serif",
-            weight: '700'
-          },
-          padding: shouldUseLargeSize ? 20 : 15,
-          usePointStyle: true,
-          pointStyle: 'rect',
-          boxWidth: shouldUseLargeSize ? 16 : 12,
-          boxHeight: shouldUseLargeSize ? 16 : 12,
-          color: '#1f2937',
-          generateLabels: function(chart) {
-            const data = chart.data;
-            if (data.labels.length && data.datasets.length) {
-              return data.labels.map((label, index) => {
-                const value = data.datasets[0].data[index];
-                return {
-                  text: `${label} (${value}%)`,
-                  fillStyle: data.datasets[0].backgroundColor[index],
-                  strokeStyle: data.datasets[0].borderColor[index],
-                  lineWidth: data.datasets[0].borderWidth,
-                  pointStyle: 'rect',
-                  hidden: false,
-                  index: index
-                };
-              });
-            }
-            return [];
-          }
-        }
-      },
-      tooltip: {
-        backgroundColor: 'rgba(17, 24, 39, 0.95)',
-        titleColor: '#fff',
-        bodyColor: '#fff',
-        padding: 16,
-        cornerRadius: 12,
-        titleFont: {
-          size: 14,
-          family: "'Inter', sans-serif",
-          weight: '700'
-        },
-        bodyFont: {
-          size: 13,
-          family: "'Inter', sans-serif",
-          weight: '500'
-        },
-        displayColors: true,
-        boxWidth: 12,
-        boxHeight: 12,
-        boxPadding: 6,
-        borderColor: 'rgba(255, 255, 255, 0.1)',
-        borderWidth: 1,
-        callbacks: {
-          title: function(context) {
-            return `📊 ${context[0].label}`
-          },
-          label: function(context) {
-            const fila = context.label
-            const percentual = context.parsed
-            
-            return [
-              `📋 ${fila} - ${percentual}%`
-            ]
-          },
-          afterBody: function(context) {
-            return `\n📊 Distribuição por filas da URA`
-          },
-          labelTextColor: function(context) {
-            return '#ffffff'
-          }
-        }
-      }
-    }
-  }), [chartData, shouldUseLargeSize])
-
-  // Debug logs
-  // Debug removido para otimização
-
-  // Debug removido para otimização
-
-  // Verificar se há dados válidos para renderizar
-  if (!chartData || !chartData.labels || chartData.labels.length === 0) {
-    // Debug removido para otimização
+    elements: {
+      point: { radius: 0 },
+      line: { borderWidth: 2, tension: 0.3 }
+    },
+    layout: { padding: 0 }
+  }
+  
+  if (!chartData || !chartData.labels || chartData.labels.length === 0 || tableData.length === 0) {
     return (
       <div style={{ 
         width: '100%', 
@@ -254,7 +129,6 @@ const VolumeProdutoURAChart = memo(({ data = [], periodo = null, isTicketsTab = 
 
   return (
     <div className="volume-chart-container">
-      {/* Header - só mostrar se não for aba de tickets */}
       {!shouldUseTicketsData && (
         <div className="volume-chart-header">
           <h3 className="volume-chart-title">Volume por Produto URA</h3>
@@ -264,307 +138,218 @@ const VolumeProdutoURAChart = memo(({ data = [], periodo = null, isTicketsTab = 
         </div>
       )}
 
-      {/* Gráfico */}
-      <div className="volume-chart-wrapper">
-        {chartData && chartData.labels && chartData.labels.length > 0 ? 
-          <Bar data={chartData} options={options} /> : 
-          <div style={{ padding: '20px', textAlign: 'center', color: '#666' }}>
-            Sem dados para exibir
-          </div>
-        }
+      <div className="volume-table-container">
+        <table className="volume-table">
+          <thead>
+            <tr>
+              <th>Produto/Fila</th>
+              {chartData.labels.map(month => <th key={month}>{month}</th>)}
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {tableData.map((row, rowIdx) => (
+              <tr key={row.product}>
+                <td className="product-cell">
+                  <div className="product-indicator" style={{ background: row.color }} />
+                  {row.product}
+                </td>
+                {row.values.map((value, idx) => (
+                  <td key={idx} style={{ background: getHeatColor(value) }}>
+                    {value.toLocaleString('pt-BR')}
+                  </td>
+                ))}
+                <td className="total-cell">
+                  {row.total.toLocaleString('pt-BR')}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   )
 })
 
-// Processar dados para gráfico de radar (filas da coluna K)
+VolumeProdutoURAChart.displayName = 'VolumeProdutoURAChart'
+
+// Processar dados para gráfico de radar
+const processVolumeProdutoRadar = (data, periodo) => {
+  if (!data || data.length === 0) return { labels: ['Sem dados'], datasets: [{ label: 'Sem dados', data: [0] }] }
+  
+  const filas = [
+    { nome: 'IRPF', palavras: ['IRPF', 'IMPOSTO'] },
+    { nome: 'CALCULADORA', palavras: ['CALCULADORA', 'CALCULO'] },
+    { nome: 'ANTECIPAÇÃO DA RESTITUIÇÃO', palavras: ['ANTECIPAÇÃO', 'RESTITUICAO'] },
+    { nome: 'OFF', palavras: ['OFF', 'FORA'] },
+    { nome: 'EMPRÉSTIMO PESSOAL', palavras: ['EMPRESTIMO', 'EMPRÉSTIMO', 'LOAN'] },
+    { nome: 'TABULAÇÃO PENDENTE', palavras: ['TABULAÇÃO', 'TABULACAO'] },
+    { nome: 'PIX', palavras: ['PIX'] }
+  ]
+  
+  const counts = {}
+  
+  data.forEach(row => {
+    const assunto = String(row.K || '').toUpperCase()
+    const filaEncontrada = filas.find(fila => 
+      fila.palavras.some(palavra => assunto.includes(palavra))
+    )
+    
+    if (filaEncontrada) {
+      counts[filaEncontrada.nome] = (counts[filaEncontrada.nome] || 0) + 1
+    }
+  })
+  
+  return {
+    labels: filas.map(f => f.nome),
+    datasets: [{
+      label: 'Volume',
+      data: filas.map(f => counts[f.nome] || 0),
+      backgroundColor: filas.map((_, idx) => [
+        'rgba(59, 130, 246, 0.8)',
+        'rgba(16, 185, 129, 0.8)',
+        'rgba(245, 101, 101, 0.8)',
+        'rgba(251, 191, 36, 0.8)',
+        'rgba(139, 92, 246, 0.8)',
+        'rgba(236, 72, 153, 0.8)',
+        'rgba(34, 197, 94, 0.8)'
+      ][idx]),
+      borderColor: 'rgba(255, 255, 255, 0.5)',
+      borderWidth: 1
+    }]
+  }
+}
+
 // Função para processar dados de tickets da aba Tickets
 const processTicketsDataForQueues = (data, periodo) => {
   if (!data || data.length === 0) {
     return {
       labels: ['Sem dados'],
-      values: [0]
+      datasets: [{ label: 'Sem dados', data: [0] }]
     }
   }
 
-  // Filas específicas que queremos mostrar (com variações)
+  const parseBrazilianDate = (dateStr) => {
+    if (!dateStr) return null
+    
+    // Se tiver espaço, pega apenas a parte da data (ignora horário)
+    if (typeof dateStr === 'string' && dateStr.includes(' ')) {
+      dateStr = dateStr.split(' ')[0]
+    }
+    
+    // Tenta formato YYYY-MM-DD (ex: "2025-01-28")
+    const ymdPattern = /^(\d{4})-(\d{2})-(\d{2})$/
+    const ymdMatch = dateStr.match(ymdPattern)
+    if (ymdMatch) {
+      const year = parseInt(ymdMatch[1], 10)
+      const month = parseInt(ymdMatch[2], 10)
+      const day = parseInt(ymdMatch[3], 10)
+      return new Date(year, month - 1, day)
+    }
+    
+    // Tenta formato DD/MM/YYYY (ex: "28/01/2025")
+    const parts = dateStr.split('/')
+    if (parts.length === 3) {
+      const day = parseInt(parts[0], 10)
+      const month = parseInt(parts[1], 10)
+      const year = parseInt(parts[2], 10)
+      return new Date(year, month - 1, day)
+    }
+    
+    return null
+  }
+
+  const formatMonthLabel = (monthKey) => {
+    const [year, month] = monthKey.split('-')
+    const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
+    return `${months[parseInt(month) - 1]}/${year}`
+  }
+
   const filasEspecificas = [
-    { nome: 'IRPF', palavras: ['IRPF', 'IMPOSTO DE RENDA'] },
-    { nome: 'CALCULADORA', palavras: ['CALCULADORA', 'CALCULO', 'CÁLCULO'] },
-    { nome: 'ANTECIPAÇÃO DA RESTITUIÇÃO', palavras: ['ANTECIPAÇÃO', 'RESTITUIÇÃO', 'ANTECIPACAO'] },
-    { nome: 'OFF', palavras: ['OFF', 'OFFLINE'] },
-    { nome: 'EMPRÉSTIMO PESSOAL', palavras: ['EMPRÉSTIMO', 'EMPRESTIMO', 'PESSOAL', 'CRÉDITO'] },
-    { nome: 'TABULAÇÃO PENDENTE', palavras: ['TABULAÇÃO', 'TABULACAO', 'PENDENTE'] },
-    { nome: 'PIX', palavras: ['PIX', 'TRANSFERÊNCIA', 'TRANSFERENCIA', 'RECEBIMENTO'] }
+    { nome: 'IRPF', palavras: ['IRPF', 'IMPOSTO', 'RENDA', 'DECLARAÇÃO', 'RESTITUIÇÃO', 'RECEITA', 'FEDERAL', 'APURAÇÃO', 'IMPOSTO DE RENDA', 'INSS', 'FGTS', 'CONTRIBUINTE', 'FISCAL', 'FINANCEIRO', 'DARF', 'DARFS', 'RECOLHIMENTO', 'RECOLLHIMENTO', 'RECOLHIMENTOS', 'RECOLLHIMENTOS'] },
+    { nome: 'CALCULADORA', palavras: ['CALCULADORA', 'CALCULO'] },
+    { nome: 'ANTECIPAÇÃO DA RESTITUIÇÃO', palavras: ['ANTECIPAÇÃO', 'RESTITUICAO'] },
+    { nome: 'OFF', palavras: ['OFF'] },
+    { nome: 'EMPRÉSTIMO PESSOAL', palavras: ['EMPRESTIMO', 'EMPRÉSTIMO', 'LOAN', 'EMPRE'] },
+    { nome: 'TABULAÇÃO PENDENTE', palavras: ['TABULAÇÃO', 'TABULACAO', 'TABUL'] },
+    { nome: 'PIX', palavras: ['PIX'] }
   ]
 
-  // Função para verificar se uma data está dentro do período selecionado
-  const isDateInPeriod = (rowIndex) => {
-    if (!periodo || !periodo.startDate || !periodo.endDate) return true
-    
-    try {
-      const row = data[rowIndex + 14] // Ajustar para o índice real
-      if (!row || !row[0]) return true
-      
-      const rowDate = parseBrazilianDate(row[0])
-      if (!rowDate || isNaN(rowDate.getTime())) return true
-      
-      const startDate = new Date(periodo.startDate)
-      const endDate = new Date(periodo.endDate)
-      
-      // Normalizar para comparar apenas a data (sem hora)
-      const recordDate = new Date(rowDate.getFullYear(), rowDate.getMonth(), rowDate.getDate())
-      const startDateNorm = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate())
-      const endDateNorm = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate())
-      
-      return recordDate >= startDateNorm && recordDate <= endDateNorm
-    } catch (error) {
-      return true
-    }
-  }
-
-  // Para tickets, processar dados da coluna de fila/assunto
-  const maxRows = 150000
-  const dataToProcess = data.length > maxRows ? data.slice(0, maxRows) : data
+  const groupedByMonth = {}
+  const months = new Set()
   
-  const filaCounts = {}
-  let processedRows = 0
-  
-  // Processar dados a partir da linha 15 (índice 14)
-  dataToProcess.slice(14).forEach((row, index) => {
-    // Para tickets, usar APENAS coluna B (Assunto do ticket)
-    let assunto = null
-    
-    // APENAS coluna B (índice 1) - Assunto do ticket
-    if (row[1] !== undefined && row[1] !== null && row[1] !== '') {
-      assunto = String(row[1]).trim()
+  data.forEach((row, idx) => {
+    if (!row || !Array.isArray(row)) {
+      return
     }
     
-    if (assunto && assunto !== '0' && assunto !== '' && assunto !== 'null' && assunto !== 'undefined') {
-      // Verificar se está no período
-      if (isDateInPeriod(index)) {
-        // Normalizar o assunto para comparação
-        const assuntoNormalizado = assunto.toUpperCase()
-        
-        // Verificar se o assunto corresponde a alguma das filas específicas
-        const filaEncontrada = filasEspecificas.find(filaEspecifica => 
-          filaEspecifica.palavras.some(palavra => 
-            assuntoNormalizado.includes(palavra.toUpperCase())
-          )
-        )
-        
-        if (filaEncontrada) {
-          // Usar o nome padronizado da fila específica
-          filaCounts[filaEncontrada.nome] = (filaCounts[filaEncontrada.nome] || 0) + 1
-          processedRows++
-        }
-      }
+    if (row.length < 29) {
+      return
+    }
+    
+    const assunto = String(row[1] || '').toUpperCase().trim() // Coluna B = Assunto do ticket
+    const dataEntrada = row[28] // Date at index 28 = "01/01/2025 00:00:00"
+    
+    if (!assunto || !dataEntrada) return
+    
+    const dateObj = parseBrazilianDate(dataEntrada)
+    if (!dateObj) return
+    
+    const monthKey = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}`
+    months.add(monthKey)
+    
+    if (!groupedByMonth[monthKey]) {
+      groupedByMonth[monthKey] = {}
+      filasEspecificas.forEach(fila => {
+        groupedByMonth[monthKey][fila.nome] = 0
+      })
+    }
+    
+    const filaEncontrada = filasEspecificas.find(filaEspecifica => 
+      filaEspecifica.palavras.some(palavra => 
+        assunto.includes(palavra.toUpperCase())
+      )
+    )
+    
+    if (filaEncontrada) {
+      groupedByMonth[monthKey][filaEncontrada.nome] = (groupedByMonth[monthKey][filaEncontrada.nome] || 0) + 1
     }
   })
 
-  // Garantir que todas as filas específicas apareçam, mesmo com 0
-  filasEspecificas.forEach(fila => {
-    if (!filaCounts[fila.nome]) {
-      filaCounts[fila.nome] = 0
-    }
-  })
-
-  // Converter para arrays ordenados (manter ordem das filas específicas)
-  const filasOrdenadas = filasEspecificas.map(fila => fila.nome).filter(fila => filaCounts[fila] > 0)
-  const total = filasOrdenadas.reduce((sum, fila) => sum + filaCounts[fila], 0)
-
-  if (total === 0) {
+  if (Object.keys(groupedByMonth).length === 0) {
     return {
       labels: ['Sem dados'],
-      values: [0]
+      datasets: [{ label: 'Sem dados', data: [0] }]
     }
   }
-
-  return {
-    labels: filasOrdenadas,
-    values: filasOrdenadas.map(fila => {
-      const count = filaCounts[fila]
-      return total > 0 ? ((count / total) * 100).toFixed(1) : 0
-    })
-  }
-}
-
-const processTicketsData = (processedData) => {
-  const { queueCounts, totalTickets } = processedData
   
-  if (totalTickets === 0) {
+  const sortedMonths = Array.from(months).sort()
+  const labels = sortedMonths.map(monthKey => formatMonthLabel(monthKey))
+  
+  const colors = [
+    'rgba(59, 130, 246, 0.8)',
+    'rgba(16, 185, 129, 0.8)',
+    'rgba(245, 101, 101, 0.8)',
+    'rgba(251, 191, 36, 0.8)',
+    'rgba(139, 92, 246, 0.8)',
+    'rgba(236, 72, 153, 0.8)',
+    'rgba(34, 197, 94, 0.8)',
+  ]
+  
+  const datasets = filasEspecificas.map((fila, index) => ({
+    label: fila.nome,
+    data: sortedMonths.map(monthKey => groupedByMonth[monthKey]?.[fila.nome] || 0),
+    backgroundColor: colors[index % colors.length],
+    borderColor: colors[index % colors.length].replace('0.8', '1'),
+    borderWidth: 1,
+    borderRadius: 4,
+    maxBarThickness: 40,
+    barThickness: 'flex'
+  }))
+  
     return {
-      labels: ['Sem dados'],
-      values: [0]
-    }
-  }
-  
-  // Ordenar filas por volume (maior para menor)
-  const filasOrdenadas = Object.keys(queueCounts).sort((a, b) => queueCounts[b] - queueCounts[a])
-  
-  // Calcular total para porcentagens
-  const total = filasOrdenadas.reduce((sum, fila) => sum + queueCounts[fila], 0)
-  
-  const result = {
-    labels: filasOrdenadas,
-    values: filasOrdenadas.map(fila => {
-      const count = queueCounts[fila]
-      return total > 0 ? ((count / total) * 100).toFixed(1) : 0
-    })
-  }
-  
-  return result
-}
-
-const processVolumeProdutoRadar = (data, periodo) => {
-  if (!data || data.length === 0) {
-    // Debug removido para otimização
-    return {
-      labels: ['Sem dados'],
-      values: [0]
-    }
-  }
-
-  // Função para verificar se uma data está dentro do período selecionado
-  const isDateInPeriod = (rowIndex) => {
-    if (!periodo || !periodo.startDate || !periodo.endDate) return true
-    
-    try {
-      const row = data[rowIndex + 14]
-      if (!row || !row[0]) return true
-      
-      const rowDate = parseBrazilianDate(row[0])
-      if (!rowDate || isNaN(rowDate.getTime())) return true
-      
-      const startDate = new Date(periodo.startDate)
-      const endDate = new Date(periodo.endDate)
-      
-      // Normalizar para comparar apenas a data (sem hora)
-      const recordDate = new Date(rowDate.getFullYear(), rowDate.getMonth(), rowDate.getDate())
-      const startDateNorm = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate())
-      const endDateNorm = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate())
-      
-      return recordDate >= startDateNorm && recordDate <= endDateNorm
-    } catch (error) {
-      return true
-    }
-  }
-
-  // Mapear filas da coluna K
-  // Processar até 150k linhas para encontrar todas as filas
-  const maxRows = 150000
-  const dataToProcess = data.length > maxRows ? data.slice(0, maxRows) : data
-  
-  const filaCounts = {}
-  let processedRows = 0
-  
-  
-  // Processar dados a partir da linha 15 (índice 14) para evitar cabeçalhos
-  dataToProcess.slice(14).forEach((row, index) => {
-    if (Array.isArray(row) && row[10] !== undefined && row[10] !== null && row[10] !== '') {
-      const fila = String(row[10]).trim() // Coluna K = índice 10
-      
-      if (fila && fila !== '0' && fila !== '' && fila !== 'null' && fila !== 'undefined') {
-        // Desconsiderar apenas "Cobrança" (com ç), não "Cobranca"
-        if (fila.toLowerCase().includes('cobrança')) {
-          return
-        }
-        
-        // Verificar se a data está dentro do período selecionado
-        if (!isDateInPeriod(index)) {
-          return
-        }
-        
-        processedRows++
-        
-        // Normalizar o nome da fila - remover números no início e hífens
-        const filaNormalizada = fila.trim().replace(/^\d+\s*/, '').replace(/^-+\s*/, '').trim()
-        
-        filaCounts[filaNormalizada] = (filaCounts[filaNormalizada] || 0) + 1
-        
-        // Debug removido para otimização
-      }
-    }
-  })
-  
-  // Filtrar filas que não têm dados no período selecionado
-  const filasComDados = Object.keys(filaCounts).filter(fila => filaCounts[fila] > 0)
-  
-  // Ordenar filas por volume (maior para menor)
-  const filasOrdenadas = filasComDados.sort((a, b) => filaCounts[b] - filaCounts[a])
-
-  if (filasOrdenadas.length === 0) {
-    // Debug removido para otimização
-    return {
-      labels: ['Sem dados'],
-      values: [0]
-    }
-  }
-  
-  // Calcular total para porcentagens
-  const total = filasOrdenadas.reduce((sum, fila) => sum + filaCounts[fila], 0)
-  
-  const result = {
-    labels: filasOrdenadas,
-    values: filasOrdenadas.map(fila => {
-      const count = filaCounts[fila]
-      return total > 0 ? ((count / total) * 100).toFixed(1) : 0
-    })
-  }
-  
-  return result
-}
-
-// Funções auxiliares
-const parseBrazilianDate = (dateStr) => {
-  if (!dateStr) return null
-  if (dateStr instanceof Date) return dateStr
-  
-  const parts = dateStr.split('/')
-  if (parts.length === 3) {
-    const day = parseInt(parts[0])
-    const month = parseInt(parts[1]) - 1
-    const year = parseInt(parts[2])
-    return new Date(year, month, day)
-  }
-  
-  return new Date(dateStr)
-}
-
-const getGroupKey = (date, groupBy) => {
-  const year = date.getFullYear()
-  const month = date.getMonth() + 1
-  const day = date.getDate()
-  
-  if (groupBy === 'day') {
-    return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-  } else if (groupBy === 'week') {
-    const weekNum = getWeekNumber(date)
-    return `${year}-W${String(weekNum).padStart(2, '0')}`
-  } else {
-    return `${year}-${String(month).padStart(2, '0')}`
-  }
-}
-
-const getWeekNumber = (date) => {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
-  const dayNum = d.getUTCDay() || 7
-  d.setUTCDate(d.getUTCDate() + 4 - dayNum)
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
-  return Math.ceil((((d - yearStart) / 86400000) + 1) / 7)
-}
-
-const formatLabel = (key, groupBy) => {
-  if (groupBy === 'day') {
-    const parts = key.split('-')
-    return `${parts[2]}/${parts[1]}`
-  } else if (groupBy === 'week') {
-    const parts = key.split('-W')
-    return `Sem ${parts[1]}`
-  } else {
-    const parts = key.split('-')
-    const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
-    return monthNames[parseInt(parts[1]) - 1]
+    labels,
+    datasets
   }
 }
 

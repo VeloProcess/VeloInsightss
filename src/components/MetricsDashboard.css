@@ -1414,6 +1414,15 @@
   min-width: 0; /* Permitir que os cards encolham se necessário */
 }
 
+.charts-side-by-side {
+  max-width: 100%;
+}
+
+.charts-side-by-side > * {
+  flex: 0 0 calc(33.333% - 10px); /* Mesmo tamanho dos cards da primeira linha */
+  max-width: calc(33.333% - 10px);
+}
+
 /* Responsividade para telas menores */
 @media (max-width: 1200px) {
   .charts-side-by-side {

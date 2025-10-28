@@ -9,11 +9,9 @@ import TMAChart from './TMAChart'
 import TMLChart from './TMLChart'
 import MiniCard from './MiniCard'
 import ChartModal from './ChartModal'
-import StackedBarPreview from './StackedBarPreview'
-import LineChartPreview from './LineChartPreview'
-import HorizontalBarPreview from './HorizontalBarPreview'
-import GroupedBarPreview from './GroupedBarPreview'
-import DoughnutPreview from './DoughnutPreview'
+import BarMiniPreview from './BarMiniPreview'
+import LineChartMiniPreview from './LineChartMiniPreview'
+import DoughnutMiniPreview from './DoughnutMiniPreview'
 import PausasPreview from './PausasPreview'
 import PeriodSelectorV2 from './PeriodSelectorV2'
 import { usePausasData } from '../hooks/usePausasData'
@@ -227,6 +225,19 @@ const MetricsDashboard = memo(({ metrics = {}, octaData = null, data = [], perio
     // Se não encontrar array, retornar vazio
     return []
   }, [octaData])
+
+  // Preparar dados para mini previews (últimos 5 registros)
+  const miniPreviewData = useMemo(() => {
+    const last5Records = chartData && chartData.length > 0 ? chartData.slice(-5) : []
+    const last5Tickets = ticketsData && ticketsData.length > 0 ? ticketsData.slice(-5) : []
+    const last5Raw = rawData && rawData.length > 0 ? rawData.slice(-5) : []
+    
+    return {
+      telefonia: last5Records,
+      tickets: last5Tickets,
+      rawData: last5Raw
+    }
+  }, [chartData, ticketsData, rawData])
 
   // Processar dados de pausas para os indicadores
   const pausasIndicators = useMemo(() => {
@@ -501,14 +512,14 @@ const MetricsDashboard = memo(({ metrics = {}, octaData = null, data = [], perio
           </div>
 
 
-          {/* Mini Cards Horizontais */}
+          {/* Mini Cards - Primeira Linha (3 cards) */}
           <div className="mini-cards-container">
             {/* Mini Card - Análise Geral */}
             <MiniCard
               title="Análise Geral"
               icon="📊"
               description="Tendências gerais"
-              previewData={<StackedBarPreview />}
+              previewData={<BarMiniPreview data={miniPreviewData.telefonia} type="line" />}
               onClick={() => setIsAnaliseGeralModalOpen(true)}
             />
 
@@ -517,17 +528,8 @@ const MetricsDashboard = memo(({ metrics = {}, octaData = null, data = [], perio
               title="CSAT - Satisfação do Cliente"
               icon="⭐"
               description="Satisfação do cliente"
-              previewData={<LineChartPreview />}
+              previewData={<LineChartMiniPreview data={miniPreviewData.telefonia} type="csat" />}
               onClick={() => setIsCSATModalOpen(true)}
-            />
-
-            {/* Mini Card - Volume URA */}
-            <MiniCard
-              title="Volume por Produto URA"
-              icon="📞"
-              description="Volume por produto"
-              previewData={<HorizontalBarPreview />}
-              onClick={() => setIsVolumeURAModalOpen(true)}
             />
 
             {/* Mini Card - Volume Hora */}
@@ -535,16 +537,19 @@ const MetricsDashboard = memo(({ metrics = {}, octaData = null, data = [], perio
               title="Volume por Hora"
               icon="⏰"
               description="Volume por hora"
-              previewData={<GroupedBarPreview />}
+              previewData={<BarMiniPreview data={miniPreviewData.rawData} type="grouped" />}
               onClick={() => setIsVolumeHoraModalOpen(true)}
             />
+          </div>
 
+          {/* Mini Cards - Segunda Linha (2 cards centralizados) */}
+          <div className="mini-cards-container-tickets-row2">
             {/* Mini Card - TMA */}
             <MiniCard
               title="TMA - Tempo Médio de Atendimento"
               icon="⏱️"
               description="Tempo médio por produto"
-              previewData={<DoughnutPreview />}
+              previewData={<DoughnutMiniPreview data={miniPreviewData.rawData} groupBy="produto" />}
               onClick={() => setIsTMAModalOpen(true)}
             />
 
@@ -553,7 +558,7 @@ const MetricsDashboard = memo(({ metrics = {}, octaData = null, data = [], perio
               title="Volume de chamadas X contact rate"
               icon="⏰"
               description="Em breve"
-              previewData={<StackedBarPreview />}
+              previewData={<BarMiniPreview data={miniPreviewData.rawData} type="stacked" />}
               onClick={() => {}}
               disabled={true}
             />
@@ -580,18 +585,6 @@ const MetricsDashboard = memo(({ metrics = {}, octaData = null, data = [], perio
           >
             <div className="chart-container-csat">
               <CSATChart data={chartData} periodo={calculatedPeriodo} />
-            </div>
-          </ChartModal>
-
-          {/* Modal para Volume URA */}
-          <ChartModal
-            isOpen={isVolumeURAModalOpen}
-            onClose={() => setIsVolumeURAModalOpen(false)}
-            title="Volume por Produto URA"
-            icon="📞"
-          >
-            <div className="chart-container-ura">
-              <VolumeProdutoURAChart data={rawData} periodo={calculatedPeriodo} />
             </div>
           </ChartModal>
 
@@ -633,25 +626,25 @@ const MetricsDashboard = memo(({ metrics = {}, octaData = null, data = [], perio
               title="Análise Geral de Tickets"
               icon="📊"
               description="Tendências gerais"
-              previewData={<StackedBarPreview />}
+              previewData={<BarMiniPreview data={miniPreviewData.tickets} type="line" />}
               onClick={() => setIsTicketsAnaliseGeralModalOpen(true)}
             />
 
             {/* Mini Card - TMA Operação Tickets */}
             <MiniCard
-              title="TMA Operação Tickets"
+              title="FCR"
               icon="⏱️"
-              description="Tempo médio operação"
-              previewData={<LineChartPreview />}
+              description="First Call Resolution"
+              previewData={<LineChartMiniPreview data={miniPreviewData.tickets} type="tma" />}
               onClick={() => setIsTicketsTMAModalOpen(true)}
             />
 
             {/* Mini Card - Volume por Fila (Tickets) */}
             <MiniCard
-              title="Volume por Fila (Tickets)"
+              title="Volume por Produto"
               icon="📋"
-              description="Volume por fila"
-              previewData={<HorizontalBarPreview />}
+              description="Volume por Produto"
+              previewData={<BarMiniPreview data={miniPreviewData.tickets} type="horizontal" />}
               onClick={() => setIsTicketsVolumeFilaModalOpen(true)}
             />
           </div>
@@ -663,7 +656,7 @@ const MetricsDashboard = memo(({ metrics = {}, octaData = null, data = [], perio
               title="Volume por Hora (Tickets)"
               icon="⏰"
               description="Volume por hora"
-              previewData={<GroupedBarPreview />}
+              previewData={<BarMiniPreview data={miniPreviewData.tickets} type="grouped" />}
               onClick={() => setIsTicketsVolumeHoraModalOpen(true)}
             />
 
@@ -672,7 +665,7 @@ const MetricsDashboard = memo(({ metrics = {}, octaData = null, data = [], perio
               title="TMA - Tempo Médio de Resolução por Assunto"
               icon="🎯"
               description="Tempo médio por assunto"
-              previewData={<DoughnutPreview />}
+              previewData={<DoughnutMiniPreview data={miniPreviewData.tickets} groupBy="assunto" />}
               onClick={() => setIsTicketsTMAResolucaoModalOpen(true)}
             />
           </div>
