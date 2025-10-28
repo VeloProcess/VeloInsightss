@@ -1,5 +1,16 @@
 import React from 'react'
 import './MiniCard.css'
+import '../styles/animations.css'
+import { 
+  BsGraphUp, 
+  BsStarFill, 
+  BsClock, 
+  BsHourglassSplit,
+  BsTelephoneForward,
+  BsFileText,
+  BsBullseye,
+  BsPauseCircle
+} from 'react-icons/bs'
 
 const MiniCard = ({ 
   title, 
@@ -7,15 +18,22 @@ const MiniCard = ({
   onClick, 
   previewData,
   description = "Clique para ver detalhes",
-  disabled = false
+  disabled = false,
+  delay = 0
 }) => {
+  // Ícone padrão SVG
+  const IconComponent = icon || BsGraphUp
+  
   return (
     <div 
-      className={`mini-card ${disabled ? 'mini-card-disabled' : ''}`} 
+      className={`mini-card ${disabled ? 'mini-card-disabled' : ''} stagger-item`} 
       onClick={disabled ? undefined : onClick}
+      style={{ animationDelay: `${delay}s` }}
     >
       <div className="mini-card-header">
-        <div className="mini-card-icon">{icon}</div>
+        <div className="mini-card-icon">
+          {typeof icon === 'string' ? icon : (icon || <IconComponent />)}
+        </div>
         <div className="mini-card-info">
           <h3 className="mini-card-title">{title}</h3>
           <p className="mini-card-description">{description}</p>

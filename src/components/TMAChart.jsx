@@ -1,17 +1,27 @@
 import React, { useMemo, memo } from 'react'
-import { Doughnut } from 'react-chartjs-2'
+import { Line } from 'react-chartjs-2'
 import {
   Chart as ChartJS,
-  ArcElement,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
   Tooltip,
-  Legend
+  Legend,
+  Filler
 } from 'chart.js'
 import ChartDataLabels from 'chartjs-plugin-datalabels'
 
 ChartJS.register(
-  ArcElement,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
   Tooltip,
   Legend,
+  Filler,
   ChartDataLabels
 )
 
@@ -139,8 +149,325 @@ const TMAChart = memo(({ data = [], periodo = null, groupBy = 'fila' }) => {
     }
   }
 
-  // Processar dados de TMA
+  // Processar dados de TMA mensal (stacked bar)
   const processTMAData = (data, periodo, groupBy) => {
+    console.log('🔍 [TMAChart] Iniciando processamento')
+    console.log('📊 [TMAChart] Total de registros:', data?.length || 0)
+    console.log('📅 [TMAChart] Período:', periodo)
+    console.log('📝 [TMAChart] GroupBy:', groupBy)
+    console.log('⚠️ [TMAChart] IGNORANDO filtro de período - processando TODOS os dados para gráfico mensal')
+    
+    if (!data || data.length === 0) {
+      console.log('❌ [TMAChart] Nenhum dado disponível')
+      return {
+        labels: [],
+        datasets: [],
+        totalCalls: 0,
+        averageTMA: 0
+      }
+    }
+    
+    // Detectar se são dados de tickets (assunto) ou telefonia (produto)
+    const isTicketData = groupBy === 'assunto'
+    const isProductData = groupBy === 'produto' || groupBy === 'assunto' || groupBy === undefined || groupBy === null
+    console.log('🏷️ [TMAChart] Tipo de dados:', isTicketData ? 'TICKETS (assunto)' : isProductData ? 'TELEFONIA (produto)' : 'TELEFONIA (geral)')
+    
+    // Agrupar por mês e produto (se aplicável)
+    const monthlyData = {}
+    const produtos = {} // Para agrupar por produto se necessário
+    
+    let processedCount = 0
+    let skippedCount = 0
+    let skippedByReason = {
+      header: 0,
+      notArray: 0,
+      shortRecord: 0,
+      emptyFields: 0,
+      dateParseError: 0,
+      tempoZero: 0
+    }
+    
+    // Processar registros e agrupar por mês e fila
+    data.forEach((record, index) => {
+      if (index < 14) {
+        skippedByReason.header++
+        return
+      }
+      
+      const isRecordArray = Array.isArray(record)
+      if (!isRecordArray) {
+        skippedByReason.notArray++
+        skippedCount++
+        return
+      }
+      
+      // Validar tamanho baseado no tipo de dados
+      const minLength = isTicketData ? 28 : 15 // Tickets precisa mais colunas
+      if (record.length <= minLength) {
+        skippedByReason.shortRecord++
+        skippedCount++
+        return
+      }
+      
+      // TMA - selecionar colunas baseado no tipo de dados
+      let dateField, tempoField
+      
+      if (isTicketData) {
+        // DADOS DE TICKETS (assunto)
+        // Coluna AC (índice 28) - Data, Coluna K (índice 10) - Tempo de resolução
+        dateField = record[28]  // Coluna AC - Data
+        tempoField = record[10] // Coluna K - Tempo de resolução
+      } else {
+        // DADOS DE TELEFONIA (produto/geral)
+        // Coluna D (índice 3) - Data, Coluna O (índice 14) - Tempo Total, Coluna K (índice 10) - Produto/Fila
+        dateField = record[3]  // Coluna D - Data
+        tempoField = record[14] // Coluna O - Tempo Total
+        // Se for por produto, precisamos também da coluna K
+      }
+      
+      // Log apenas das 3 primeiras linhas úteis
+      if (index <= 16 && dateField && tempoField) {
+        console.log(`🔍 [TMAChart] Linha ${index}:`, {
+          'Data': dateField,
+          'Tempo': tempoField,
+          'Tipo': isTicketData ? 'TICKETS' : 'TELEFONIA'
+        })
+      }
+      
+      // Apenas validar Data e Tempo (não precisa de Fila)
+      if (!dateField || !tempoField) {
+        skippedByReason.emptyFields++
+        skippedCount++
+        return
+      }
+      
+      
+      // Verificar data apenas para logging, mas processar todos os dados
+      let recordDate = null
+      try {
+        recordDate = parseBrazilianDate(dateField)
+      } catch (e) {
+        skippedByReason.dateParseError++
+        skippedCount++
+        return
+      }
+      
+      if (!recordDate) {
+        skippedByReason.dateParseError++
+        skippedCount++
+        return
+      }
+      
+      // IGNORAR filtro de período para gráfico mensal
+      // O gráfico precisa mostrar TODOS os meses, não apenas o período selecionado
+      // if (periodo && periodo.startDate && periodo.endDate) {
+      //   const startDate = new Date(periodo.startDate)
+      //   const endDate = new Date(periodo.endDate)
+      //   
+      //   if (recordDate < startDate || recordDate > endDate) {
+      //     skippedByReason.dateOutOfPeriod++
+      //     skippedCount++
+      //     return
+      //   }
+      // }
+      
+      // TMA - agrupar por mês e produto (se aplicável)
+      const tempoMinutos = parseTimeToMinutes(tempoField)
+      if (tempoMinutos <= 0) {
+        skippedByReason.tempoZero++
+        skippedCount++
+        return
+      }
+      
+      // Extrair produto/fila se for agrupamento por produto ou assunto
+      let produto = null
+      let temProdutoValido = false
+      
+      // Produtos permitidos (sem o prefixo 4691-)
+      const produtosPermitidos = [
+        'IRPF',
+        'Calculadora',
+        'OFF',
+        'Empréstimo Pessoal',
+        'Tabulação Pendente',
+        'PIX',
+        'Antecipação da Restituição',
+        'Declaração Anual'
+      ]
+      
+      if (isProductData || isTicketData) {
+        // Para TICKETS, usar coluna B (índice 1) - Assunto
+        // Para TELEFONIA, usar coluna K (índice 10) - Fila/Produto
+        const produtoField = isTicketData ? record[1] : record[10]
+        if (produtoField) {
+          const produtoStr = String(produtoField).trim()
+          
+          // Filtrar apenas produtos permitidos (remover prefixo 4691- se existir)
+          const produtoLimpo = produtoStr.replace(/^4691-/, '').trim()
+          
+          if (produtosPermitidos.includes(produtoLimpo)) {
+            produto = produtoLimpo
+            temProdutoValido = true
+            
+            // Log apenas os primeiros produtos encontrados
+            if (processedCount < 5) {
+              console.log('✅ [TMAChart] Produto/Assunto encontrado:', produtoLimpo)
+            }
+          }
+        }
+      } else {
+        temProdutoValido = true // Para TMA geral, sempre válido
+      }
+      
+      // Extrair mês/ano usando recordDate que já foi parseado
+      try {
+        if (recordDate) {
+          const monthKey = `${recordDate.getFullYear()}-${String(recordDate.getMonth() + 1).padStart(2, '0')}`
+          
+          // Sempre usar estrutura de produto (mesmo que não tenha produto válido)
+          if (!monthlyData[monthKey]) {
+            monthlyData[monthKey] = {}
+          }
+          
+          if (produto && temProdutoValido) {
+            // Agrupar por produto/assunto E mês
+            if (!monthlyData[monthKey][produto]) {
+              monthlyData[monthKey][produto] = { totalTime: 0, callCount: 0 }
+            }
+            
+            monthlyData[monthKey][produto].totalTime += tempoMinutos
+            monthlyData[monthKey][produto].callCount += 1
+            processedCount++
+          } else if (!isProductData && !isTicketData) {
+            // TMA GERAL - apenas por mês (só se não for por produto ou tickets)
+            if (!monthlyData[monthKey]['GERAL']) {
+              monthlyData[monthKey]['GERAL'] = { totalTime: 0, callCount: 0 }
+            }
+            
+            monthlyData[monthKey]['GERAL'].totalTime += tempoMinutos
+            monthlyData[monthKey]['GERAL'].callCount += 1
+            processedCount++
+          }
+          // Se for por produto/assunto mas não tiver válido, ignora
+        }
+      } catch (e) {
+        skippedCount++
+        // Ignorar erros de parsing
+      }
+    })
+    
+    console.log('✅ [TMAChart] Processamento concluído:')
+    console.log('   📊 Processados:', processedCount)
+    console.log('   ⏭️  Ignorados:', skippedCount)
+    console.log('   📅 Meses encontrados:', Object.keys(monthlyData))
+    console.log('📊 [TMAChart] Motivos de descarte:', skippedByReason)
+    
+    // Ordenar meses
+    const months = Object.keys(monthlyData).sort()
+    
+    console.log('📋 [TMAChart] Datasets preparados:', {
+      totalMonths: months.length,
+      months,
+      monthlyDataKeys: Object.keys(monthlyData),
+      primeiroMesKeys: months.length > 0 ? Object.keys(monthlyData[months[0]] || {}) : []
+    })
+    
+    // Preparar datasets baseado no tipo de agrupamento
+    let datasets = []
+    
+    if (isProductData) {
+      // Extrair todos os produtos únicos
+      const produtos = new Set()
+      Object.values(monthlyData).forEach(monthData => {
+        if (typeof monthData === 'object' && !monthData.callCount) {
+          Object.keys(monthData).forEach(produto => produtos.add(produto))
+        }
+      })
+      const produtosArray = Array.from(produtos).sort() // Ordenar alfabeticamente
+      
+      // Criar uma linha por produto
+      const colors = [
+        'rgba(59, 130, 246, 1)',
+        'rgba(16, 185, 129, 1)',
+        'rgba(251, 146, 60, 1)',
+        'rgba(239, 68, 68, 1)',
+        'rgba(139, 92, 246, 1)',
+        'rgba(34, 197, 94, 1)'
+      ]
+      
+      datasets = produtosArray.map((produto, idx) => ({
+        label: produto,
+        data: months.map(month => {
+          const monthData = monthlyData[month]?.[produto]
+          return monthData && monthData.callCount > 0 
+            ? monthData.totalTime / monthData.callCount 
+            : 0
+        }),
+        borderColor: colors[idx % colors.length],
+        backgroundColor: colors[idx % colors.length].replace('1)', '0.1)'),
+        fill: true,
+        tension: 0.4,
+        pointRadius: 4,
+        pointHoverRadius: 6
+      }))
+    } else {
+      // TMA GERAL - uma única linha
+      datasets = [{
+        label: 'TMA Geral',
+        data: months.map(month => {
+          const monthData = monthlyData[month]
+          return monthData && monthData.callCount > 0 
+            ? monthData.totalTime / monthData.callCount 
+            : 0
+        }),
+        borderColor: 'rgba(59, 130, 246, 1)',
+        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+        fill: true,
+        tension: 0.4,
+        pointRadius: 4,
+        pointHoverRadius: 6
+      }]
+    }
+    
+    const calculateTotalCalls = () => {
+      if (isProductData) {
+        return Object.values(monthlyData).reduce((sum, monthData) => {
+          if (typeof monthData === 'object' && !monthData.callCount) {
+            return sum + Object.values(monthData).reduce((mSum, produto) => mSum + (produto.callCount || 0), 0)
+          }
+          return sum
+        }, 0)
+      } else {
+        return Object.values(monthlyData).reduce((sum, month) => sum + (month.callCount || 0), 0)
+      }
+    }
+    
+    const result = {
+      labels: months.map(m => {
+        const [year, month] = m.split('-')
+        const monthsNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
+        return `${monthsNames[parseInt(month) - 1]}/${year}`
+      }),
+      datasets,
+      totalCalls: calculateTotalCalls(),
+      averageTMA: 0
+    }
+    
+    console.log('🎯 [TMAChart] Resultado final:', {
+      totalLabels: result.labels.length,
+      labels: result.labels,
+      totalDatasets: result.datasets.length,
+      datasets: result.datasets.map(d => ({
+        label: d.label,
+        dataLength: d.data.length,
+        data: d.data
+      }))
+    })
+    
+    return result
+  }
+  
+  const processTMAOld = (data, periodo, groupBy) => {
     if (!data || data.length === 0) {
       return {
         labels: [],
@@ -198,84 +525,84 @@ const TMAChart = memo(({ data = [], periodo = null, groupBy = 'fila' }) => {
     dataToProcess.forEach((record, index) => {
       // Pular cabeçalho e linhas iniciais
       if (index < 14) return
-      
+
       // Validação antecipada para evitar processamento desnecessário
       if (!Array.isArray(record) || record.length <= 14) return
 
-      let dateField, filaField, tempoField
-      
-      if (finalIsTicketData) {
+        let dateField, filaField, tempoField
+        
+        if (finalIsTicketData) {
         // Validar se tem dados suficientes antes de processar
         if (record.length <= 28) return
         
-        // Para dados de tickets - usar estrutura diferente
-        dateField = record[28] // Coluna AC - Dia
-        filaField = record[1] // Coluna B - Assunto
-        tempoField = record[10] // Coluna K - Tempo de resolução
-      } else {
-        // Para dados de telefonia - estrutura original
-        dateField = record[3] // Coluna D - Data
-        filaField = record[10] // Coluna K - Fila/Produto
-        tempoField = record[14] // Coluna O - Tempo Total
-      }
+          // Para dados de tickets - usar estrutura diferente
+          dateField = record[28] // Coluna AC - Dia
+          filaField = record[1] // Coluna B - Assunto
+          tempoField = record[10] // Coluna K - Tempo de resolução
+        } else {
+          // Para dados de telefonia - estrutura original
+          dateField = record[3] // Coluna D - Data
+          filaField = record[10] // Coluna K - Fila/Produto
+          tempoField = record[14] // Coluna O - Tempo Total
+        }
 
       // Verificar se está no período (otimização: só se tem dateField)
-      if (dateField && !isDateInPeriod(dateField)) {
-        return
-      }
+        if (dateField && !isDateInPeriod(dateField)) {
+          return
+        }
 
       // Validar dados necessários
-      if (!filaField) return
-      
-      // Para tickets, tempo pode estar vazio - usar tempo padrão se necessário
-      let tempoValido = tempoField
-      if (!tempoValido && finalIsTicketData) {
-        tempoValido = '1 min(s)' // Tempo padrão para tickets sem tempo
-      }
-      
-      if (!tempoValido) return
-
-      const fila = String(filaField).trim()
-      
-      // Filtrar apenas filas específicas
-      const filaNormalizada = fila.toUpperCase()
-      const filaEncontrada = filasEspecificas.find(filaEspecifica => 
-        filaEspecifica.palavras.some(palavra => 
-          filaNormalizada.includes(palavra.toUpperCase()) ||
-          palavra.toUpperCase().includes(filaNormalizada)
-        )
-      )
-      
-      if (!filaEncontrada) {
-        return // Pular se não for uma fila específica
-      }
-      
-      filasEncontradas.add(filaEncontrada.nome)
-      
-      const tempoMinutos = parseTimeToMinutes(tempoValido)
-
-      // Ignorar tempos zerados
-      if (tempoMinutos <= 0) {
-        return
-      }
-
-      // Usar o nome padronizado da fila
-      const filaPadronizada = filaEncontrada.nome
-
-      // Inicializar grupo se não existir
-      if (!groupedData[filaPadronizada]) {
-        groupedData[filaPadronizada] = {
-          totalTime: 0,
-          callCount: 0
+        if (!filaField) return
+        
+        // Para tickets, tempo pode estar vazio - usar tempo padrão se necessário
+        let tempoValido = tempoField
+        if (!tempoValido && finalIsTicketData) {
+          tempoValido = '1 min(s)' // Tempo padrão para tickets sem tempo
         }
-      }
+        
+        if (!tempoValido) return
 
-      // Acumular dados
-      groupedData[filaPadronizada].totalTime += tempoMinutos
-      groupedData[filaPadronizada].callCount += 1
-      totalTimeMinutes += tempoMinutos
-      totalCalls += 1
-      processedRecords++
+        const fila = String(filaField).trim()
+        
+        // Filtrar apenas filas específicas
+        const filaNormalizada = fila.toUpperCase()
+        const filaEncontrada = filasEspecificas.find(filaEspecifica => 
+          filaEspecifica.palavras.some(palavra => 
+            filaNormalizada.includes(palavra.toUpperCase()) ||
+            palavra.toUpperCase().includes(filaNormalizada)
+          )
+        )
+        
+        if (!filaEncontrada) {
+          return // Pular se não for uma fila específica
+        }
+        
+        filasEncontradas.add(filaEncontrada.nome)
+        
+        const tempoMinutos = parseTimeToMinutes(tempoValido)
+
+        // Ignorar tempos zerados
+        if (tempoMinutos <= 0) {
+          return
+        }
+
+        // Usar o nome padronizado da fila
+        const filaPadronizada = filaEncontrada.nome
+
+        // Inicializar grupo se não existir
+        if (!groupedData[filaPadronizada]) {
+          groupedData[filaPadronizada] = {
+            totalTime: 0,
+            callCount: 0
+          }
+        }
+
+        // Acumular dados
+        groupedData[filaPadronizada].totalTime += tempoMinutos
+        groupedData[filaPadronizada].callCount += 1
+        totalTimeMinutes += tempoMinutos
+        totalCalls += 1
+        processedRecords++
     })
 
     // Se não encontrou dados com filtros específicos, tentar sem filtros
@@ -422,95 +749,72 @@ const TMAChart = memo(({ data = [], periodo = null, groupBy = 'fila' }) => {
 
   // Processar dados com useMemo e cores vibrantes
   const chartData = useMemo(() => {
+    console.log('🔄 [TMAChart] useMemo executado')
     const processedData = processTMAData(data, periodo, groupBy)
 
-    const maxTMA = Math.max(...processedData.values, 1)
-
-    // Cores vibrantes para cada produto com gradientes 3D
+    // Cores vibrantes para cada fila
     const colors = [
-      '#3B82F6', // Azul vibrante
-      '#10B981', // Verde esmeralda
-      '#F59E0B', // Âmbar
-      '#EF4444', // Vermelho
-      '#8B5CF6', // Roxo
-      '#06B6D4', // Ciano
-      '#84CC16', // Lima
-      '#F97316'  // Laranja
+      'rgba(59, 130, 246, 0.9)',   // Azul
+      'rgba(16, 185, 129, 0.9)',   // Verde
+      'rgba(251, 146, 60, 0.9)',    // Laranja
+      'rgba(239, 68, 68, 0.9)',     // Vermelho
+      'rgba(139, 92, 246, 0.9)',    // Roxo
+      'rgba(34, 197, 94, 0.9)'      // Verde claro
     ]
 
-    // Criar gradientes 3D mais pronunciados para cada cor
-    const create3DGradient = (color) => {
-      const canvas = document.createElement('canvas')
-      const ctx = canvas.getContext('2d')
-      const gradient = ctx.createRadialGradient(30, 30, 0, 30, 30, 60) // Gradiente radial para efeito 3D
-      
-      // Converter hex para RGB
-      const hex = color.replace('#', '')
-      const r = parseInt(hex.substr(0, 2), 16)
-      const g = parseInt(hex.substr(2, 2), 16)
-      const b = parseInt(hex.substr(4, 2), 16)
-      
-      // Criar gradiente radial do claro para o escuro (efeito 3D)
-      gradient.addColorStop(0, `rgba(${Math.min(255, r + 80)}, ${Math.min(255, g + 80)}, ${Math.min(255, b + 80)}, 1)`)
-      gradient.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, 1)`)
-      gradient.addColorStop(1, `rgba(${Math.max(0, r - 60)}, ${Math.max(0, g - 60)}, ${Math.max(0, b - 60)}, 1)`)
-      
-      return gradient
+    // Se processedData já tem datasets, usar diretamente (já vem formatado com cores)
+    if (processedData.datasets) {
+      console.log('✅ [TMAChart] Usando datasets formatados')
+      const result = {
+        labels: processedData.labels,
+        datasets: processedData.datasets
+      }
+      console.log('📦 [TMAChart] Chart data final:', result)
+      return result
     }
 
+    console.log('⚠️ [TMAChart] Usando fallback')
+    // Fallback para formato antigo (caso necessário)
     return {
       labels: processedData.labels,
-      datasets: [
-        {
+      datasets: [{
           label: 'Tempo Médio de Atendimento',
-          data: processedData.values,
-          backgroundColor: colors.slice(0, processedData.labels.length).map(color => create3DGradient(color)),
-          borderColor: '#FFFFFF',
-          borderWidth: 4,
-          hoverBorderWidth: 6,
-          hoverBorderColor: '#FFFFFF',
-          hoverBackgroundColor: colors.slice(0, processedData.labels.length).map(color => {
-            const hex = color.replace('#', '')
-            const r = parseInt(hex.substr(0, 2), 16)
-            const g = parseInt(hex.substr(2, 2), 16)
-            const b = parseInt(hex.substr(4, 2), 16)
-            return `rgba(${Math.min(255, r + 50)}, ${Math.min(255, g + 50)}, ${Math.min(255, b + 50)}, 1)`
-          }),
-          hoverShadowOffsetX: 8,
-          hoverShadowOffsetY: 8,
-          hoverShadowBlur: 16,
-          hoverShadowColor: 'rgba(0, 0, 0, 0.5)'
-        }
-      ],
-      totalCalls: processedData.totalCalls,
-      averageTMA: processedData.averageTMA,
-      callCounts: processedData.callCounts
+        data: processedData.values || [],
+        backgroundColor: colors[0],
+        borderColor: 'rgba(255, 255, 255, 0.3)',
+        borderWidth: 2,
+        borderRadius: 6
+      }],
+      totalCalls: processedData.totalCalls || 0,
+      averageTMA: processedData.averageTMA || 0
     }
   }, [data, periodo, groupBy])
+
+  const handleTitleClick = (fila) => {
+    console.log('Clicou em:', fila)
+  }
 
   const options = {
     responsive: true,
     maintainAspectRatio: false,
-    cutout: '40%', // MUITO REDUZIDO para gráfico GIGANTE
     plugins: {
       title: {
         display: false // Remove qualquer título do gráfico
       },
       legend: {
-        position: 'right',
-        align: 'center',
+        position: 'top',
+        align: 'end',
         labels: {
           font: {
-            size: 20, // Aumentado de 16 para 20
-            weight: 'bold',
+            size: 14,
+            weight: '600',
             family: "'Inter', sans-serif"
           },
           color: '#1F2937',
-          padding: 20, // Aumentado de 15 para 20
+          padding: 15,
           usePointStyle: true,
-          pointStyle: 'circle',
-          boxWidth: 25, // Aumentado de 20 para 25
-          boxHeight: 25 // Aumentado de 20 para 25
+          boxWidth: 12,
+          boxHeight: 12
         }
       },
       tooltip: {
@@ -534,73 +838,83 @@ const TMAChart = memo(({ data = [], periodo = null, groupBy = 'fila' }) => {
             return context[0].label
           },
           label: function(context) {
-            const index = context.dataIndex
-            const tma = context.parsed.x
-            const callCount = chartData.callCounts[index]
-            return [
-              `TMA: ${formatMinutesToDisplay(tma)}`,
-              `Chamadas: ${callCount.toLocaleString('pt-BR')}`
-            ]
+            const label = context.dataset.label || ''
+            const value = context.parsed.x
+            
+            // Validar se value é um número válido
+            if (!value || isNaN(value) || value === 0) {
+              return `${label}: 00:00:00`
+            }
+            
+            return `${label}: ${formatMinutesToDisplay(value)}`
           }
         }
       },
       datalabels: {
-        display: true, // Ativado para mostrar números dentro do gráfico
-        color: '#FFFFFF',
+        display: true, // Ativado para mostrar valores
+        color: '#1F2937',
         font: {
-          size: 22, // Aumentado para 22px para melhor visibilidade
-          weight: 'bold',
-          family: 'Arial, sans-serif'
+          size: 12,
+          weight: '600',
+          family: "'Inter', sans-serif"
         },
         formatter: function(value) {
+          if (!value || isNaN(value) || value === 0) {
+            return ''
+          }
           return formatMinutesToDisplay(value) // Formato HH:MM:SS
         },
-        anchor: 'center', // Centralizado no segmento
-        align: 'center', // Alinhado ao centro
-        offset: 0, // Sem offset
-        textShadowColor: 'rgba(0, 0, 0, 0.9)', // Sombra mais forte para contraste
-        textShadowBlur: 6,
-        textShadowOffsetX: 3,
-        textShadowOffsetY: 3,
-        backgroundColor: 'rgba(0, 0, 0, 0.3)', // Fundo semi-transparente
-        borderRadius: 8,
-        padding: 6
+        anchor: 'end', // Acima do ponto
+        align: 'top',
+        offset: 8,
+        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+        borderColor: '#E5E7EB',
+        borderWidth: 1,
+        borderRadius: 4,
+        padding: 4
       }
     },
     animation: {
-      duration: 2000,
-      easing: 'easeInOutQuart',
-      animateRotate: true,
-      animateScale: true
-    },
-    elements: {
-      arc: {
-        borderWidth: 4, // Aumentado para 4px
-        borderColor: '#FFFFFF',
-        shadowOffsetX: 6, // Aumentado para 6px
-        shadowOffsetY: 6, // Aumentado para 6px
-        shadowBlur: 12, // Aumentado para 12px
-        shadowColor: 'rgba(0, 0, 0, 0.4)' // Sombra mais forte
-      }
+      duration: 1000,
+      easing: 'easeOutQuart'
     },
     scales: {
       x: {
-        display: false // Remove eixos X
+        grid: {
+          display: true,
+          color: 'rgba(0, 0, 0, 0.05)'
+        },
+        ticks: {
+          font: {
+            size: 12
+          }
+        }
       },
       y: {
-        display: false // Remove eixos Y
+        beginAtZero: true,
+        title: {
+          display: true,
+          text: 'Tempo Médio (minutos)',
+          color: '#374151',
+          font: {
+            size: 14,
+            weight: '700'
+          }
+        },
+        grid: {
+          display: true,
+          color: 'rgba(0, 0, 0, 0.05)'
+        },
+        ticks: {
+          callback: function(value) {
+            return formatMinutesToDisplay(value)
+          },
+          font: {
+            size: 12
+          }
+        }
       }
     },
-    onClick: (event, elements) => {
-      if (elements.length > 0) {
-        const elementIndex = elements[0].index
-        const queueName = chartData.labels[elementIndex]
-        handleTitleClick(queueName)
-      }
-    },
-    onHover: (event, elements) => {
-      event.native.target.style.cursor = elements.length > 0 ? 'pointer' : 'default'
-    }
   }
 
   // Estado de loading/erro
@@ -629,7 +943,7 @@ const TMAChart = memo(({ data = [], periodo = null, groupBy = 'fila' }) => {
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       {chartData && chartData.labels && chartData.labels.length > 0 ? 
-        <Doughnut data={chartData} options={options} /> : 
+        <Line data={chartData} options={options} /> : 
         <div style={{ padding: '20px', textAlign: 'center', color: '#666' }}>
           Sem dados para exibir
         </div>

@@ -10,11 +10,26 @@ import TMLChart from './TMLChart'
 import MiniCard from './MiniCard'
 import ChartModal from './ChartModal'
 import BarMiniPreview from './BarMiniPreview'
+import { 
+  BsGraphUp, 
+  BsStarFill, 
+  BsClock, 
+  BsHourglassSplit,
+  BsTelephoneForward,
+  BsFileText,
+  BsBullseye,
+  BsPauseCircle,
+  BsBarChart,
+  BsArrowsExpand
+} from 'react-icons/bs'
 import LineChartMiniPreview from './LineChartMiniPreview'
 import DoughnutMiniPreview from './DoughnutMiniPreview'
 import PausasPreview from './PausasPreview'
 import PeriodSelectorV2 from './PeriodSelectorV2'
+import SkeletonLoader from './SkeletonLoader'
 import { usePausasData } from '../hooks/usePausasData'
+import ChartSelector from './ChartSelector'
+import ChartComparisonModal from './ChartComparisonModal'
 
 const MetricsDashboard = memo(({ metrics = {}, octaData = null, data = [], periodo = null, fullDataset = [], onFiltersChange = null, filters = null }) => {
   const [activeView, setActiveView] = useState('55pbx')
@@ -61,6 +76,11 @@ const MetricsDashboard = memo(({ metrics = {}, octaData = null, data = [], perio
   
   // Estados para modais de pausas
   const [isPausasModalOpen, setIsPausasModalOpen] = useState(false)
+  
+  // Estados para comparação de gráficos
+  const [isSelectorOpen, setIsSelectorOpen] = useState(false)
+  const [selectedCharts, setSelectedCharts] = useState([])
+  const [isComparisonModalOpen, setIsComparisonModalOpen] = useState(false)
   
   // Hook para carregar dados específicos de pausas
   const { pausasData, isLoading: isLoadingPausas, error: pausasError } = usePausasData()
@@ -486,6 +506,43 @@ const MetricsDashboard = memo(({ metrics = {}, octaData = null, data = [], perio
     }
   }, [pausasData, periodo])
 
+  // Handlers para comparação de gráficos
+  const handleOpenSelector = () => {
+    setIsSelectorOpen(true)
+  }
+
+  const handleSelectCharts = (charts) => {
+    setSelectedCharts(charts)
+    setIsSelectorOpen(false)
+    setIsComparisonModalOpen(true)
+  }
+
+  // Renderizar gráfico baseado na seleção
+  const renderChart = (chartConfig) => {
+    if (!chartConfig) return null
+
+    const commonProps = { periodo: calculatedPeriodo }
+    
+    switch (chartConfig.component) {
+      case 'TendenciaSemanalChart':
+        return <TendenciaSemanalChart data={chartConfig.id.includes('tickets') ? ticketsData : chartData} {...commonProps} />
+      case 'CSATChart':
+        return <CSATChart data={chartConfig.id.includes('tickets') ? ticketsData : chartData} {...commonProps} />
+      case 'VolumeHoraChart':
+        return <VolumeHoraChart data={chartConfig.id.includes('tickets') ? ticketsData : chartData} {...commonProps} />
+      case 'TMAChart':
+        if (chartConfig.id === 'tickets-tma-resolucao') {
+          return <TMAChart data={ticketsData} periodo={calculatedPeriodo} groupBy="assunto" />
+        } else {
+          return <TMAChart data={chartConfig.id.includes('tickets') ? ticketsData : rawData} periodo={calculatedPeriodo} groupBy="produto" />
+        }
+      case 'VolumeProdutoURAChart':
+        return <VolumeProdutoURAChart data={ticketsData} periodo={calculatedPeriodo} isTicketsTab={true} />
+      default:
+        return <div className="empty-chart">Gráfico não disponível</div>
+    }
+  }
+
   return (
     <div className="container">
 
@@ -494,8 +551,31 @@ const MetricsDashboard = memo(({ metrics = {}, octaData = null, data = [], perio
       {activeView === '55pbx' && (
         <div className="view active">
 
-      {/* Seletor de Período */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '10px 20px' }}>
+      {/* Seletor de Período e Botão de Comparação */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 20px' }}>
+        <button 
+          onClick={handleOpenSelector}
+          className="comparison-button"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '10px 20px',
+            background: 'rgba(255, 255, 255, 0.6)',
+            backdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255, 255, 255, 0.3)',
+            borderRadius: '12px',
+            color: 'var(--color-text-primary)',
+            fontWeight: '600',
+            cursor: 'pointer',
+            transition: 'all 0.3s ease',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
+          }}
+        >
+          <BsArrowsExpand style={{ fontSize: '18px' }} />
+          Comparar Gráficos
+        </button>
+        
         <PeriodSelectorV2 
           onPeriodChange={handlePeriodChange}
           currentPeriod={selectedPeriod}
@@ -517,28 +597,31 @@ const MetricsDashboard = memo(({ metrics = {}, octaData = null, data = [], perio
             {/* Mini Card - Análise Geral */}
             <MiniCard
               title="Análise Geral"
-              icon="📊"
+              icon={<BsGraphUp />}
               description="Tendências gerais"
               previewData={<BarMiniPreview data={miniPreviewData.telefonia} type="line" />}
               onClick={() => setIsAnaliseGeralModalOpen(true)}
+              delay={0}
             />
 
             {/* Mini Card - CSAT */}
             <MiniCard
               title="CSAT - Satisfação do Cliente"
-              icon="⭐"
+              icon={<BsStarFill />}
               description="Satisfação do cliente"
               previewData={<LineChartMiniPreview data={miniPreviewData.telefonia} type="csat" />}
               onClick={() => setIsCSATModalOpen(true)}
+              delay={0.05}
             />
 
             {/* Mini Card - Volume Hora */}
             <MiniCard
               title="Volume por Hora"
-              icon="⏰"
+              icon={<BsClock />}
               description="Volume por hora"
               previewData={<BarMiniPreview data={miniPreviewData.rawData} type="grouped" />}
               onClick={() => setIsVolumeHoraModalOpen(true)}
+              delay={0.1}
             />
           </div>
 
@@ -547,20 +630,22 @@ const MetricsDashboard = memo(({ metrics = {}, octaData = null, data = [], perio
             {/* Mini Card - TMA */}
             <MiniCard
               title="TMA - Tempo Médio de Atendimento"
-              icon="⏱️"
+              icon={<BsHourglassSplit />}
               description="Tempo médio por produto"
               previewData={<DoughnutMiniPreview data={miniPreviewData.rawData} groupBy="produto" />}
               onClick={() => setIsTMAModalOpen(true)}
+              delay={0.15}
             />
 
             {/* Mini Card - Volume X Contact Rate (Em breve) */}
             <MiniCard
               title="Volume de chamadas X contact rate"
-              icon="⏰"
+              icon={<BsBarChart />}
               description="Em breve"
               previewData={<BarMiniPreview data={miniPreviewData.rawData} type="stacked" />}
               onClick={() => {}}
               disabled={true}
+              delay={0.2}
             />
           </div>
 
@@ -624,7 +709,7 @@ const MetricsDashboard = memo(({ metrics = {}, octaData = null, data = [], perio
             {/* Mini Card - Análise Geral de Tickets */}
             <MiniCard
               title="Análise Geral de Tickets"
-              icon="📊"
+              icon={<BsFileText />}
               description="Tendências gerais"
               previewData={<BarMiniPreview data={miniPreviewData.tickets} type="line" />}
               onClick={() => setIsTicketsAnaliseGeralModalOpen(true)}
@@ -633,7 +718,7 @@ const MetricsDashboard = memo(({ metrics = {}, octaData = null, data = [], perio
             {/* Mini Card - TMA Operação Tickets */}
             <MiniCard
               title="FCR"
-              icon="⏱️"
+              icon={<BsHourglassSplit />}
               description="First Call Resolution"
               previewData={<LineChartMiniPreview data={miniPreviewData.tickets} type="tma" />}
               onClick={() => setIsTicketsTMAModalOpen(true)}
@@ -642,7 +727,7 @@ const MetricsDashboard = memo(({ metrics = {}, octaData = null, data = [], perio
             {/* Mini Card - Volume por Fila (Tickets) */}
             <MiniCard
               title="Volume por Produto"
-              icon="📋"
+              icon={<BsBarChart />}
               description="Volume por Produto"
               previewData={<BarMiniPreview data={miniPreviewData.tickets} type="horizontal" />}
               onClick={() => setIsTicketsVolumeFilaModalOpen(true)}
@@ -654,7 +739,7 @@ const MetricsDashboard = memo(({ metrics = {}, octaData = null, data = [], perio
             {/* Mini Card - Volume por Hora (Tickets) */}
             <MiniCard
               title="Volume por Hora (Tickets)"
-              icon="⏰"
+              icon={<BsClock />}
               description="Volume por hora"
               previewData={<BarMiniPreview data={miniPreviewData.tickets} type="grouped" />}
               onClick={() => setIsTicketsVolumeHoraModalOpen(true)}
@@ -663,7 +748,7 @@ const MetricsDashboard = memo(({ metrics = {}, octaData = null, data = [], perio
             {/* Mini Card - TMA Resolução por Assunto */}
             <MiniCard
               title="TMA - Tempo Médio de Resolução por Assunto"
-              icon="🎯"
+              icon={<BsBullseye />}
               description="Tempo médio por assunto"
               previewData={<DoughnutMiniPreview data={miniPreviewData.tickets} groupBy="assunto" />}
               onClick={() => setIsTicketsTMAResolucaoModalOpen(true)}
@@ -738,7 +823,7 @@ const MetricsDashboard = memo(({ metrics = {}, octaData = null, data = [], perio
             {/* Mini Card - Pausas */}
             <MiniCard
               title="Pausas por Operador"
-              icon="⏸️"
+              icon={<BsPauseCircle />}
               description={isLoadingPausas ? "Carregando..." : pausasError ? "Erro ao carregar" : `${pausasData?.length || 0} registros`}
               previewData={<PausasPreview />}
               onClick={() => setIsPausasModalOpen(true)}
@@ -929,6 +1014,20 @@ const MetricsDashboard = memo(({ metrics = {}, octaData = null, data = [], perio
           <PausasSection pausasData={pausasData} periodo={calculatedPeriodo} />
         </div>
       )}
+
+      {/* Modais de Comparação */}
+      <ChartSelector 
+        isOpen={isSelectorOpen}
+        onClose={() => setIsSelectorOpen(false)}
+        onSelectCharts={handleSelectCharts}
+      />
+
+      <ChartComparisonModal
+        isOpen={isComparisonModalOpen}
+        onClose={() => setIsComparisonModalOpen(false)}
+        chart1={selectedCharts[0] ? renderChart(selectedCharts[0]) : null}
+        chart2={selectedCharts[1] ? renderChart(selectedCharts[1]) : null}
+      />
     </div>
   )
 })

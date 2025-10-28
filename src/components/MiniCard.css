@@ -1,20 +1,29 @@
-/* MiniCard.css - Estilos para mini cards com preview visual */
+/* MiniCard.css - Estilos para mini cards com Glassmorphism */
 
 .mini-card {
-  background: linear-gradient(135deg, var(--color-card-bg) 0%, var(--color-bg-secondary) 100%);
-  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 20px;
   padding: 0;
-  border: 1px solid #000; /* Borda preta fina */
-  box-shadow: 0 8px 32px var(--color-shadow);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   flex-direction: column;
   overflow: hidden;
   min-height: 280px;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
   position: relative;
   width: 100%;
+  animation: fadeInUp 0.4s ease-out;
+}
+
+.theme-dark .mini-card {
+  background: rgba(30, 30, 30, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
 /* Layout horizontal para múltiplos cards */
@@ -35,9 +44,24 @@
 }
 
 .mini-card:hover {
-  transform: translateY(-4px) scale(1.02);
-  box-shadow: 0 16px 48px var(--color-shadow);
-  border-color: var(--color-primary);
+  background: rgba(255, 255, 255, 0.8);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+  transform: translateY(-3px);
+  border-color: rgba(22, 148, 255, 0.3);
+}
+
+.theme-dark .mini-card:hover {
+  background: rgba(30, 30, 30, 0.8);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  border-color: rgba(22, 148, 255, 0.3);
+}
+
+.mini-card:active {
+  transform: scale(0.98);
+}
+
+.theme-dark .mini-card:active {
+  transform: scale(0.98);
 }
 
 .mini-card-header {
@@ -63,6 +87,16 @@
   font-size: 20px;
   margin-right: 8px;
   filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+}
+
+.mini-card-icon svg {
+  width: 24px;
+  height: 24px;
 }
 
 .mini-card-info {
@@ -94,6 +128,7 @@
   justify-content: center;
   min-height: 120px;
 }
+
 
 .mini-card-footer {
   padding: 8px 12px;
@@ -307,40 +342,40 @@
 .mini-cards-container {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-  margin-bottom: 20px;
-  background: #f5f5f5; /* Fundo cinza bem claro */
-  padding: 20px;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  gap: 32px;
+  margin-bottom: 40px;
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 /* Segunda linha de tickets - 2 cards centralizados */
 .mini-cards-container-tickets-row2 {
   display: flex;
   justify-content: center;
-  gap: 16px;
-  margin-bottom: 20px;
-  background: #f5f5f5; /* Fundo cinza bem claro */
-  padding: 20px;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  gap: 32px;
+  margin-bottom: 40px;
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .mini-cards-container-tickets-row2 > * {
-  flex: 0 0 calc(33.33% - 8px); /* Ocupa 1/3 da largura menos o gap */
-  max-width: calc(33.33% - 8px);
+  flex: 0 0 calc(50% - 16px); /* Ocupa 50% da largura (2 cards lado a lado) */
+  max-width: calc(50% - 16px);
 }
 
 /* Pausas - 1 card centralizado */
 .mini-cards-container-pausas {
   display: flex;
   justify-content: center;
-  margin-bottom: 20px;
-  background: #f5f5f5; /* Fundo cinza bem claro */
-  padding: 20px;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  margin-bottom: 40px;
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .mini-cards-container-pausas > * {
@@ -380,6 +415,7 @@
   height: 80px;
   position: relative;
   padding: 4px;
+  animation: fadeInScale 0.6s ease-out;
 }
 
 .mini-chart-preview-container canvas {
@@ -387,4 +423,21 @@
   height: 80px !important;
   max-height: 80px !important;
   min-height: 80px !important;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+  transition: filter 0.3s ease;
+}
+
+.mini-chart-preview-container:hover canvas {
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.15));
+}
+
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }

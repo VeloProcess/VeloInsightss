@@ -79,19 +79,19 @@ const renderTMLTMPChart = (processedData) => {
       {
         label: 'Tempo Logado (TML)',
         data: processedData.dias.map(dia => processedData.tempoLogadoPorDia[dia] || 0),
-        backgroundColor: 'rgba(34, 197, 94, 0.8)',
-        borderColor: 'rgba(34, 197, 94, 1)',
-        borderWidth: 2,
-        borderRadius: 6,
+        backgroundColor: 'rgba(34, 197, 94, 0.9)',
+        borderColor: 'rgba(255, 255, 255, 0.3)',
+        borderWidth: 2.5,
+        borderRadius: 8,
         borderSkipped: false,
       },
       {
         label: 'Tempo Pausado (TMP)',
         data: processedData.dias.map(dia => processedData.tempoPausadoPorDia[dia] || 0),
-        backgroundColor: 'rgba(239, 68, 68, 0.8)',
-        borderColor: 'rgba(239, 68, 68, 1)',
-        borderWidth: 2,
-        borderRadius: 6,
+        backgroundColor: 'rgba(239, 68, 68, 0.9)',
+        borderColor: 'rgba(255, 255, 255, 0.3)',
+        borderWidth: 2.5,
+        borderRadius: 8,
         borderSkipped: false,
       }
     ]
@@ -100,6 +100,10 @@ const renderTMLTMPChart = (processedData) => {
   const barOptions = {
     responsive: true,
     maintainAspectRatio: false,
+    animation: {
+      duration: 1000,
+      easing: 'easeOutQuart'
+    },
     interaction: {
       mode: 'index',
       intersect: false
@@ -216,31 +220,31 @@ const renderPieChart = (processedData) => {
         label: 'Quantidade',
         data: processedData.motivos.map(motivo => processedData.pausasPorMotivo[motivo] || 0),
         backgroundColor: [
-          'rgba(59, 130, 246, 0.8)',
-          'rgba(16, 185, 129, 0.8)',
-          'rgba(245, 101, 101, 0.8)',
-          'rgba(251, 191, 36, 0.8)',
-          'rgba(139, 92, 246, 0.8)',
-          'rgba(236, 72, 153, 0.8)',
-          'rgba(34, 197, 94, 0.8)',
-          'rgba(249, 115, 22, 0.8)',
-          'rgba(99, 102, 241, 0.8)',
-          'rgba(20, 184, 166, 0.8)'
+          'rgba(99, 102, 241, 0.9)',
+          'rgba(16, 185, 129, 0.9)',
+          'rgba(239, 68, 68, 0.9)',
+          'rgba(251, 146, 60, 0.9)',
+          'rgba(139, 92, 246, 0.9)',
+          'rgba(236, 72, 153, 0.9)',
+          'rgba(34, 197, 94, 0.9)',
+          'rgba(249, 115, 22, 0.9)',
+          'rgba(59, 130, 246, 0.9)',
+          'rgba(20, 184, 166, 0.9)'
         ],
         borderColor: [
-          'rgba(59, 130, 246, 1)',
-          'rgba(16, 185, 129, 1)',
-          'rgba(245, 101, 101, 1)',
-          'rgba(251, 191, 36, 1)',
-          'rgba(139, 92, 246, 1)',
-          'rgba(236, 72, 153, 1)',
-          'rgba(34, 197, 94, 1)',
-          'rgba(249, 115, 22, 1)',
-          'rgba(99, 102, 241, 1)',
-          'rgba(20, 184, 166, 1)'
+          'rgba(255, 255, 255, 0.4)',
+          'rgba(255, 255, 255, 0.4)',
+          'rgba(255, 255, 255, 0.4)',
+          'rgba(255, 255, 255, 0.4)',
+          'rgba(255, 255, 255, 0.4)',
+          'rgba(255, 255, 255, 0.4)',
+          'rgba(255, 255, 255, 0.4)',
+          'rgba(255, 255, 255, 0.4)',
+          'rgba(255, 255, 255, 0.4)',
+          'rgba(255, 255, 255, 0.4)'
         ],
-        borderWidth: 2,
-        borderRadius: 4,
+        borderWidth: 2.5,
+        borderRadius: 8,
         borderSkipped: false,
       }
     ]

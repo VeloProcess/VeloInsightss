@@ -33,8 +33,8 @@ const LineChartMiniPreview = memo(({ data, type = 'default' }) => {
           {
             label: 'Série 1',
             data: [20, 30, 25, 40, 35],
-            borderColor: '#87CEEB',
-            backgroundColor: 'rgba(135, 206, 235, 0.1)',
+            borderColor: 'rgba(22, 148, 255, 1)',
+            backgroundColor: 'rgba(22, 148, 255, 0.15)',
             fill: true
           }
         ]
@@ -58,6 +58,10 @@ const LineChartMiniPreview = memo(({ data, type = 'default' }) => {
   const options = {
     responsive: true,
     maintainAspectRatio: false,
+    animation: {
+      duration: 1200,
+      easing: 'easeOutQuart'
+    },
     plugins: {
       legend: { display: false },
       tooltip: { enabled: false },
@@ -74,8 +78,19 @@ const LineChartMiniPreview = memo(({ data, type = 'default' }) => {
       }
     },
     elements: {
-      point: { radius: 2, hoverRadius: 3 },
-      line: { borderWidth: 2, tension: 0.4 }
+      point: { 
+        radius: 4, 
+        hoverRadius: 6,
+        borderWidth: 2,
+        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+        borderColor: 'rgba(59, 130, 246, 1)'
+      },
+      line: { 
+        borderWidth: 3, 
+        tension: 0.5,
+        borderCapStyle: 'round',
+        borderJoinStyle: 'round'
+      }
     }
   }
 
@@ -104,8 +119,8 @@ function processDefaultLineData(data) {
       {
         label: 'Data',
         data: dataset,
-        borderColor: '#87CEEB',
-        backgroundColor: 'rgba(135, 206, 235, 0.1)',
+        borderColor: 'rgba(139, 92, 246, 1)',
+        backgroundColor: 'rgba(139, 92, 246, 0.15)',
         fill: true
       }
     ]
@@ -146,22 +161,22 @@ function processCSATData(data) {
       {
         label: 'Total',
         data: dataset1,
-        borderColor: '#87CEEB',
-        backgroundColor: 'rgba(135, 206, 235, 0.1)',
+        borderColor: 'rgba(139, 92, 246, 1)',
+        backgroundColor: 'rgba(139, 92, 246, 0.15)',
         fill: true
       },
       {
         label: 'Positivo',
         data: dataset2,
-        borderColor: '#4682B4',
-        backgroundColor: 'rgba(70, 130, 180, 0.1)',
+        borderColor: 'rgba(16, 185, 129, 1)',
+        backgroundColor: 'rgba(16, 185, 129, 0.15)',
         fill: true
       },
       {
         label: 'Negativo',
         data: dataset3,
-        borderColor: '#191970',
-        backgroundColor: 'rgba(25, 25, 112, 0.1)',
+        borderColor: 'rgba(239, 68, 68, 1)',
+        backgroundColor: 'rgba(239, 68, 68, 0.15)',
         fill: true
       }
     ]
@@ -188,8 +203,8 @@ function processTMAData(data) {
       {
         label: 'TMA',
         data: dataset,
-        borderColor: '#87CEEB',
-        backgroundColor: 'rgba(135, 206, 235, 0.15)',
+        borderColor: 'rgba(251, 146, 60, 1)',
+        backgroundColor: 'rgba(251, 146, 60, 0.15)',
         fill: true
       }
     ]

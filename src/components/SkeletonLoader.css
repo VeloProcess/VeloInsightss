@@ -1,0 +1,123 @@
+/* Skeleton Loader Styles */
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    #f0f0f0 25%,
+    #e0e0e0 50%,
+    #f0f0f0 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 8px;
+}
+
+.theme-dark .skeleton {
+  background: linear-gradient(
+    90deg,
+    #2a2a2a 25%,
+    #333333 50%,
+    #2a2a2a 75%
+  );
+  background-size: 200% 100%;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+.skeleton-line {
+  height: 16px;
+  border-radius: 8px;
+}
+
+.skeleton-circle {
+  border-radius: 50%;
+}
+
+/* Card Skeleton */
+.card-skeleton-container {
+  padding: 20px;
+  animation: fadeIn 0.3s ease;
+}
+
+/* Chart Skeleton */
+.chart-skeleton-container {
+  padding: 20px;
+  animation: fadeIn 0.3s ease;
+}
+
+.skeleton-legend {
+  display: flex;
+  margin-top: 16px;
+}
+
+/* Table Skeleton */
+.table-skeleton-container {
+  padding: 20px;
+  animation: fadeIn 0.3s ease;
+}
+
+/* List Skeleton */
+.list-skeleton-container {
+  padding: 20px;
+  animation: fadeIn 0.3s ease;
+}
+
+.list-skeleton-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.skeleton-content {
+  flex: 1;
+}
+
+/* Metric Skeleton */
+.metric-skeleton-container {
+  padding: 20px;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Specific skeleton variants */
+.skeleton-card {
+  padding: 20px;
+  border-radius: 12px;
+}
+
+.skeleton-chart {
+  padding: 24px;
+  border-radius: 12px;
+  min-height: 300px;
+}
+
+.skeleton-table {
+  padding: 20px;
+  border-radius: 12px;
+}
+
+.skeleton-list {
+  padding: 16px;
+  border-radius: 12px;
+}
+
+.skeleton-metric {
+  padding: 24px;
+  border-radius: 12px;
+}
+

@@ -2,8 +2,9 @@
    VELOINSIGHTS - DESIGN PROFISSIONAL
    ======================================== */
 
-/* Importar sistema de temas */
+/* Importar sistema de temas e animações */
 @import './themes.css';
+@import './animations.css';
 
 .loading-container {
   display: flex;
@@ -69,17 +70,23 @@
 
 body {
   font-family: var(--font-body);
-  background-color: var(--color-bg-primary);
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  background-attachment: fixed;
   color: var(--color-text-primary);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
+.theme-dark body {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  background-attachment: fixed;
+}
+
 /* === LAYOUT PRINCIPAL === */
 .app {
   min-height: 100vh;
-  background-color: var(--color-bg-light);
+  background: transparent;
 }
 
 .app-container {

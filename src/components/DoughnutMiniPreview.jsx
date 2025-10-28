@@ -22,7 +22,13 @@ const DoughnutMiniPreview = memo(({ data, groupBy = 'fila' }) => {
         datasets: [
           {
             data: [62.5, 25, 12.5],
-            backgroundColor: ['#87CEEB', '#4682B4', '#191970']
+            backgroundColor: [
+              'rgba(99, 102, 241, 0.9)',
+              'rgba(16, 185, 129, 0.9)',
+              'rgba(251, 146, 60, 0.9)',
+              'rgba(236, 72, 153, 0.9)',
+              'rgba(139, 92, 246, 0.9)'
+            ]
           }
         ]
       }
@@ -69,7 +75,7 @@ const DoughnutMiniPreview = memo(({ data, groupBy = 'fila' }) => {
         datasets: [
           {
             data: [100],
-            backgroundColor: ['#87CEEB']
+            backgroundColor: ['rgba(99, 102, 241, 0.9)']
           }
         ]
       }
@@ -85,7 +91,15 @@ const DoughnutMiniPreview = memo(({ data, groupBy = 'fila' }) => {
       datasets: [
         {
           data: percentages,
-          backgroundColor: ['#87CEEB', '#4682B4', '#191970', '#4169E1']
+            backgroundColor: [
+              'rgba(99, 102, 241, 0.9)',
+              'rgba(16, 185, 129, 0.9)',
+              'rgba(251, 146, 60, 0.9)',
+              'rgba(236, 72, 153, 0.9)',
+              'rgba(139, 92, 246, 0.9)',
+              'rgba(59, 130, 246, 0.9)',
+              'rgba(34, 197, 94, 0.85)'
+            ]
         }
       ]
     }
@@ -94,11 +108,25 @@ const DoughnutMiniPreview = memo(({ data, groupBy = 'fila' }) => {
   const options = {
     responsive: true,
     maintainAspectRatio: false,
+    animation: {
+      animateRotate: true,
+      animateScale: true,
+      duration: 1500,
+      easing: 'easeOutBounce'
+    },
     plugins: {
       legend: { display: false },
       tooltip: { enabled: false },
       datalabels: { display: false }
-    }
+    },
+    elements: {
+      arc: {
+        borderWidth: 3,
+        borderColor: 'rgba(255, 255, 255, 0.9)',
+        spacing: 2
+      }
+    },
+    cutout: '65%'
   }
 
   return (

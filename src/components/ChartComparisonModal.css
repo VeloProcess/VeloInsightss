@@ -1,12 +1,12 @@
-/* ChartModal.css - Estilos para modal de gráficos */
+/* ChartComparisonModal.css - Modal de comparação lado a lado */
 
-.chart-modal-overlay {
+.comparison-modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.7);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   z-index: 10000;
@@ -17,14 +17,14 @@
   animation: overlayFadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.chart-modal {
+.comparison-modal {
   background: var(--color-card-bg);
   border-radius: 24px;
   box-shadow: 
     0 25px 50px -12px rgba(0, 0, 0, 0.4),
     0 0 0 1px rgba(255, 255, 255, 0.1),
     0 0 100px rgba(22, 148, 255, 0.1);
-  max-width: 95vw;
+  max-width: 98vw;
   max-height: 95vh;
   width: 100%;
   display: flex;
@@ -35,7 +35,7 @@
   position: relative;
 }
 
-.chart-modal::before {
+.comparison-modal::before {
   content: '';
   position: absolute;
   top: 0;
@@ -51,7 +51,7 @@
   pointer-events: none;
 }
 
-.chart-modal-header {
+.comparison-modal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -64,7 +64,7 @@
   overflow: hidden;
 }
 
-.chart-modal-header::after {
+.comparison-modal-header::after {
   content: '';
   position: absolute;
   top: 0;
@@ -75,25 +75,25 @@
   animation: shimmer 1.5s ease-in-out 0.3s;
 }
 
-.chart-modal-title-section {
+.comparison-modal-title {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
 }
 
-.chart-modal-icon {
-  font-size: 32px;
+.comparison-icon {
+  font-size: 28px;
   filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
 }
 
-.chart-modal-title {
-  font-size: 24px;
+.comparison-modal-title h3 {
+  font-size: 22px;
   font-weight: 700;
   margin: 0;
   text-shadow: 0 1px 2px rgba(0,0,0,0.2);
 }
 
-.chart-modal-close {
+.comparison-modal-close {
   background: rgba(255, 255, 255, 0.2);
   border: none;
   color: white;
@@ -109,17 +109,52 @@
   justify-content: center;
 }
 
-.chart-modal-close:hover {
+.comparison-modal-close:hover {
   background: rgba(255, 255, 255, 0.3);
   transform: scale(1.1);
 }
 
-.chart-modal-content {
+.comparison-modal-content {
   padding: 32px;
   flex: 1;
   overflow: auto;
   background: var(--color-card-bg);
   animation: contentFadeIn 0.6s cubic-bezier(0.4, 0, 0.2, 1) 0.2s both;
+}
+
+.comparison-charts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  min-height: 600px;
+}
+
+.comparison-chart-item {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  padding: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  animation: slideInHorizontal 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.left-chart {
+  animation: slideInLeft 0.6s cubic-bezier(0.4, 0, 0.2, 1) 0.3s both;
+}
+
+.right-chart {
+  animation: slideInRight 0.6s cubic-bezier(0.4, 0, 0.2, 1) 0.4s both;
+}
+
+.empty-chart {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 16px;
+  font-weight: 500;
 }
 
 /* Animações */
@@ -154,17 +189,6 @@
   }
 }
 
-@keyframes contentFadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 @keyframes headerSlideDown {
   from {
     opacity: 0;
@@ -188,63 +212,72 @@
   }
 }
 
-/* Responsividade */
-@media (max-width: 768px) {
-  .chart-modal-overlay {
-    padding: 10px;
+@keyframes contentFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
   }
-  
-  .chart-modal {
-    border-radius: 16px;
-    max-width: 100vw;
-    max-height: 100vh;
-  }
-  
-  .chart-modal-header {
-    padding: 20px 24px;
-  }
-  
-  .chart-modal-title-section {
-    gap: 12px;
-  }
-  
-  .chart-modal-icon {
-    font-size: 28px;
-  }
-  
-  .chart-modal-title {
-    font-size: 20px;
-  }
-  
-  .chart-modal-close {
-    font-size: 20px;
-    width: 36px;
-    height: 36px;
-  }
-  
-  .chart-modal-content {
-    padding: 24px;
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
-@media (max-width: 480px) {
-  .chart-modal-header {
-    padding: 16px 20px;
+@keyframes slideInHorizontal {
+  from {
+    opacity: 0;
   }
-  
-  .chart-modal-title-section {
-    gap: 8px;
-  }
-  
-  .chart-modal-icon {
-    font-size: 24px;
-  }
-  
-  .chart-modal-title {
-    font-size: 18px;
-  }
-  
-  .chart-modal-content {
-    padding: 20px;
+  to {
+    opacity: 1;
   }
 }
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-50px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(50px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+  .comparison-charts-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
+  .left-chart,
+  .right-chart {
+    animation: slideInHorizontal 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  .comparison-modal {
+    max-width: 100vw;
+    max-height: 100vh;
+    border-radius: 16px;
+  }
+  
+  .comparison-modal-header {
+    padding: 20px 24px;
+  }
+  
+  .comparison-modal-content {
+    padding: 16px;
+  }
+}
+

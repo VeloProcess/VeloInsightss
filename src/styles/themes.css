@@ -91,6 +91,16 @@
   --transition-fast: 0.15s ease;
   --transition-normal: 0.3s ease;
   --transition-slow: 0.5s ease;
+  
+  /* Neumorphism Shadows - Light Theme */
+  --neomorph-shadow-light: 8px 8px 16px rgba(0, 0, 0, 0.1), -8px -8px 16px rgba(255, 255, 255, 0.7);
+  --neomorph-shadow-light-hover: 12px 12px 24px rgba(0, 0, 0, 0.15), -12px -12px 24px rgba(255, 255, 255, 0.9);
+  --neomorph-shadow-light-inset: inset 8px 8px 16px rgba(0, 0, 0, 0.1), inset -8px -8px 16px rgba(255, 255, 255, 0.7);
+  
+  /* Neumorphism Shadows - Dark Theme */
+  --neomorph-shadow-dark: 8px 8px 16px rgba(0, 0, 0, 0.5), -8px -8px 16px rgba(255, 255, 255, 0.05);
+  --neomorph-shadow-dark-hover: 12px 12px 24px rgba(0, 0, 0, 0.6), -12px -12px 24px rgba(255, 255, 255, 0.08);
+  --neomorph-shadow-dark-inset: inset 8px 8px 16px rgba(0, 0, 0, 0.5), inset -8px -8px 16px rgba(255, 255, 255, 0.05);
 }
 
 /* === TEMA CLARO APRIMORADO === */
@@ -933,4 +943,250 @@
 /* Transições suaves entre temas */
 * {
   transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+/* === GLASSMORPHISM CLASSES === */
+
+/* Glassmorphic Card - Light Theme */
+.theme-light .glass-card {
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 20px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.theme-light .glass-card:hover {
+  background: rgba(255, 255, 255, 0.8);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+  border-color: rgba(22, 148, 255, 0.3);
+}
+
+/* Glassmorphic Card - Dark Theme */
+.theme-dark .glass-card {
+  background: rgba(30, 30, 30, 0.6);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  transition: all 0.3s ease;
+}
+
+.theme-dark .glass-card:hover {
+  background: rgba(30, 30, 30, 0.8);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  transform: translateY(-2px);
+  border-color: rgba(22, 148, 255, 0.3);
+}
+
+/* Glassmorphic Button */
+.theme-light .glass-btn {
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 12px;
+  padding: 12px 24px;
+  font-family: var(--font-body);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  transition: all 0.3s ease;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+.theme-light .glass-btn:hover {
+  background: rgba(255, 255, 255, 0.7);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
+}
+
+.theme-dark .glass-btn {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 12px 24px;
+  font-family: var(--font-body);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  transition: all 0.3s ease;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.theme-dark .glass-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
+  transform: translateY(-1px);
+}
+
+/* Glassmorphic Input */
+.theme-light .glass-input {
+  background: rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-family: var(--font-body);
+  color: var(--color-text-primary);
+  transition: all 0.3s ease;
+  width: 100%;
+}
+
+.theme-light .glass-input:focus {
+  outline: none;
+  background: rgba(255, 255, 255, 0.5);
+  border-color: rgba(22, 148, 255, 0.5);
+  box-shadow: 0 0 0 3px rgba(22, 148, 255, 0.1);
+}
+
+.theme-dark .glass-input {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-family: var(--font-body);
+  color: var(--color-text-primary);
+  transition: all 0.3s ease;
+  width: 100%;
+}
+
+.theme-dark .glass-input:focus {
+  outline: none;
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(22, 148, 255, 0.5);
+  box-shadow: 0 0 0 3px rgba(22, 148, 255, 0.1);
+}
+
+/* === NEUMORPHISM CLASSES === */
+
+/* Neumorphic Card - Light Theme */
+.theme-light .neomorph-card {
+  background: var(--color-card-bg);
+  box-shadow: var(--neomorph-shadow-light);
+  border-radius: 20px;
+  transition: all 0.3s ease;
+  border: none;
+}
+
+.theme-light .neomorph-card:hover {
+  box-shadow: var(--neomorph-shadow-light-hover);
+  transform: translateY(-2px);
+}
+
+.theme-light .neomorph-card:active {
+  box-shadow: var(--neomorph-shadow-light-inset);
+  transform: scale(0.98);
+}
+
+/* Neumorphic Card - Dark Theme */
+.theme-dark .neomorph-card {
+  background: var(--color-card-bg);
+  box-shadow: var(--neomorph-shadow-dark);
+  border-radius: 20px;
+  transition: all 0.3s ease;
+  border: none;
+}
+
+.theme-dark .neomorph-card:hover {
+  box-shadow: var(--neomorph-shadow-dark-hover);
+  transform: translateY(-2px);
+}
+
+.theme-dark .neomorph-card:active {
+  box-shadow: var(--neomorph-shadow-dark-inset);
+  transform: scale(0.98);
+}
+
+/* Neumorphic Button - Light Theme */
+.theme-light .neomorph-btn {
+  background: var(--color-card-bg);
+  box-shadow: var(--neomorph-shadow-light);
+  border: none;
+  border-radius: 12px;
+  padding: 12px 24px;
+  font-family: var(--font-body);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.theme-light .neomorph-btn:hover {
+  box-shadow: var(--neomorph-shadow-light-hover);
+  transform: translateY(-1px);
+}
+
+.theme-light .neomorph-btn:active {
+  box-shadow: var(--neomorph-shadow-light-inset);
+  transform: scale(0.96);
+}
+
+/* Neumorphic Button - Dark Theme */
+.theme-dark .neomorph-btn {
+  background: var(--color-card-bg);
+  box-shadow: var(--neomorph-shadow-dark);
+  border: none;
+  border-radius: 12px;
+  padding: 12px 24px;
+  font-family: var(--font-body);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.theme-dark .neomorph-btn:hover {
+  box-shadow: var(--neomorph-shadow-dark-hover);
+  transform: translateY(-1px);
+}
+
+.theme-dark .neomorph-btn:active {
+  box-shadow: var(--neomorph-shadow-dark-inset);
+  transform: scale(0.96);
+}
+
+/* Neumorphic Input - Light Theme */
+.theme-light .neomorph-input {
+  background: var(--color-card-bg);
+  box-shadow: var(--neomorph-shadow-light-inset);
+  border: none;
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-family: var(--font-body);
+  color: var(--color-text-primary);
+  transition: all 0.3s ease;
+  width: 100%;
+}
+
+.theme-light .neomorph-input:focus {
+  outline: none;
+  box-shadow: var(--neomorph-shadow-light);
+}
+
+/* Neumorphic Input - Dark Theme */
+.theme-dark .neomorph-input {
+  background: var(--color-card-bg);
+  box-shadow: var(--neomorph-shadow-dark-inset);
+  border: none;
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-family: var(--font-body);
+  color: var(--color-text-primary);
+  transition: all 0.3s ease;
+  width: 100%;
+}
+
+.theme-dark .neomorph-input:focus {
+  outline: none;
+  box-shadow: var(--neomorph-shadow-dark);
 }
