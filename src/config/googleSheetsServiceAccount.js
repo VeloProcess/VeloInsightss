@@ -5,11 +5,11 @@
 
 // IDs das planilhas (extraídos das URLs)
 export const MAIN_SPREADSHEET_ID = '1MNzzH0NoAtG41DjR7dZ9BOkMS73RZSEO' // Nova planilha - dados principais
-export const PAUSE_SPREADSHEET_ID = '1F1VJrAzGage7YyX1tLCUCaIgB2GhvHSqJRVnmwwYhkA' // Planilha atual - dados de pausa
+export const PAUSE_SPREADSHEET_ID = '1rMMUvPXwg8R9a1VglHse75QLu8tVj7kAFLdHCDlEvR8' // Nova planilha - dados de pausa
 
 // Ranges das planilhas
 export const MAIN_SHEET_RANGE = 'Base!A1:AC150000' // Nova planilha - aba Base (range específico)
-export const PAUSE_SHEET_RANGE = 'Pausas!A1:AB150000' // Planilha atual - aba Pausas (range específico)
+export const PAUSE_SHEET_RANGE = 'resumo!A1:G150000' // Nova planilha - aba resumo (range específico)
 
 // Compatibilidade com código existente
 export const SPREADSHEET_ID = MAIN_SPREADSHEET_ID

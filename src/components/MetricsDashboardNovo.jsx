@@ -85,6 +85,16 @@ const MetricsDashboard = memo(({ metrics = {}, octaData = null, data = [], perio
   // Hook para carregar dados específicos de pausas
   const { pausasData, isLoading: isLoadingPausas, error: pausasError } = usePausasData()
   
+  // Debug: Log quando os dados mudarem
+  React.useEffect(() => {
+    console.log('[MetricsDashboardNovo] Estado de pausas atualizado:', {
+      isLoadingPausas,
+      pausasError,
+      pausasDataLength: pausasData?.length || 0,
+      pausasDataPreview: pausasData?.slice(0, 3) || []
+    })
+  }, [pausasData, isLoadingPausas, pausasError])
+  
   // Verificar se há erro de permissão no octaData
   const hasOctaPermissionError = octaData?.error && octaData.error.includes('Acesso negado')
   
@@ -822,7 +832,7 @@ const MetricsDashboard = memo(({ metrics = {}, octaData = null, data = [], perio
           <div className="mini-cards-container-pausas">
             {/* Mini Card - Pausas */}
             <MiniCard
-              title="Pausas por Operador"
+              title="Pausas por Mês"
               icon={<BsPauseCircle />}
               description={isLoadingPausas ? "Carregando..." : pausasError ? "Erro ao carregar" : `${pausasData?.length || 0} registros`}
               previewData={<PausasPreview />}
@@ -834,7 +844,7 @@ const MetricsDashboard = memo(({ metrics = {}, octaData = null, data = [], perio
           <ChartModal
             isOpen={isPausasModalOpen}
             onClose={() => setIsPausasModalOpen(false)}
-            title="Pausas por Operador"
+            title="Pausas - Total por Mês (TML & TMP)"
             icon="⏸️"
           >
             <div className="chart-container-pausas">
@@ -852,7 +862,15 @@ const MetricsDashboard = memo(({ metrics = {}, octaData = null, data = [], perio
                   </div>
                 </div>
               ) : (
-                <PausasSection pausasData={pausasData} periodo={calculatedPeriodo} />
+                <>
+                  {console.log('[MetricsDashboardNovo] Renderizando PausasSection com:', {
+                    pausasDataLength: pausasData?.length || 0,
+                    periodo: calculatedPeriodo,
+                    isLoadingPausas,
+                    pausasError
+                  })}
+                  <PausasSection pausasData={pausasData} periodo={calculatedPeriodo} />
+                </>
               )}
             </div>
           </ChartModal>

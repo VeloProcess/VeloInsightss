@@ -68,7 +68,24 @@ const PausasSection = ({ pausasData, periodo }) => {
 
   // Processar dados de TML e TMP
   const processedData = React.useMemo(() => {
+    console.log('[PausasSection] 🔄 Processando dados de pausas')
+    console.log('[PausasSection] pausasData recebido:', pausasData ? `Array com ${pausasData.length} linhas` : 'null/undefined')
+    console.log('[PausasSection] periodo recebido:', periodo)
+    if (periodo && periodo.startDate && periodo.endDate) {
+      const start = new Date(periodo.startDate)
+      const end = new Date(periodo.endDate)
+      console.log('[PausasSection] Período de filtro:', {
+        start: start.toLocaleDateString('pt-BR'),
+        end: end.toLocaleDateString('pt-BR'),
+        startISO: start.toISOString(),
+        endISO: end.toISOString()
+      })
+    } else {
+      console.log('[PausasSection] ⚠️ Sem período definido, incluindo TODOS os dados')
+    }
+    
     if (!pausasData || pausasData.length === 0) {
+      console.log('[PausasSection] ⚠️ Nenhum dado disponível para processar')
       return {
         dias: [],
         tempoLogadoPorDia: {},
@@ -78,29 +95,95 @@ const PausasSection = ({ pausasData, periodo }) => {
         totalDias: 0
       }
     }
+    
+    console.log('[PausasSection] Primeira linha (cabeçalho):', pausasData[0])
+    if (pausasData.length > 1) {
+      console.log('[PausasSection] Segunda linha (exemplo):', pausasData[1])
+      console.log('[PausasSection] Terceira linha (exemplo):', pausasData[2])
+    }
 
+    // Verificar se o período faz sentido comparado com os dados
+    const periodoValido = periodo && periodo.startDate && periodo.endDate
+    let usarFiltroPeriodo = true
+    
+    if (periodoValido && pausasData.length > 1) {
+      // Verificar a primeira data dos dados para ver se faz sentido com o período
+      const primeiraLinha = pausasData[1] // Segunda linha (após cabeçalho)
+      if (Array.isArray(primeiraLinha) && primeiraLinha[0]) {
+        const primeiraData = parseBrazilianDate(primeiraLinha[0])
+        const startDate = new Date(periodo.startDate)
+        const endDate = new Date(periodo.endDate)
+        
+        // Se a primeira data dos dados é muito anterior ao período (mais de 6 meses),
+        // provavelmente o período está errado ou é um filtro padrão que não se aplica
+        if (primeiraData && primeiraData < startDate) {
+          const diffMonths = (startDate.getTime() - primeiraData.getTime()) / (30 * 24 * 60 * 60 * 1000)
+          if (diffMonths > 6) {
+            console.log('[PausasSection] ⚠️ Período está muito distante dos dados (primeira data:', primeiraData.toLocaleDateString('pt-BR'), 'vs período:', startDate.toLocaleDateString('pt-BR'), '), ignorando filtro e mostrando todos os dados')
+            usarFiltroPeriodo = false
+          }
+        }
+        
+        // Se o período está no futuro (mais de 1 mês), também ignorar
+        const now = new Date()
+        if (startDate > now && (startDate.getTime() - now.getTime()) > (30 * 24 * 60 * 60 * 1000)) {
+          console.log('[PausasSection] ⚠️ Período está no futuro, ignorando filtro e mostrando todos os dados')
+          usarFiltroPeriodo = false
+        }
+      }
+    } else if (!periodoValido) {
+      usarFiltroPeriodo = false
+      console.log('[PausasSection] Sem período definido, incluindo todos os dados')
+    }
+    
     // Função para verificar se uma data está dentro do período selecionado
     const isDateInPeriod = (dataInicial) => {
-      if (!periodo) return true
+      if (!usarFiltroPeriodo) {
+        return true // Sem filtro, incluir todos
+      }
       
       try {
         const rowDate = parseBrazilianDate(dataInicial)
-        if (!rowDate) return true
+        if (!rowDate) {
+          return true // Incluir se não conseguir parsear
+        }
         
         const startDate = new Date(periodo.startDate)
         const endDate = new Date(periodo.endDate)
         
-        return rowDate >= startDate && rowDate <= endDate
+        // Ajustar horas para comparar apenas datas (sem horas)
+        startDate.setHours(0, 0, 0, 0)
+        endDate.setHours(23, 59, 59, 999)
+        const rowDateNormalized = new Date(rowDate)
+        rowDateNormalized.setHours(0, 0, 0, 0)
+        
+        const dentro = rowDateNormalized >= startDate && rowDateNormalized <= endDate
+        
+        return dentro
       } catch (error) {
+        console.log('[PausasSection] Erro ao verificar período:', error)
         return true
       }
+    }
+
+    // Função para verificar se uma célula contém erro
+    const temErro = (valor) => {
+      if (!valor) return false
+      const valorStr = String(valor).trim()
+      return valorStr.includes('#DIV/0!') || valorStr.includes('#ERROR!') || valorStr.includes('#')
     }
 
     // Função para converter duração (formato HH:MM:SS) para minutos
     const duracaoParaMinutos = (duracao) => {
       if (!duracao) return 0
       
-      const partes = duracao.split(':')
+      // Filtrar erros do Google Sheets
+      const duracaoStr = String(duracao).trim()
+      if (temErro(duracaoStr)) {
+        return 0 // Linha descartada - erro na planilha
+      }
+      
+      const partes = duracaoStr.split(':')
       if (partes.length === 3) {
         const horas = parseInt(partes[0]) || 0
         const minutos = parseInt(partes[1]) || 0
@@ -203,35 +286,101 @@ const PausasSection = ({ pausasData, periodo }) => {
         }
       })
     } else {
-      // Fallback para estrutura antiga (array de arrays) se necessário
-      let dataStartIndex = 14
-      for (let i = 0; i < Math.min(20, pausasData.length); i++) {
-        const row = pausasData[i]
-        if (Array.isArray(row) && row.length > 15) {
-          const operador = String(row[0] || '').trim()
-          const atividade = String(row[9] || '').trim()
-          if (operador && atividade && operador !== 'Operador' && atividade !== 'Atividade') {
-            dataStartIndex = i
-            break
-          }
+      // Nova estrutura (array de arrays) - aba resumo
+      // Coluna A=Data, B=Operador, C=Tempo em Pausa (TMP), D=Tempo Online (TML)
+      let dataStartIndex = 1 // Começar da linha 2 (índice 1), assumindo linha 1 é cabeçalho
+      let linhasDescartadas = 0
+      
+      // Verificar se primeira linha é cabeçalho
+      if (pausasData.length > 0 && Array.isArray(pausasData[0])) {
+        const primeiraLinha = pausasData[0]
+        const primeiroCampo = String(primeiraLinha[0] || '').trim().toLowerCase()
+        if (primeiroCampo === 'data' || primeiroCampo.includes('data')) {
+          dataStartIndex = 1 // Pular cabeçalho
+          console.log('[PausasSection] Cabeçalho detectado, iniciando processamento da linha 2')
+        } else {
+          dataStartIndex = 0 // Não há cabeçalho
+          console.log('[PausasSection] Sem cabeçalho detectado, iniciando processamento da linha 1')
         }
       }
       
       // Estrutura para armazenar dados por operador e mês (para arrays)
       const dadosPorOperadorMesArray = {}
+      let linhasProcessadas = 0
+      let linhasValidas = 0
       
-      pausasData.slice(dataStartIndex).forEach((row) => {
-        if (Array.isArray(row) && row.length > 15) {
-          const operador = String(row[0] || '').trim()
-          const atividade = String(row[9] || '').trim()
-          const dataInicial = String(row[10] || '').trim()
-          const duracao = String(row[15] || '').trim() // Coluna P - DuracaoCalculo
-          
-          if (!isDateInPeriod(dataInicial)) {
-            return
+      console.log('[PausasSection] Iniciando processamento de', pausasData.length - dataStartIndex, 'linhas')
+      
+      pausasData.slice(dataStartIndex).forEach((row, index) => {
+        if (!Array.isArray(row) || row.length < 4) {
+          linhasDescartadas = (linhasDescartadas || 0) + 1 // Linha descartada - estrutura inválida
+          if (index < 5) {
+            console.log(`[PausasSection] Linha ${dataStartIndex + index} descartada - estrutura inválida. Length:`, row?.length, 'Row:', row)
           }
+          return
+        }
+
+        linhasProcessadas++
+
+        // Nova estrutura: A=Data, B=Operador, C=Tempo Online (TML), D=Tempo em Pausa (TMP)
+        const dataStr = String(row[0] || '').trim() // Coluna A - Data
+        const operador = String(row[1] || '').trim() // Coluna B - Operador
+        const tempoOnline = String(row[2] || '').trim() // Coluna C - Tempo Online (TML)
+        const tempoPausa = String(row[3] || '').trim() // Coluna D - Tempo em Pausa (TMP)
+
+        if (index < 5) {
+          console.log(`[PausasSection] Processando linha ${dataStartIndex + index}:`, {
+            dataStr,
+            operador,
+            tempoPausa,
+            tempoOnline,
+            rowLength: row.length
+          })
+        }
+
+        // Filtrar linhas com erros ou vazias
+        if (!dataStr || !operador || temErro(dataStr) || temErro(operador) || temErro(tempoPausa) || temErro(tempoOnline)) {
+          linhasDescartadas = (linhasDescartadas || 0) + 1 // Linha descartada - erro ou vazio
+          if (index < 5) {
+            console.log(`[PausasSection] Linha ${dataStartIndex + index} descartada - erro ou vazio:`, {
+              temDataStr: !!dataStr,
+              temOperador: !!operador,
+              temErroDataStr: temErro(dataStr),
+              temErroOperador: temErro(operador),
+              temErroTempoPausa: temErro(tempoPausa),
+              temErroTempoOnline: temErro(tempoOnline)
+            })
+          }
+          return
+        }
+        
+        if (!isDateInPeriod(dataStr)) {
+          if (index < 5) {
+            const parsedDate = parseBrazilianDate(dataStr)
+            if (parsedDate && periodo && periodo.startDate && periodo.endDate) {
+              const start = new Date(periodo.startDate)
+              const end = new Date(periodo.endDate)
+              start.setHours(0, 0, 0, 0)
+              end.setHours(23, 59, 59, 999)
+              const row = new Date(parsedDate)
+              row.setHours(0, 0, 0, 0)
+              console.log(`[PausasSection] Linha ${dataStartIndex + index} fora do período:`, {
+                dataStr,
+                parsedDate: parsedDate.toLocaleDateString('pt-BR'),
+                periodoStart: start.toLocaleDateString('pt-BR'),
+                periodoEnd: end.toLocaleDateString('pt-BR'),
+                rowDate: row.toLocaleDateString('pt-BR'),
+                dentroPeriodo: row >= start && row <= end,
+                comparacao: `${row.toISOString()} >= ${start.toISOString()} && ${row.toISOString()} <= ${end.toISOString()}`
+              })
+            }
+          }
+          return
+        }
+        
+        linhasValidas++
           
-          const mesKey = getMesKey(dataInicial)
+        const mesKey = getMesKey(dataStr)
           
           if (!dadosPorOperadorMesArray[mesKey]) {
             dadosPorOperadorMesArray[mesKey] = {}
@@ -246,33 +395,50 @@ const PausasSection = ({ pausasData, periodo }) => {
           
           mesesSet.add(mesKey)
           
-          const duracaoMinutos = duracaoParaMinutos(duracao)
+        // Converter tempos para minutos
+        const tmlMinutos = duracaoParaMinutos(tempoOnline) // Coluna C - Tempo Online (TML)
+        const tmpMinutos = duracaoParaMinutos(tempoPausa) // Coluna D - Tempo em Pausa (TMP)
           
-          if (atividade.toLowerCase() === 'online') {
-            dadosPorOperadorMesArray[mesKey][operador].tempoLogado += duracaoMinutos
-          } else if (atividade.toLowerCase() === 'em pausa') {
-            dadosPorOperadorMesArray[mesKey][operador].tempoPausado += duracaoMinutos
-          }
+        if (index < 3) {
+          console.log(`[PausasSection] Linha ${dataStartIndex + index} processada:`, {
+            mesKey,
+            operador,
+            tmpMinutos,
+            tmlMinutos
+          })
         }
+          
+        // Somar os tempos por operador e mês
+        dadosPorOperadorMesArray[mesKey][operador].tempoPausado += tmpMinutos
+        dadosPorOperadorMesArray[mesKey][operador].tempoLogado += tmlMinutos
       })
       
-      // Calcular médias por mês (média dos operadores) para arrays
+      console.log('[PausasSection] 📊 Estatísticas de processamento:')
+      console.log('[PausasSection] - Linhas processadas:', linhasProcessadas)
+      console.log('[PausasSection] - Linhas válidas:', linhasValidas)
+      console.log('[PausasSection] - Linhas descartadas:', linhasDescartadas)
+      
+      // Log de linhas descartadas (conforme regras de qualidade)
+      if (linhasDescartadas > 0) {
+        console.log(`[PausasSection] ${linhasDescartadas} linha(s) descartada(s) devido a erros ou valores inválidos`)
+      }
+      
+      // Calcular TOTAIS por mês (soma de todos os operadores) para arrays
       Object.keys(dadosPorOperadorMesArray).forEach(mesKey => {
         const operadoresDoMes = Object.keys(dadosPorOperadorMesArray[mesKey])
-        const totalOperadores = operadoresDoMes.length
         
-        if (totalOperadores > 0) {
+        if (operadoresDoMes.length > 0) {
+          // SOMAR todos os tempos de todos os operadores do mês (não fazer média)
           const tempoTotalLogado = operadoresDoMes.reduce((sum, operador) => 
             sum + dadosPorOperadorMesArray[mesKey][operador].tempoLogado, 0)
           const tempoTotalPausado = operadoresDoMes.reduce((sum, operador) => 
             sum + dadosPorOperadorMesArray[mesKey][operador].tempoPausado, 0)
           
-          // Média por operador do mês (em minutos)
-          const mediaLogadoPorOperador = tempoTotalLogado / totalOperadores
-          const mediaPausadoPorOperador = tempoTotalPausado / totalOperadores
+          // Armazenar TOTAIS (não médias) - em minutos
+          tempoLogadoPorMes[mesKey] = tempoTotalLogado
+          tempoPausadoPorMes[mesKey] = tempoTotalPausado
           
-          tempoLogadoPorMes[mesKey] = mediaLogadoPorOperador
-          tempoPausadoPorMes[mesKey] = mediaPausadoPorOperador
+          console.log(`[PausasSection] Mês ${mesKey} - Total Logado: ${tempoTotalLogado.toFixed(2)} min (${(tempoTotalLogado/60).toFixed(2)} horas), Total Pausado: ${tempoTotalPausado.toFixed(2)} min (${(tempoTotalPausado/60).toFixed(2)} horas)`)
         }
       })
     }
@@ -280,12 +446,22 @@ const PausasSection = ({ pausasData, periodo }) => {
     const meses = Array.from(mesesSet).sort()
     const totalMeses = meses.length
 
+    console.log('[PausasSection] Meses encontrados:', meses)
+    console.log('[PausasSection] Total de meses:', totalMeses)
+    console.log('[PausasSection] Tempo logado por mês:', tempoLogadoPorMes)
+    console.log('[PausasSection] Tempo pausado por mês:', tempoPausadoPorMes)
+
     // Calcular médias
     const tempoTotalLogado = Object.values(tempoLogadoPorMes).reduce((sum, time) => sum + time, 0)
     const tempoTotalPausado = Object.values(tempoPausadoPorMes).reduce((sum, time) => sum + time, 0)
     
     const tempoMedioLogado = totalMeses > 0 ? tempoTotalLogado / totalMeses : 0
     const tempoMedioPausado = totalMeses > 0 ? tempoTotalPausado / totalMeses : 0
+
+    console.log('[PausasSection] Tempo total logado:', tempoTotalLogado, 'minutos')
+    console.log('[PausasSection] Tempo total pausado:', tempoTotalPausado, 'minutos')
+    console.log('[PausasSection] Tempo médio logado:', tempoMedioLogado, 'minutos')
+    console.log('[PausasSection] Tempo médio pausado:', tempoMedioPausado, 'minutos')
 
     const result = {
       dias: meses, // Mantendo o nome 'dias' para compatibilidade com o componente
@@ -296,6 +472,7 @@ const PausasSection = ({ pausasData, periodo }) => {
       totalDias: totalMeses // Mantendo o nome para compatibilidade
     }
     
+    console.log('[PausasSection] Resultado final processado:', result)
     return result
   }, [pausasData, periodo])
 
@@ -336,7 +513,7 @@ const PausasSection = ({ pausasData, periodo }) => {
         },
         anchor: 'end',
         align: 'top',
-        offset: 4
+        offset: 12
       }
       },
       {
@@ -351,7 +528,7 @@ const PausasSection = ({ pausasData, periodo }) => {
         display: true,
         color: '#1f2937',
         font: {
-          size: 14,
+          size: 18,
           weight: 'bold',
           family: "'Inter', sans-serif"
         },
@@ -360,7 +537,7 @@ const PausasSection = ({ pausasData, periodo }) => {
         },
         anchor: 'end',
         align: 'top',
-        offset: 4
+        offset: 1
       }
       }
     ]
@@ -379,7 +556,7 @@ const PausasSection = ({ pausasData, periodo }) => {
     },
     layout: {
       padding: {
-        top: 10,
+        top: 0.5,
         bottom: 10,
         left: 10,
         right: 10
@@ -387,28 +564,13 @@ const PausasSection = ({ pausasData, periodo }) => {
     },
     plugins: {
       legend: {
-        display: true,
-        position: 'top',
-        align: 'end',
-        labels: {
-          font: {
-            size: 16,
-            family: "'Inter', sans-serif",
-            weight: '700'
-          },
-          padding: 25,
-          usePointStyle: true,
-          pointStyle: 'rectRounded',
-          boxWidth: 16,
-          boxHeight: 16,
-          color: '#1f2937'
-        }
+        display: false // Legenda será exibida no header ao lado do título
       },
       datalabels: {
         display: true,
         color: '#1f2937',
         font: {
-          size: 14,
+          size: 16,
           weight: 'bold',
           family: "'Inter', sans-serif"
         },
@@ -417,7 +579,7 @@ const PausasSection = ({ pausasData, periodo }) => {
         },
         anchor: 'end',
         align: 'top',
-        offset: 4
+        offset: 8
       },
       tooltip: {
         backgroundColor: 'rgba(17, 24, 39, 0.98)',
@@ -479,16 +641,58 @@ const PausasSection = ({ pausasData, periodo }) => {
     }
   }
 
+  console.log('[PausasSection] Renderizando componente')
+  console.log('[PausasSection] chartData:', chartData)
+  console.log('[PausasSection] processedData.dias:', processedData.dias)
+  console.log('[PausasSection] processedData.tempoLogadoPorDia:', processedData.tempoLogadoPorDia)
+  console.log('[PausasSection] processedData.tempoPausadoPorDia:', processedData.tempoPausadoPorDia)
+
   return (
     <div className="pausas-section">
       {/* Card TML & TMP */}
       <div className="pausas-card">
         <div className="pausas-card-header">
-          <h3 className="pausas-card-title">Tempo Médio Logado e Pausado (TML & TMP)</h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
+            <h3 className="pausas-card-title">Tempo Médio Logado e Pausado (TML & TMP)</h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginLeft: 'auto' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div style={{ 
+                  width: '16px', 
+                  height: '16px', 
+                  backgroundColor: 'rgba(34, 197, 94, 0.8)', 
+                  borderRadius: '4px',
+                  border: '2px solid rgba(34, 197, 94, 1)'
+                }}></div>
+                <span style={{ fontSize: '14px', fontWeight: '600', color: '#1f2937' }}>Tempo Logado (TML)</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div style={{ 
+                  width: '16px', 
+                  height: '16px', 
+                  backgroundColor: 'rgba(239, 68, 68, 0.8)', 
+                  borderRadius: '4px',
+                  border: '2px solid rgba(239, 68, 68, 1)'
+                }}></div>
+                <span style={{ fontSize: '14px', fontWeight: '600', color: '#1f2937' }}>Tempo Pausado (TMP)</span>
+              </div>
+            </div>
+          </div>
           <i className='bx bx-bar-chart-alt-2 pausas-card-icon'></i>
         </div>
-        <div className="pausas-chart-container">
+        <div className="pausas-chart-container" style={{ minHeight: '500px', height: '500px' }}>
+          {chartData && chartData.labels && chartData.labels.length > 0 ? (
           <Bar data={chartData} options={options} />
+          ) : (
+            <div style={{ padding: '40px', textAlign: 'center', color: '#666' }}>
+              <p style={{ fontSize: '18px', marginBottom: '10px' }}>📊 Nenhum dado disponível</p>
+              <p style={{ fontSize: '14px', color: '#999' }}>
+                Dados processados: {processedData.dias.length} meses encontrados
+              </p>
+              <p style={{ fontSize: '12px', color: '#999', marginTop: '10px' }}>
+                Verifique o console para mais detalhes
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>

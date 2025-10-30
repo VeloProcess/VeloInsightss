@@ -324,66 +324,250 @@ const renderPieChart = (processedData) => {
   return <Bar data={barChartData} options={barOptions} />
 }
 
-// Renderizar gráfico de operadores
+// Renderizar gráfico de operadores melhorado - agora mostra totais por mês
 const renderOperatorsChart = (processedData) => {
-  // Verificar se os dados necessários existem
-  if (!processedData.operadores || !Array.isArray(processedData.operadores)) {
+  // Usar dados por mês (já processados)
+  if (!processedData.dias || processedData.dias.length === 0) {
     return (
-      <div style={{ padding: '20px', textAlign: 'center', color: '#666' }}>
-        <p>Nenhum dado de operadores disponível</p>
+      <div style={{ padding: '40px', textAlign: 'center', color: '#666' }}>
+        <p style={{ fontSize: '18px', marginBottom: '10px' }}>📊 Nenhum dado disponível</p>
+        <p style={{ fontSize: '14px', color: '#999' }}>Verifique se há dados de pausas no período selecionado</p>
       </div>
     )
   }
 
+  // Função para converter minutos para formato HH:MM:SS
+  const formatMinutesToTime = (minutes) => {
+    if (!minutes || minutes === 0) return '00:00:00'
+    const totalMinutes = Math.floor(minutes)
+    const hours = Math.floor(totalMinutes / 60)
+    const mins = totalMinutes % 60
+    const secs = Math.floor((minutes % 1) * 60)
+    return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+  }
+
+  // Preparar dados por mês
+  const mesesArray = processedData.dias.map(mes => {
+    const tempoPausado = processedData.tempoPausadoPorDia[mes] || 0
+    const tempoLogado = processedData.tempoLogadoPorDia[mes] || 0
+    const tempoTotal = tempoPausado + tempoLogado
+    const percentualPausa = tempoTotal > 0 ? (tempoPausado / tempoTotal) * 100 : 0
+    
+    return {
+      mes,
+      tempoPausado,
+      tempoLogado,
+      tempoTotal,
+      percentualPausa
+    }
+  }).filter(item => item.tempoTotal > 0)
+
+  if (mesesArray.length === 0) {
+    return (
+      <div style={{ padding: '40px', textAlign: 'center', color: '#666' }}>
+        <p style={{ fontSize: '18px', marginBottom: '10px' }}>📊 Nenhum dado disponível</p>
+        <p style={{ fontSize: '14px', color: '#999' }}>Nenhum mês com dados de pausas no período selecionado</p>
+      </div>
+    )
+  }
+
+  // Preparar dados do gráfico por mês
   const operatorsData = {
-    labels: processedData.operadores.slice(0, 10), // Top 10 operadores
+    labels: mesesArray.map(item => item.mes),
     datasets: [
       {
-        label: 'Pausas por Operador',
-        data: processedData.operadores.slice(0, 10).map(operador => processedData.pausasPorOperador[operador] || 0),
-        backgroundColor: 'rgba(16, 185, 129, 0.8)',
-        borderColor: 'rgba(16, 185, 129, 1)',
-        borderWidth: 2,
-        borderRadius: 4,
+        label: '⏸️ Tempo em Pausa (TMP)',
+        data: mesesArray.map(item => item.tempoPausado),
+        backgroundColor: 'rgba(239, 68, 68, 0.85)',
+        borderColor: 'rgba(239, 68, 68, 1)',
+        borderWidth: 2.5,
+        borderRadius: 6,
+        borderSkipped: false,
+      },
+      {
+        label: '✅ Tempo Online (TML)',
+        data: mesesArray.map(item => item.tempoLogado),
+        backgroundColor: 'rgba(34, 197, 94, 0.85)',
+        borderColor: 'rgba(34, 197, 94, 1)',
+        borderWidth: 2.5,
+        borderRadius: 6,
         borderSkipped: false,
       }
     ]
   }
 
   const operatorsOptions = {
+    indexAxis: 'x', // Gráfico vertical (barras verticais)
     responsive: true,
     maintainAspectRatio: false,
+    layout: {
+      padding: {
+        left: 10,
+        right: 10,
+        top: 20,
+        bottom: 20
+      }
+    },
     plugins: {
       legend: {
-        display: false
+        display: true,
+        position: 'top',
+        align: 'end',
+        labels: {
+          font: {
+            size: 16,
+            family: "'Inter', sans-serif",
+            weight: '700'
+          },
+          padding: 20,
+          usePointStyle: true,
+          pointStyle: 'circle',
+          boxWidth: 12,
+          boxHeight: 12,
+          color: '#1f2937'
+        }
       },
       tooltip: {
-        backgroundColor: 'rgba(17, 24, 39, 0.95)',
-        titleColor: '#fff',
-        bodyColor: '#fff',
-        padding: 12,
+        backgroundColor: 'rgba(17, 24, 39, 0.98)',
+        titleColor: '#f9fafb',
+        bodyColor: '#f9fafb',
+        borderColor: '#374151',
+        borderWidth: 1,
         cornerRadius: 8,
+        padding: 12,
+        displayColors: true,
         callbacks: {
           title: function(context) {
-            return `👤 ${context[0].label}`
+            const index = context[0].dataIndex
+            return `📅 ${mesesArray[index].mes}`
           },
           label: function(context) {
-            return `⏸️ Pausas: ${context.parsed.y}`
+            const index = context.dataIndex
+            const datasetIndex = context.datasetIndex
+            const item = mesesArray[index]
+            
+            if (datasetIndex === 0) {
+              // TMP
+              const percentual = item.percentualPausa.toFixed(1)
+              return [
+                `⏸️ Tempo em Pausa: ${formatMinutesToTime(context.parsed.y)}`,
+                `📊 ${percentual}% do tempo total`
+              ]
+            } else {
+              // TML
+              const percentual = (100 - item.percentualPausa).toFixed(1)
+              return [
+                `✅ Tempo Online: ${formatMinutesToTime(context.parsed.y)}`,
+                `📊 ${percentual}% do tempo total`
+              ]
+            }
+          },
+          footer: function(tooltipItems) {
+            if (tooltipItems.length === 2) {
+              const index = tooltipItems[0].dataIndex
+              const item = mesesArray[index]
+              return `📈 Tempo Total: ${formatMinutesToTime(item.tempoTotal)}`
+            }
+            return ''
           }
         }
       }
     },
     scales: {
+      x: {
+        stacked: false,
+        grid: {
+          color: 'rgba(0, 0, 0, 0.05)',
+          drawBorder: false,
+          display: false
+        },
+        ticks: {
+          font: {
+            size: 14,
+            family: "'Inter', sans-serif",
+            weight: '600'
+          },
+          color: '#374151',
+          padding: 8,
+          maxRotation: 45,
+          minRotation: 0
+        }
+      },
       y: {
         beginAtZero: true,
+        stacked: false,
+        grid: {
+          color: 'rgba(0, 0, 0, 0.08)',
+          drawBorder: false,
+          lineWidth: 1
+        },
         ticks: {
-          stepSize: 1
+          font: {
+            size: 14,
+            family: "'Inter', sans-serif",
+            weight: '600'
+          },
+          color: '#374151',
+          padding: 10,
+          callback: function(value) {
+            return formatMinutesToTime(value)
+          }
         }
       }
+    },
+    animation: {
+      duration: 1000,
+      easing: 'easeOutQuart'
     }
   }
 
-  return <Bar data={operatorsData} options={operatorsOptions} />
+  return (
+    <div style={{ height: '600px', width: '100%', position: 'relative' }}>
+      <Bar data={operatorsData} options={operatorsOptions} />
+      {/* Legenda adicional com estatísticas */}
+      <div style={{
+        marginTop: '20px',
+        padding: '15px',
+        backgroundColor: '#f9fafb',
+        borderRadius: '8px',
+        border: '1px solid #e5e7eb'
+      }}>
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-around',
+          flexWrap: 'wrap',
+          gap: '15px',
+          fontSize: '13px',
+          color: '#6b7280'
+        }}>
+          <div>
+            <strong style={{ color: '#1f2937' }}>📅 Total de Meses:</strong> {mesesArray.length}
+          </div>
+          <div>
+            <strong style={{ color: '#1f2937' }}>⏸️ Média de Pausa por Mês:</strong> {
+              formatMinutesToTime(
+                mesesArray.reduce((sum, item) => sum + item.tempoPausado, 0) / mesesArray.length
+              )
+            }
+          </div>
+          <div>
+            <strong style={{ color: '#1f2937' }}>✅ Média Online por Mês:</strong> {
+              formatMinutesToTime(
+                mesesArray.reduce((sum, item) => sum + item.tempoLogado, 0) / mesesArray.length
+              )
+            }
+          </div>
+          <div>
+            <strong style={{ color: '#1f2937' }}>📈 Tempo Total Geral:</strong> {
+              formatMinutesToTime(
+                mesesArray.reduce((sum, item) => sum + item.tempoTotal, 0)
+              )
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 // Processar dados de pausas
@@ -416,11 +600,24 @@ const processTMLTMPData = (data, periodo) => {
     }
   }
 
+  // Função para verificar se uma célula contém erro
+  const temErro = (valor) => {
+    if (!valor) return false
+    const valorStr = String(valor).trim()
+    return valorStr.includes('#DIV/0!') || valorStr.includes('#ERROR!') || valorStr.includes('#')
+  }
+
   // Função para converter duração (formato HH:MM:SS) para minutos
   const duracaoParaMinutos = (duracao) => {
     if (!duracao) return 0
     
-    const partes = duracao.split(':')
+    // Filtrar erros do Google Sheets
+    const duracaoStr = String(duracao).trim()
+    if (temErro(duracaoStr)) {
+      return 0 // Linha descartada - erro na planilha
+    }
+    
+    const partes = duracaoStr.split(':')
     if (partes.length === 3) {
       const horas = parseInt(partes[0]) || 0
       const minutos = parseInt(partes[1]) || 0
@@ -428,7 +625,7 @@ const processTMLTMPData = (data, periodo) => {
       return horas * 60 + minutos + (segundos / 60)
     }
     
-    return parseFloat(duracao) || 0
+    return parseFloat(duracaoStr) || 0
   }
 
   // Função para obter chave do mês
@@ -474,52 +671,62 @@ const processTMLTMPData = (data, periodo) => {
       }
     })
   } else {
-    // Estrutura original (array de arrays)
-    let dataStartIndex = 14 // Padrão: linha 15 (índice 14)
+    // Nova estrutura (array de arrays) - aba resumo
+    // Coluna A=Data, B=Operador, C=Tempo em Pausa (TMP), D=Tempo Online (TML)
+    let dataStartIndex = 1 // Começar da linha 2 (índice 1), assumindo linha 1 é cabeçalho
+    let linhasDescartadas = 0
     
-    // Procurar por uma linha que tenha dados válidos
-    for (let i = 0; i < Math.min(20, data.length); i++) {
-      const row = data[i]
-      if (Array.isArray(row) && row.length > 15) {
-        const operador = String(row[0] || '').trim()
-        const atividade = String(row[9] || '').trim()
-        
-        // Se encontrou uma linha com operador e atividade válidos, usar como início
-        if (operador && atividade && operador !== 'Operador' && atividade !== 'Atividade') {
-          dataStartIndex = i
-          break
-        }
+    // Verificar se primeira linha é cabeçalho
+    if (data.length > 0 && Array.isArray(data[0])) {
+      const primeiraLinha = data[0]
+      const primeiroCampo = String(primeiraLinha[0] || '').trim().toLowerCase()
+      if (primeiroCampo === 'data' || primeiroCampo.includes('data')) {
+        dataStartIndex = 1 // Pular cabeçalho
+      } else {
+        dataStartIndex = 0 // Não há cabeçalho
       }
     }
 
     // Processar dados a partir do índice encontrado
-    data.slice(dataStartIndex).forEach((row, index) => {
-      if (Array.isArray(row) && row.length > 15) {
-        const operador = String(row[0] || '').trim() // Coluna A (índice 0)
-        const atividade = String(row[9] || '').trim() // Coluna J (índice 9)
-        const dataInicial = String(row[10] || '').trim() // Coluna K (índice 10)
-        const duracao = String(row[15] || '').trim() // Coluna P - DuracaoCalculo
-        
-        // Verificar se a data está dentro do período selecionado
-        if (!isDateInPeriod(dataInicial)) {
-          return
-        }
-
-        const mesKey = getMesKey(dataInicial)
-        mesesSet.add(mesKey)
-        
-        const duracaoMinutos = duracaoParaMinutos(duracao)
-
-        // Processar por tipo de atividade
-        if (atividade.toLowerCase() === 'online') {
-          // Tempo logado
-          tempoLogadoPorMes[mesKey] = (tempoLogadoPorMes[mesKey] || 0) + duracaoMinutos
-        } else if (atividade.toLowerCase() === 'em pausa') {
-          // Tempo pausado
-          tempoPausadoPorMes[mesKey] = (tempoPausadoPorMes[mesKey] || 0) + duracaoMinutos
-        }
+    data.slice(dataStartIndex).forEach((row) => {
+      if (!Array.isArray(row) || row.length < 4) {
+        linhasDescartadas++ // Linha descartada - estrutura inválida
+        return
       }
+
+      // Nova estrutura: A=Data, B=Operador, C=Tempo Online (TML), D=Tempo em Pausa (TMP)
+      const dataStr = String(row[0] || '').trim() // Coluna A - Data
+      const operador = String(row[1] || '').trim() // Coluna B - Operador
+      const tempoOnline = String(row[2] || '').trim() // Coluna C - Tempo Online (TML)
+      const tempoPausa = String(row[3] || '').trim() // Coluna D - Tempo em Pausa (TMP)
+
+      // Filtrar linhas com erros ou vazias
+      if (!dataStr || !operador || temErro(dataStr) || temErro(operador) || temErro(tempoPausa) || temErro(tempoOnline)) {
+        linhasDescartadas++ // Linha descartada - erro ou vazio
+        return
+      }
+
+      // Verificar se a data está dentro do período selecionado
+      if (!isDateInPeriod(dataStr)) {
+        return
+      }
+
+      const mesKey = getMesKey(dataStr)
+      mesesSet.add(mesKey)
+
+      // Converter tempos para minutos
+      const tmlMinutos = duracaoParaMinutos(tempoOnline) // Coluna C - Tempo Online (TML)
+      const tmpMinutos = duracaoParaMinutos(tempoPausa) // Coluna D - Tempo em Pausa (TMP)
+
+      // Somar os tempos por mês
+      tempoPausadoPorMes[mesKey] = (tempoPausadoPorMes[mesKey] || 0) + tmpMinutos
+      tempoLogadoPorMes[mesKey] = (tempoLogadoPorMes[mesKey] || 0) + tmlMinutos
     })
+
+    // Log de linhas descartadas (conforme regras de qualidade)
+    if (linhasDescartadas > 0) {
+      console.log(`[PausasChart] ${linhasDescartadas} linha(s) descartada(s) devido a erros ou valores inválidos`)
+    }
   }
 
   const meses = Array.from(mesesSet).sort()
@@ -540,6 +747,108 @@ const processTMLTMPData = (data, periodo) => {
     tempoMedioPausado,
     totalDias: totalMeses // Mantendo o nome para compatibilidade
   }
+}
+
+// Processar dados por operador para o gráfico
+const processDadosPorOperador = (data, periodo) => {
+  if (!data || data.length === 0) {
+    return {}
+  }
+
+  // Função para verificar se uma data está dentro do período selecionado
+  const isDateInPeriod = (dataInicial) => {
+    if (!periodo) return true
+    
+    try {
+      const rowDate = parseBrazilianDate(dataInicial)
+      if (!rowDate) return true
+      
+      const startDate = new Date(periodo.startDate)
+      const endDate = new Date(periodo.endDate)
+      
+      return rowDate >= startDate && rowDate <= endDate
+    } catch (error) {
+      return true
+    }
+  }
+
+  // Função para verificar se uma célula contém erro
+  const temErro = (valor) => {
+    if (!valor) return false
+    const valorStr = String(valor).trim()
+    return valorStr.includes('#DIV/0!') || valorStr.includes('#ERROR!') || valorStr.includes('#')
+  }
+
+  // Função para converter duração (formato HH:MM:SS) para minutos
+  const duracaoParaMinutos = (duracao) => {
+    if (!duracao) return 0
+    
+    const duracaoStr = String(duracao).trim()
+    if (temErro(duracaoStr)) {
+      return 0
+    }
+    
+    const partes = duracaoStr.split(':')
+    if (partes.length === 3) {
+      const horas = parseInt(partes[0]) || 0
+      const minutos = parseInt(partes[1]) || 0
+      const segundos = parseInt(partes[2]) || 0
+      return horas * 60 + minutos + (segundos / 60)
+    }
+    
+    return parseFloat(duracaoStr) || 0
+  }
+
+  const dadosPorOperador = {}
+  let dataStartIndex = 1
+
+  // Verificar se primeira linha é cabeçalho
+  if (data.length > 0 && Array.isArray(data[0])) {
+    const primeiraLinha = data[0]
+    const primeiroCampo = String(primeiraLinha[0] || '').trim().toLowerCase()
+    if (primeiroCampo === 'data' || primeiroCampo.includes('data')) {
+      dataStartIndex = 1
+    } else {
+      dataStartIndex = 0
+    }
+  }
+
+  // Processar dados
+  data.slice(dataStartIndex).forEach((row) => {
+    if (!Array.isArray(row) || row.length < 4) {
+      return
+    }
+
+    const dataStr = String(row[0] || '').trim()
+    const operador = String(row[1] || '').trim()
+    const tempoPausa = String(row[2] || '').trim()
+    const tempoOnline = String(row[3] || '').trim()
+
+    if (!dataStr || !operador || temErro(dataStr) || temErro(operador) || temErro(tempoPausa) || temErro(tempoOnline)) {
+      return
+    }
+
+    if (!isDateInPeriod(dataStr)) {
+      return
+    }
+
+    if (!dadosPorOperador[operador]) {
+      dadosPorOperador[operador] = {
+        tempoPausado: 0,
+        tempoLogado: 0,
+        total: 0
+      }
+    }
+
+    const tmpMinutos = duracaoParaMinutos(tempoPausa)
+    const tmlMinutos = duracaoParaMinutos(tempoOnline)
+
+    dadosPorOperador[operador].tempoPausado += tmpMinutos
+    dadosPorOperador[operador].tempoLogado += tmlMinutos
+    dadosPorOperador[operador].total += tmpMinutos + tmlMinutos
+  })
+
+  return dadosPorOperador
 }
 
 // Função auxiliar para parse de data brasileira
